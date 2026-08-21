@@ -6,16 +6,16 @@
       <button
         type="button"
         class="top-tip-toggle-btn"
-        aria-label="Show important note"
-        title="Show important note"
+        aria-label="Show alert message"
+        title="Show alert message"
         @click="showTopTip = true"
       ></button>
     </div>
-    <div v-if="hasEvRuleNotice && showTopTip" class="top-tip-wrapper px-2 md:px-3 lg:px-4 pt-2 pb-0">
+    <div v-if="hasEvRuleNotice && showTopTip" class="top-tip-wrapper px-2 md:px-3 lg:px-4">
       <div class="booking-window-tip">
-        <span>Important Note: {{ evRuleNoticeBannerText }}</span>
-        <button type="button" class="read-more-link" @click="noticeDialogVisible = true">Read more...</button>
-        <button type="button" class="tip-close-btn" aria-label="Hide important note" @click="showTopTip = false">
+        <span>Alert Message:</span>
+        <button type="button" class="read-more-link" @click="noticeDialogVisible = true">Click here to read more</button>
+        <button type="button" class="tip-close-btn" aria-label="Hide alert message" @click="showTopTip = false">
           &times;
         </button>
       </div>
@@ -99,7 +99,7 @@
     <BookingStyleModal
       v-if="hasEvRuleNotice"
       v-model="noticeDialogVisible"
-      title="Important Note"
+      title="Alert Message"
       max-width="820px"
       custom-class="important-note-modal"
     >
@@ -178,7 +178,6 @@ watch(showTopTip, (expanded) => {
 })
 const {
   evRuleNoticeContent,
-  evRuleNoticeBannerText,
   evRuleNoticeLoading,
   hasEvRuleNotice,
   loadEvRuleNotice
@@ -224,7 +223,7 @@ const evWindowRange = computed(() => ({
   end: new Date(`${evBookingWindow.value.currentEndDate}T23:59:59`)
 }))
 
-/** 用户可见的预订日：在已发布年度窗口内，不含今天，共 14 天；每日 EV_date_update_time 后滚动 */
+/** 用户可见的预订日：在已发布年度窗口内共 14 天；EV_date_update_time 前含今天，之后从明天起 */
 const visibleBookingRange = computed(() => {
   const { currentStartDate, currentEndDate, evDateUpdateTime } = evBookingWindow.value
   return resolveEvVisibleBookingRange(currentStartDate, currentEndDate, {
@@ -426,7 +425,7 @@ function isSlotPast (dateYmd, periodId) {
   return isEvSlotPast(dateYmd, periodId, timePeriods.value)
 }
 
-// 在已发布年度范围内，按 EV_date_update_time 显示不含今天的未来 14 天
+// 在已发布年度范围内，按 EV_date_update_time：更新前从今天起 14 天，更新后从明天起 14 天
 const weeks = computed(() => {
   const { startYmd, endYmd } = visibleBookingRange.value
   if (!startYmd || !endYmd) return []
@@ -750,9 +749,15 @@ onUnmounted(() => {
   margin-top: 6px;
 }
 
-/* 无 Important Note 时，与有绿条时 top-tip-wrapper 的 pt-2 保持相近顶距 */
+/* 无 Alert Message 时，与有横幅时 top-tip-wrapper 顶距保持相近 */
 .calendar-main.calendar-main-header-gap {
   padding-top: 0.5rem;
+}
+
+.top-tip-wrapper {
+  /* 与折叠态 tip-collapsed-gap 顶距一致，避免展开后 header 下空白变大 */
+  padding-top: 6px;
+  padding-bottom: 0;
 }
 
 .calendar-container {
@@ -773,13 +778,13 @@ onUnmounted(() => {
 
 .booking-window-tip {
   margin-bottom: 0.25rem;
-  background: #ecfdf3;
-  border: 1px solid #bbf7d0;
-  color: #166534;
+  background: #f4b898;
+  border: 1px solid #f5c4a0;
+  color: #fe0302;
   border-radius: 8px;
   padding: 0.45rem 0.75rem;
   font-size: 0.8125rem;
-  font-weight: 600;
+  font-weight: 700;
   display: flex;
   gap: 6px;
   align-items: center;
@@ -789,7 +794,7 @@ onUnmounted(() => {
 .read-more-link {
   border: none;
   background: transparent;
-  color: #0f766e;
+  color: #fe0302;
   font-size: inherit;
   font-weight: 700;
   padding: 0;
@@ -798,17 +803,17 @@ onUnmounted(() => {
 }
 
 .read-more-link:hover {
-  color: #115e59;
+  color: #d10201;
 }
 
 .tip-close-btn {
   margin-left: auto;
   width: 22px;
   height: 22px;
-  border: 1px solid #86efac;
+  border: 1px solid #f5c4a0;
   border-radius: 9999px;
-  background: #dcfce7;
-  color: #166534;
+  background: #fcd9c0;
+  color: #fe0302;
   font-size: 14px;
   font-weight: 700;
   line-height: 1;
@@ -820,8 +825,8 @@ onUnmounted(() => {
 }
 
 .tip-close-btn:hover {
-  background: #bbf7d0;
-  border-color: #4ade80;
+  background: #f5c4a0;
+  border-color: #ef9a6a;
 }
 
 .top-tip-toggle-wrapper {
@@ -837,13 +842,13 @@ onUnmounted(() => {
   transform: translateX(-50%);
   width: 34px;
   height: 18px;
-  border: 1px solid #166534;
+  border: 1px solid #ea580c;
   border-top: none;
   border-radius: 0 0 16px 16px;
-  background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
+  background: linear-gradient(180deg, #fb923c 0%, #f97316 100%);
   cursor: pointer;
   transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-  box-shadow: 0 2px 8px rgba(22, 101, 52, 0.25);
+  box-shadow: 0 2px 8px rgba(234, 88, 12, 0.28);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -860,13 +865,13 @@ onUnmounted(() => {
 }
 
 .top-tip-toggle-btn:hover {
-  background: linear-gradient(180deg, #16a34a 0%, #15803d 100%);
+  background: linear-gradient(180deg, #f97316 0%, #ea580c 100%);
   transform: translateX(-50%) translateY(1px);
-  box-shadow: 0 3px 10px rgba(22, 101, 52, 0.32);
+  box-shadow: 0 3px 10px rgba(234, 88, 12, 0.35);
 }
 
 .top-tip-toggle-btn:focus-visible {
-  outline: 2px solid #bbf7d0;
+  outline: 2px solid #fdba74;
   outline-offset: 2px;
 }
 

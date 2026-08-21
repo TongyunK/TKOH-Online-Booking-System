@@ -857,7 +857,7 @@ const toggleSort = (key) => {
 
 const getSortIndicator = (key) => {
   const idx = sortState.value.findIndex(item => item.key === key)
-  if (idx === -1) return '↕'
+  if (idx === -1) return ''
   const arrow = sortState.value[idx].order === 'asc' ? '↑' : '↓'
   return `${arrow}${idx + 1}`
 }

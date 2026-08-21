@@ -114,26 +114,26 @@
 
               <div class="table-card">
                 <div class="card-title">Merge Display Customization</div>
-                <div class="merge-config-grid">
-                  <div class="merge-config-form">
-                    <el-form label-width="150px">
-                      <el-form-item label="Name &amp; Location">
-                        <el-input
-                          v-model="form.mergeDisplaySettings.panelTitleText"
-                          type="textarea"
-                          :rows="3"
-                          :placeholder="mergePanelTitlePlaceholder"
-                        />
-                      </el-form-item>
-                      <el-form-item label="Footer Ticker Text">
-                        <el-input
-                          v-model.trim="form.mergeDisplaySettings.footerTickerText"
-                          type="textarea"
-                          :rows="4"
-                          placeholder="e.g. 請在會議期間佩戴外科口罩並保持安靜。For enquiries regarding Conference Rooms, please contact General Office."
-                        />
-                      </el-form-item>
-                      <el-form-item label="QR Code Image">
+                <div class="merge-config-form">
+                  <el-form label-width="150px">
+                    <el-form-item label="Name &amp; Location">
+                      <el-input
+                        v-model="form.mergeDisplaySettings.panelTitleText"
+                        type="textarea"
+                        :rows="3"
+                        :placeholder="mergePanelTitlePlaceholder"
+                      />
+                    </el-form-item>
+                    <el-form-item label="Footer Ticker Text">
+                      <el-input
+                        v-model.trim="form.mergeDisplaySettings.footerTickerText"
+                        type="textarea"
+                        :rows="4"
+                        placeholder="e.g. 請在會議期間佩戴外科口罩並保持安靜。For enquiries regarding Conference Rooms, please contact General Office."
+                      />
+                    </el-form-item>
+                    <el-form-item label="QR Code Image">
+                      <div class="qr-config-section">
                         <div class="qr-config-actions">
                           <el-upload
                             action="#"
@@ -153,36 +153,26 @@
                             Clear Image
                           </el-button>
                         </div>
-                      </el-form-item>
-                    </el-form>
-                  </div>
-
-                  <div class="merge-preview-card">
-                    <div class="preview-title">Merge Screen Preview</div>
-                    <div class="preview-top">
-                      <div class="preview-header-text merge-preview-title">{{ form.mergeDisplaySettings.panelTitleText || 'Name & location preview' }}</div>
-                      <ApiProtectedImg
-                        v-if="form.mergeDisplaySettings.qrCodeImage"
-                        :src="form.mergeDisplaySettings.qrCodeImage"
-                        alt="QR Code Preview"
-                        class="preview-qr"
-                      />
-                      <img
-                        v-else
-                        :src="defaultMergeQrSrc"
-                        alt="QR Code Preview"
-                        class="preview-qr"
-                      />
-                    </div>
-                    <div class="preview-footer">
-                      <div class="preview-footer-ticker">
-                        <div class="preview-footer-track">
-                          <span class="preview-footer-text">{{ form.mergeDisplaySettings.footerTickerText || 'Footer ticker text preview' }}</span>
-                          <span class="preview-footer-text" aria-hidden="true">{{ form.mergeDisplaySettings.footerTickerText || 'Footer ticker text preview' }}</span>
+                        <div class="qr-preview">
+                          <ApiProtectedImg
+                            v-if="form.mergeDisplaySettings.qrCodeImage"
+                            :src="form.mergeDisplaySettings.qrCodeImage"
+                            alt="Uploaded QR Code"
+                            class="qr-preview-image"
+                          />
+                          <img
+                            v-else
+                            :src="defaultMergeQrSrc"
+                            alt="Default QR Code"
+                            class="qr-preview-image"
+                          />
+                          <span class="qr-preview-label">
+                            {{ form.mergeDisplaySettings.qrCodeImage ? 'Custom QR Code uploaded' : 'Default QR Code (no custom image uploaded)' }}
+                          </span>
                         </div>
                       </div>
-                    </div>
-                  </div>
+                    </el-form-item>
+                  </el-form>
                 </div>
               </div>
             </el-tab-pane>
@@ -591,13 +581,6 @@ const handleClearQrImage = async () => {
   min-height: 0;
 }
 
-.merge-config-grid {
-  display: grid;
-  grid-template-columns: 1.4fr 1fr;
-  gap: 0.9rem;
-  align-items: stretch;
-}
-
 .merge-config-form {
   border: 1px solid #e5e7eb;
   border-radius: 0.5rem;
@@ -612,53 +595,19 @@ const handleClearQrImage = async () => {
   flex-wrap: wrap;
 }
 
-.danger-light-btn {
-  border-color: #fecaca !important;
-  color: #b91c1c !important;
-}
-
-.merge-preview-card {
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  background: #fff;
-  overflow: hidden;
-  height: 100%;
+.qr-config-section {
   display: flex;
   flex-direction: column;
+  gap: 0.75rem;
 }
 
-.preview-title {
-  padding: 0.55rem 0.75rem;
-  background: #f3f4f6;
-  border-bottom: 1px solid #e5e7eb;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  color: #374151;
-}
-
-.preview-top {
-  min-height: 130px;
-  flex: 1;
-  padding: 0.75rem;
-  background: linear-gradient(180deg, #f7b75a 0%, #f29b3a 100%);
+.qr-preview {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
+  gap: 0.75rem;
 }
 
-.preview-header-text {
-  font-size: 0.8125rem;
-  font-weight: 700;
-  color: #111827;
-  line-height: 1.3;
-  min-width: 0;
-}
-
-.merge-preview-title {
-  white-space: pre-line;
-}
-
-.preview-qr {
+.qr-preview-image {
   width: 84px;
   height: 84px;
   border-radius: 4px;
@@ -668,51 +617,15 @@ const handleClearQrImage = async () => {
   flex-shrink: 0;
 }
 
-.preview-qr-placeholder {
-  width: 84px;
-  height: 84px;
-  border-radius: 4px;
-  border: 1px dashed rgba(0, 0, 0, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #6b7280;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.preview-footer {
-  padding: 0.65rem 0.75rem;
-  background: rgba(90, 170, 220, 0.9);
-  color: #111827;
+.qr-preview-label {
   font-size: 0.8125rem;
-  line-height: 1.35;
-  overflow: hidden;
+  color: #6b7280;
+  line-height: 1.4;
 }
 
-.preview-footer-ticker {
-  width: 100%;
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-.preview-footer-track {
-  display: inline-flex;
-  width: max-content;
-  align-items: center;
-  animation: previewTickerScroll 18s linear infinite;
-}
-
-.preview-footer-text {
-  display: inline-block;
-  padding-right: 2.5rem;
-  white-space: nowrap;
-}
-
-@media (max-width: 1100px) {
-  .merge-config-grid {
-    grid-template-columns: 1fr;
-  }
+.danger-light-btn {
+  border-color: #fecaca !important;
+  color: #b91c1c !important;
 }
 
 .page-content :deep(.el-table) {
@@ -916,15 +829,6 @@ const handleClearQrImage = async () => {
   to {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-
-@keyframes previewTickerScroll {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
   }
 }
 </style>

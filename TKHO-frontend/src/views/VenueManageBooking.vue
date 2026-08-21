@@ -307,22 +307,25 @@
                     </template>
                     <div class="booking-popover-content">
                       <div class="booking-popover-row"><span class="popover-label">Meeting / Event</span><span class="popover-value">{{ booking.topic || '-' }}</span></div>
-                      <div v-if="!isAdminAllBookingsView && canViewMyNote(booking)" class="booking-popover-row"><span class="popover-label">My Note</span><span class="popover-value">{{ booking.myNote || '-' }}</span></div>
+                      <div v-if="!isAdminAllBookingsView" class="booking-popover-row"><span class="popover-label">My Note</span><span class="popover-value">{{ booking.myNote || '-' }}</span></div>
                       <div class="booking-popover-row"><span class="popover-label">Reserved By</span><span class="popover-value">{{ booking.reservedBy || '-' }}</span></div>
                       <div class="booking-popover-row"><span class="popover-label">Contact</span><span class="popover-value">{{ booking.contact || '-' }}</span></div>
                       <div class="booking-popover-row"><span class="popover-label">Email</span><span class="popover-value">{{ booking.email || '-' }}</span></div>
                       <div class="booking-popover-row"><span class="popover-label">Tea Service</span><span class="popover-value">{{ formatTeaServiceStatus(booking) }}</span></div>
                       <div class="booking-popover-row"><span class="popover-label">Tea Special Requests</span><span class="popover-value">{{ formatTeaSpecialRequest(booking) }}</span></div>
-                      <div class="booking-popover-row">
-                        <span class="popover-label">Approval</span>
-                        <span :class="['status-badge', 'badge-approval-' + (booking.approvalStatus || 'pending')]">
-                          {{ formatStatus(booking.approvalStatus || 'pending') }}
-                        </span>
-                      </div>
-                      <div v-if="String(booking.approvalStatus || '').toLowerCase() === 'rejected'" class="booking-popover-row">
-                        <span class="popover-label">Reason</span>
-                        <span class="popover-value">{{ booking.reason || booking.rejectReason || '-' }}</span>
-                      </div>
+                      <div class="booking-popover-row"><span class="popover-label">Display on Homepage</span><span class="popover-value">{{ formatDisplayOnHomepage(booking) }}</span></div>
+                      <template v-if="isAdminAllBookingsView">
+                        <div class="booking-popover-row">
+                          <span class="popover-label">Approval</span>
+                          <span :class="['status-badge', 'badge-approval-' + (booking.approvalStatus || 'pending')]">
+                            {{ formatStatus(booking.approvalStatus || 'pending') }}
+                          </span>
+                        </div>
+                        <div v-if="String(booking.approvalStatus || '').toLowerCase() === 'rejected'" class="booking-popover-row">
+                          <span class="popover-label">Reason</span>
+                          <span class="popover-value">{{ booking.reason || booking.rejectReason || '-' }}</span>
+                        </div>
+                      </template>
                     </div>
                   </el-popover>
                   <span :class="['status-badge', 'badge-' + booking.status]">
@@ -374,19 +377,37 @@
                   </span>
                 </div>
                 <div class="card-row">
+                  <span class="card-label">Display on Homepage</span>
+                  <span class="card-value">
+                    <span
+                      :class="[
+                        'status-badge',
+                        'card-display-homepage-badge',
+                        booking.displayOnHomepage !== false ? 'badge-display-homepage-yes' : 'badge-display-homepage-no'
+                      ]"
+                    >
+                      {{ formatDisplayOnHomepage(booking) }}
+                    </span>
+                  </span>
+                </div>
+                <div class="card-row">
                   <span class="card-label application-date-label">Application Date</span>
                   <span class="card-value">{{ formatApplicationDateForCard(booking.bookedOn) }}</span>
                 </div>
-                <div class="card-row">
+                <div v-if="isAdminAllBookingsView" class="card-row">
                   <span class="card-label">Approval</span>
                   <span :class="['status-badge', 'card-approval-badge', 'badge-approval-' + (booking.approvalStatus || 'pending')]">
                     {{ formatStatus(booking.approvalStatus || 'pending') }}
                   </span>
                 </div>
+                <div v-if="isBookingCanceledStatus(booking.status)" class="card-row">
+                  <span class="card-label">Cancelled by</span>
+                  <span class="card-value">{{ formatCancelledBy(booking) }}</span>
+                </div>
               </div>
               <div class="card-footer">
                 <div
-                  v-if="isAdminAllBookingsView && (canShowHandleButton(booking) || canShowAdminAllBookingsEditButton(booking) || canShowAdminAllBookingsCancelButton(booking))"
+                  v-if="isAdminAllBookingsView && (canShowAdminAllBookingsEditButton(booking) || canShowAdminAllBookingsCancelButton(booking))"
                   class="card-footer-actions"
                 >
                   <button
@@ -403,33 +424,17 @@
                     class="btn-action btn-cancel-small"
                     @click="cancelBooking(booking.id)"
                   >
-                    Cancel
-                  </button>
-                  <button
-                    v-if="canShowHandleButton(booking)"
-                    type="button"
-                    class="btn-action btn-edit"
-                    @click="openHandleBooking(booking)"
-                  >
-                    Handle
+                    Release
                   </button>
                 </div>
                 <div v-else-if="!isAdminAllBookingsView" class="card-footer-actions">
                   <button
-                    v-if="canShowEditButton(booking)"
+                    v-if="canShowCancelButton(booking)"
                     type="button"
-                    class="btn-action btn-edit"
-                    @click="editBooking(booking.id)"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    v-if="canShowToggleBookingButton(booking)"
-                    type="button"
-                    :class="['btn-action', 'btn-cancel-small', { 'btn-restore-small': isBookingCanceledStatus(booking.status) }]"
+                    class="btn-action btn-cancel-small"
                     @click="cancelBooking(booking.id)"
                   >
-                    {{ isBookingCanceledStatus(booking.status) ? 'Restore' : 'Cancel' }}
+                    Cancel
                   </button>
                 </div>
               </div>
@@ -507,7 +512,7 @@
                       @update:model-value="(v) => updateFilter('status', v)"
                     />
                   </th>
-                  <th v-if="availableColumns[7].visible">
+                  <th v-if="isApprovalTableColumnVisible">
                     <SortableFilterHeader
                       label="Approval"
                       :sort-indicator="getSortIndicator('approvalStatus')"
@@ -539,7 +544,19 @@
                       <span class="sort-indicator">{{ getSortIndicator('bookedOn') }}</span>
                     </button>
                   </th>
+                  <th v-if="isDisplayOnHomepageTableColumnVisible" class="col-display-homepage">
+                    <button type="button" class="th-sort-btn" @click="toggleSort('displayOnHomepage')">
+                      Display on Homepage
+                      <span class="sort-indicator">{{ getSortIndicator('displayOnHomepage') }}</span>
+                    </button>
+                  </th>
                   <th v-if="isMyNoteTableColumnVisible" class="col-mynote">My Note</th>
+                  <th v-if="isCancelledByTableColumnVisible">
+                    <button type="button" class="th-sort-btn" @click="toggleSort('cancelledBy')">
+                      Cancelled by
+                      <span class="sort-indicator">{{ getSortIndicator('cancelledBy') }}</span>
+                    </button>
+                  </th>
                   <th class="col-actions" :class="{ 'col-actions--compact': !isAdminAllBookingsView }">Actions</th>
                 </tr>
               </thead>
@@ -560,16 +577,28 @@
                       {{ formatStatus(booking.status) }}
                     </span>
                   </td>
-                  <td v-if="availableColumns[7].visible">
+                  <td v-if="isApprovalTableColumnVisible">
                     <span :class="['status-badge', 'badge-approval-' + (booking.approvalStatus || 'pending')]">
                       {{ formatStatus(booking.approvalStatus || 'pending') }}
                     </span>
                   </td>
                   <td v-if="isAdminAllBookingsView">{{ booking.submitter || '-' }}</td>
                   <td v-if="availableColumns[8].visible">{{ booking.bookedOn }}</td>
+                  <td v-if="isDisplayOnHomepageTableColumnVisible" class="col-display-homepage">
+                    <span
+                      :class="[
+                        'status-badge',
+                        'display-homepage-badge',
+                        booking.displayOnHomepage !== false ? 'badge-display-homepage-yes' : 'badge-display-homepage-no'
+                      ]"
+                    >
+                      {{ formatDisplayOnHomepage(booking) }}
+                    </span>
+                  </td>
                   <td v-if="isMyNoteTableColumnVisible" class="col-mynote">
                     <span class="col-mynote-text">{{ booking.myNote || '-' }}</span>
                   </td>
+                  <td v-if="isCancelledByTableColumnVisible">{{ formatCancelledBy(booking) }}</td>
                   <td class="actions-td" :class="{ 'actions-td--compact': !isAdminAllBookingsView }">
                     <div class="actions-cell">
                       <template v-if="isAdminAllBookingsView">
@@ -582,38 +611,22 @@
                           Edit
                         </button>
                         <button
-                          v-if="canShowHandleButton(booking)"
-                          type="button"
-                          class="btn-action btn-edit"
-                          @click="openHandleBooking(booking)"
-                        >
-                          Handle
-                        </button>
-                        <button
                           v-if="canShowAdminAllBookingsCancelButton(booking)"
                           type="button"
                           class="btn-action btn-cancel-small"
                           @click="cancelBooking(booking.id)"
                         >
-                          Cancel
+                          Release
                         </button>
                       </template>
                       <template v-else>
                         <button
-                          v-if="canShowEditButton(booking)"
+                          v-if="canShowCancelButton(booking)"
                           type="button"
-                          class="btn-action btn-edit"
-                          @click="editBooking(booking.id)"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          v-if="canShowToggleBookingButton(booking)"
-                          type="button"
-                          :class="['btn-action', 'btn-cancel-small', { 'btn-restore-small': isBookingCanceledStatus(booking.status) }]"
+                          class="btn-action btn-cancel-small"
                           @click="cancelBooking(booking.id)"
                         >
-                          {{ isBookingCanceledStatus(booking.status) ? 'Restore' : 'Cancel' }}
+                          Cancel
                         </button>
                       </template>
                     </div>
@@ -683,6 +696,8 @@
       :allow-admin-reserved-by="true"
       :venue-list="venueListForBookingDialog"
       :public-holiday-dates="holidaysByDate"
+      :booking-window-start="venueBookingWindow.currentStartDate"
+      :booking-window-end="venueBookingWindow.currentEndDate"
       @confirm="confirmAdminBookingDialog"
       @close="closeAdminBookingDialog"
     />
@@ -724,8 +739,12 @@
           <el-input
             v-model="editForm.topic"
             type="textarea"
-            :rows="2"
+            :autosize="{ minRows: 1, maxRows: 4 }"
+            resize="none"
+            class="meeting-title-textarea"
             placeholder="Enter meeting or event name"
+            maxlength="80"
+            show-word-limit
             :disabled="isEditTopicLocked"
           />
         </el-form-item>
@@ -739,53 +758,45 @@
               format="DD/MM/YYYY"
               placeholder="Select booking date"
               :disabled="isEditScheduleLocked"
+              :disabled-date="disabledEditBookingDate"
               :teleported="false"
               placement="bottom"
               popper-class="edit-booking-date-popper"
               :popper-options="editDatePopperOptions"
               style="width: 100%;"
             />
-            <span v-if="!isEditScheduleLocked && editAvailabilityFieldOk.date" class="availability-ok" aria-hidden="true">✓</span>
-            <span v-else-if="!isEditScheduleLocked && editAvailabilityFieldFail.date" class="availability-fail" aria-hidden="true">✕</span>
+            <span v-if="!isEditScheduleLocked && editAvailabilityFieldOk.date" class="availability-ok" aria-hidden="true">?</span>
+            <span v-else-if="!isEditScheduleLocked && editAvailabilityFieldFail.date" class="availability-fail" aria-hidden="true">?</span>
           </div>
         </el-form-item>
         <div class="form-row">
           <el-form-item label="Start Time" prop="startTime" class="form-item-half">
             <div class="field-with-availability">
-              <el-time-picker
+              <VenueTimePicker
                 v-model="editForm.startTime"
                 class="field-with-availability__control venue-edit-time-picker"
-                format="HH:mm"
-                value-format="HH:mm"
-                clearable
                 placeholder="Select start time"
+                clearable
                 :disabled="isEditScheduleLocked"
                 :teleported="false"
-                popper-class="edit-venue-time-picker-popper"
-                :disabled-hours="disabledVenueBookingHours"
-                :disabled-minutes="disabledVenueBookingMinutes"
               />
-              <span v-if="!isEditScheduleLocked && editAvailabilityFieldOk.startTime" class="availability-ok" aria-hidden="true">✓</span>
-              <span v-else-if="!isEditScheduleLocked && editAvailabilityFieldFail.startTime" class="availability-fail" aria-hidden="true">✕</span>
+              <span v-if="!isEditScheduleLocked && editAvailabilityFieldOk.startTime" class="availability-ok" aria-hidden="true">?</span>
+              <span v-else-if="!isEditScheduleLocked && editAvailabilityFieldFail.startTime" class="availability-fail" aria-hidden="true">?</span>
             </div>
           </el-form-item>
           <el-form-item label="End Time" prop="endTime" class="form-item-half">
             <div class="field-with-availability">
-              <el-time-picker
+              <VenueTimePicker
                 v-model="editForm.endTime"
                 class="field-with-availability__control venue-edit-time-picker"
-                format="HH:mm"
-                value-format="HH:mm"
-                clearable
                 placeholder="Select end time"
+                clearable
                 :disabled="isEditScheduleLocked"
                 :teleported="false"
-                popper-class="edit-venue-time-picker-popper"
-                :disabled-hours="disabledVenueBookingHours"
-                :disabled-minutes="disabledVenueBookingMinutes"
+                :min-time="editForm.startTime"
               />
-              <span v-if="!isEditScheduleLocked && editAvailabilityFieldOk.endTime" class="availability-ok" aria-hidden="true">✓</span>
-              <span v-else-if="!isEditScheduleLocked && editAvailabilityFieldFail.endTime" class="availability-fail" aria-hidden="true">✕</span>
+              <span v-if="!isEditScheduleLocked && editAvailabilityFieldOk.endTime" class="availability-ok" aria-hidden="true">?</span>
+              <span v-else-if="!isEditScheduleLocked && editAvailabilityFieldFail.endTime" class="availability-fail" aria-hidden="true">?</span>
             </div>
           </el-form-item>
         </div>
@@ -811,15 +822,6 @@
             style="width: 100%"
             :disabled="isEditDetailsLocked"
           />
-        </el-form-item>
-        <el-form-item label="Show title on display?" class="edit-tea-line no-wrap-label">
-          <el-radio-group
-            v-model="editForm.displayTitlePublic"
-            :disabled="isEditScheduleLocked"
-          >
-            <el-radio :label="true">Yes</el-radio>
-            <el-radio :label="false">No</el-radio>
-          </el-radio-group>
         </el-form-item>
         <el-form-item
           v-if="showEditTeaServiceRequiredOption"
@@ -860,7 +862,7 @@
               <div class="tea-service-option-row">
                 <el-radio label="1">
                   <span class="tea-option-label">
-                    Option 1: Tea / Attendee <span class="tea-option-zh">（每位茶）</span>
+                    Option 1: Tea / Attendee <span class="tea-option-zh">?????</span>
                   </span>
                 </el-radio>
               </div>
@@ -868,7 +870,7 @@
               <div class="tea-service-option-row tea-service-option-row--inline">
                 <el-radio label="2">
                   <span class="tea-option-label">
-                    Option 2: Tea / Attendee <span class="tea-option-zh">（每位茶）</span>,
+                    Option 2: Tea / Attendee <span class="tea-option-zh">?????</span>,
                   </span>
                 </el-radio>
                 <el-input-number
@@ -886,7 +888,7 @@
                   controls-position="right"
                   class="tea-inline-number"
                 />
-                <span class="tea-inline-text tea-option-zh">(X對X)</span>
+                <span class="tea-inline-text tea-option-zh">(X?X)</span>
               </div>
 
               <div class="tea-service-option-row tea-service-option-row--inline">
@@ -900,7 +902,7 @@
                   controls-position="right"
                   class="tea-inline-number"
                 />
-                <span class="tea-inline-text">Pot(s) <span class="tea-option-zh">(壺茶)</span> + Water</span>
+                <span class="tea-inline-text">Pot(s) <span class="tea-option-zh">(??)</span> + Water</span>
                 <el-input-number
                   v-model="editForm.teaServiceWaterPots"
                   :min="0"
@@ -908,29 +910,61 @@
                   controls-position="right"
                   class="tea-inline-number"
                 />
-                <span class="tea-inline-text">Pot(s) <span class="tea-option-zh">(壺水)</span> + cups</span>
-              </div>
-
-              <div class="tea-service-option-row tea-service-option-row--stacked">
-                <el-radio label="4">
-                  <span class="tea-option-label">
-                    Option 4: Special requests other than Option 1 / 2 / 3
-                    <span class="tea-option-zh tea-option-zh--required">(請用中文輸入)</span>
-                  </span>
-                </el-radio>
-                <el-input
-                  v-model="editForm.teaServiceSpecialRequest"
-                  type="textarea"
-                  :autosize="{ minRows: 2, maxRows: 4 }"
-                  resize="none"
-                  class="tea-service-special-textarea"
-                  :disabled="editForm.teaServiceOption !== '4' || isEditDetailsLocked || isEditTeaServiceUnavailable"
-                  placeholder="請用中文輸入特殊要求"
-                />
+                <span class="tea-inline-text">Pot(s) <span class="tea-option-zh">(??)</span> + cups</span>
               </div>
             </el-radio-group>
+
+            <div
+              v-if="isAdmin"
+              class="tea-service-option-row tea-service-option-row--stacked tea-service-option4"
+            >
+              <el-checkbox
+                v-model="editForm.teaServiceOption4"
+                :disabled="
+                  isEditDetailsLocked ||
+                  isEditTeaServiceUnavailable ||
+                  !['1', '2', '3'].includes(String(editForm.teaServiceOption || ''))
+                "
+              >
+                <span class="tea-option-label">
+                  Option 4: Special requests other than Option 1 / 2 / 3
+                  <span class="tea-option-zh tea-option-zh--required">(??????)</span>
+                </span>
+              </el-checkbox>
+              <el-input
+                v-model="editForm.teaServiceSpecialRequest"
+                type="textarea"
+                :autosize="{ minRows: 2, maxRows: 4 }"
+                resize="none"
+                class="tea-service-special-textarea"
+                :disabled="
+                  !editForm.teaServiceOption4 ||
+                  isEditDetailsLocked ||
+                  isEditTeaServiceUnavailable
+                "
+                placeholder="??????????"
+              />
+            </div>
           </div>
         </div>
+        <el-form-item
+          v-if="showEditUploadEventTitleOption"
+          class="edit-tea-line display-title-public-item"
+          label-width="0"
+        >
+          <div class="display-title-public-row">
+            <span class="display-title-public-label">
+              Upload event title to "Upcoming Events" on TKOH homepage?
+            </span>
+            <el-radio-group
+              v-model="editForm.displayOnHomepage"
+              :disabled="isEditScheduleLocked"
+            >
+              <el-radio :label="true">Yes</el-radio>
+              <el-radio :label="false">No</el-radio>
+            </el-radio-group>
+          </div>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button type="default" class="cancel-btn" @click="showEditDialog = false">Cancel</el-button>
@@ -938,7 +972,7 @@
       </template>
     </BookingStyleModal>
 
-    <!-- Handle Booking：All Bookings + upcoming，对齐 MeetingApproval -->
+    <!-- Handle Booking?All Bookings + upcoming????MeetingApproval -->
     <BookingStyleModal
       v-model="showHandleDialog"
       title="Handle Booking"
@@ -951,7 +985,15 @@
           <el-input v-model="handleForm.room" disabled />
         </el-form-item>
         <el-form-item label="Meeting / Event Title" class="no-wrap-label">
-          <el-input v-model="handleForm.topic" type="textarea" :rows="2" />
+          <el-input
+            v-model="handleForm.topic"
+            type="textarea"
+            :autosize="{ minRows: 1, maxRows: 4 }"
+            resize="none"
+            class="meeting-title-textarea"
+            maxlength="80"
+            show-word-limit
+          />
         </el-form-item>
         <el-form-item label="Date">
           <el-input v-model="handleForm.date" disabled />
@@ -964,6 +1006,21 @@
         </el-form-item>
         <el-form-item label="Tea Service">
           <el-input v-model="handleForm.teaService" disabled />
+        </el-form-item>
+        <el-form-item
+          v-if="showHandleUploadEventTitleOption"
+          class="display-title-public-item"
+          label-width="0"
+        >
+          <div class="display-title-public-row">
+            <span class="display-title-public-label">
+              Upload event title to "Upcoming Events" on TKOH homepage?
+            </span>
+            <el-radio-group v-model="handleForm.displayOnHomepage">
+              <el-radio :label="true">Yes</el-radio>
+              <el-radio :label="false">No</el-radio>
+            </el-radio-group>
+          </div>
         </el-form-item>
         <div class="contact-info-section">
           <el-form-item label="Name" label-width="154px">
@@ -1048,10 +1105,12 @@ import { storeToRefs } from 'pinia'
 import AppHeader from '../components/AppHeader.vue'
 import BookingStyleModal from '@/components/BookingStyleModal.vue'
 import VenueBookingDialog from '@/components/VenueBookingDialog.vue'
+import VenueTimePicker from '@/components/VenueTimePicker.vue'
 import SortableFilterHeader from '@/components/admin/SortableFilterHeader.vue'
 import { InfoFilled } from '@element-plus/icons-vue'
 import {
   getVenueManagementVenues,
+  getVenueBookingWindow,
   approveVenueManageBooking,
   listVenueManageBookings,
   rejectVenueManageBooking,
@@ -1063,9 +1122,11 @@ import { getPrompts } from '@/api/promptManagement'
 import { useAdminStore } from '@/stores/admin'
 import { notifyAdminPendingUpdated } from '@/utils/adminPendingSync'
 import { HTML_ZOOM_BREAKPOINT_MQ } from '@/utils/venueCalendarApi'
-import { formatTeaServiceDisplay, parseTeaServiceToForm, validateTeaServiceForm, buildTeaServiceApiPayload, venueOffersTeaService } from '@/utils/venueTeaService'
+import { formatTeaServiceDisplay, parseTeaServiceToForm, validateTeaServiceForm, buildTeaServiceApiPayload, venueOffersTeaService, stripTeaServiceSpecialSuffix } from '@/utils/venueTeaService'
+import { validateVenueBookingDateRange, isYmdOutsideVenueBookingDateRange } from '@/utils/venueBookingDateRange'
 import { pickPromptTooltipText } from '@/utils/promptTooltip'
 import { todayYmdInAppTimeZone } from '@/utils/appTimezone'
+import { isRestrictedBookingDay } from '@/utils/bookingDateRestriction'
 import { useHkPublicHolidays } from '@/composables/useHkPublicHolidays'
 import * as XLSX from 'xlsx'
 
@@ -1150,16 +1211,37 @@ const isAdminAllBookingsView = computed(
   () => isAdmin.value && bookingView.value === 'all'
 )
 
-/** All Bookings 表格不显示 My Note；My Bookings 仍受列筛选控制 */
-const columnsForTablePicker = computed(() =>
-  isAdminAllBookingsView.value
+/** All Bookings ??????My Note?????My Bookings???? Approval?????Cancelled ???? Cancelled by */
+const columnsForTablePicker = computed(() => {
+  let cols = isAdminAllBookingsView.value
     ? availableColumns.value.filter((col) => col.key !== 'myNote')
-    : availableColumns.value
-)
+    : availableColumns.value.filter((col) => col.key !== 'approvalStatus')
+  if (!statusFilters.value.cancelled) {
+    cols = cols.filter((col) => col.key !== 'cancelledBy')
+  }
+  return cols
+})
 
 const isMyNoteTableColumnVisible = computed(() => {
   if (isAdminAllBookingsView.value) return false
   const col = availableColumns.value.find((c) => c.key === 'myNote')
+  return Boolean(col?.visible)
+})
+
+const isApprovalTableColumnVisible = computed(() => {
+  if (!isAdminAllBookingsView.value) return false
+  const col = availableColumns.value.find((c) => c.key === 'approvalStatus')
+  return Boolean(col?.visible)
+})
+
+const isCancelledByTableColumnVisible = computed(() => {
+  if (!statusFilters.value.cancelled) return false
+  const col = availableColumns.value.find((c) => c.key === 'cancelledBy')
+  return Boolean(col?.visible)
+})
+
+const isDisplayOnHomepageTableColumnVisible = computed(() => {
+  const col = availableColumns.value.find((c) => c.key === 'displayOnHomepage')
   return Boolean(col?.visible)
 })
 const searchQuery = ref('')
@@ -1191,12 +1273,34 @@ const showEditDialog = ref(false)
 const adminBookingDialogVisible = ref(false)
 const adminDialogBooking = ref(null)
 const { holidaysByDate, loadHolidays } = useHkPublicHolidays()
+
+const venueBookingWindow = ref({
+  currentStartDate: '',
+  currentEndDate: ''
+})
+
+function disabledEditBookingDate (date) {
+  const ymd = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  if (!isAdmin.value && ymd < todayYmdInAppTimeZone()) return true
+  if (isYmdOutsideVenueBookingDateRange(
+    ymd,
+    venueBookingWindow.value.currentStartDate,
+    venueBookingWindow.value.currentEndDate
+  )) {
+    return true
+  }
+  return isRestrictedBookingDay(ymd, {
+    isAdmin: isAdmin.value,
+    publicHolidayDates: holidaysByDate.value
+  })
+}
 const cancelBookingId = ref(null)
 const currentEditBookingId = ref(null)
 const currentEditBookingApprovalStatus = ref('')
 const editScheduleSnapshot = ref({ room: '', date: '', startTime: '', endTime: '' })
 const editTeaSelectionSnapshot = ref({
   teaServiceOption: '1',
+  teaServiceOption4: false,
   teaServiceRatioFrom: null,
   teaServiceRatioTo: null,
   teaServiceTeaPots: null,
@@ -1215,36 +1319,27 @@ const getBookingStartDateTime = (booking) => {
   return date
 }
 
-const getBookingEndDateTime = (booking) => {
-  const date = parseDate(booking?.date || '')
-  if (Number.isNaN(date.getTime())) return null
-  const end = String(booking?.time || '').split(' - ')[1] || ''
-  const [h = '0', m = '0'] = end.split(':')
-  date.setHours(Number.parseInt(h, 10) || 0, Number.parseInt(m, 10) || 0, 0, 0)
-  return date
-}
-
 const canToggleBookingStatus = (booking) => {
   const startAt = getBookingStartDateTime(booking)
   if (!startAt) return false
   return startAt.getTime() > Date.now()
 }
 
-const canShowToggleBookingButton = (booking) => {
-  const s = String(booking?.status || '').toLowerCase()
-  return s === 'upcoming' || s === 'canceled' || s === 'cancelled'
+/** ????????upcoming??????Restore */
+const canShowCancelButton = (booking) => {
+  return String(booking?.status || '').toLowerCase() === 'upcoming'
 }
 
 const canShowEditButton = (booking) => {
   return String(booking?.status || '').toLowerCase() === 'upcoming'
 }
 
-/** All Bookings：管理员可编辑任意 upcoming 预订（与 EV 一致，不受审批状态限制） */
+/** All Bookings??????????upcoming ???? EV ???????????? */
 const canShowAdminAllBookingsEditButton = (booking) => {
   return isAdminAllBookingsView.value && canShowEditButton(booking)
 }
 
-/** All Bookings：管理员可取消任意 upcoming 预订（取消后不可恢复，与 EV 一致） */
+/** All Bookings??????????upcoming ???????????? EV ??? */
 const canShowAdminAllBookingsCancelButton = (booking) => {
   return isAdminAllBookingsView.value && canShowEditButton(booking)
 }
@@ -1256,6 +1351,7 @@ const venueListForBookingDialog = computed(() =>
     color: venue.color,
     roomCapacity: venue.roomCapacity,
     teaServiceAvailable: venue.teaServiceAvailable,
+    userDefinedUploadEventTitle: venue.userDefinedUploadEventTitle !== false,
     status: 'active'
   }))
 )
@@ -1274,7 +1370,7 @@ function mapManageBookingToDialogBooking (booking) {
     approvalStatus: booking.approvalStatus || '',
     attendeeCount: booking.teaServiceParticipants ?? booking.attendees ?? booking.attendeeCount ?? 1,
     teaServiceRequired: Boolean(booking.teaServiceRequired),
-    displayTitlePublic: booking.displayTitlePublic !== false,
+    displayOnHomepage: booking.displayOnHomepage !== false,
     reservedByUserId: booking.employeeId != null ? String(booking.employeeId) : '',
     reservedBy: booking.reservedBy || '',
     corpId: booking.corpId || '',
@@ -1321,9 +1417,9 @@ async function confirmAdminBookingDialog (bookingData) {
       teaServiceWaterPots: teaPayload.teaServiceWaterPots,
       teaServiceParticipants: Number(bookingData.attendeeCount) || 1,
       teaServiceSpecialRequest: teaPayload.teaServiceSpecialRequest || '',
-      displayTitlePublic: bookingData.displayTitlePublic !== false,
+      displayOnHomepage: bookingData.displayOnHomepage !== false,
       reservedByUserId: bookingData.reservedByUserId || undefined
-      // 管理员不编辑 My Note，不传 myNote 以免覆盖用户私密备注
+      // ?????? My Note????myNote ??????????
     })
     await loadBookings()
     closeAdminBookingDialog()
@@ -1337,13 +1433,6 @@ const canShowHandleButton = (booking) => {
   const status = String(booking?.status || '').toLowerCase()
   const approvalStatus = String(booking?.approvalStatus || 'pending').toLowerCase()
   return status === 'upcoming' && approvalStatus === 'pending'
-}
-
-const isSameBooker = (a, b) => {
-  if (a?.employeeId != null && b?.employeeId != null) return String(a.employeeId) === String(b.employeeId)
-  if (a?.corpId && b?.corpId) return String(a.corpId) === String(b.corpId)
-  if (a?.email && b?.email) return String(a.email).toLowerCase() === String(b.email).toLowerCase()
-  return String(a?.reservedBy || '').trim().toLowerCase() === String(b?.reservedBy || '').trim().toLowerCase()
 }
 
 const isOwnBooking = (booking) => {
@@ -1367,43 +1456,22 @@ const canViewMyNote = (booking) => {
   return String(booking?.myNote || '').trim().length > 0
 }
 
-const hasRestoreConflictWithOthers = (targetBooking) => {
-  const targetStart = getBookingStartDateTime(targetBooking)
-  const targetEnd = getBookingEndDateTime(targetBooking)
-  if (!targetStart || !targetEnd) return false
-
-  return bookings.value.some((b) => {
-    if (!b || b.id === targetBooking.id) return false
-    if (isBookingCanceledStatus(b.status)) return false
-    if ((b.room || '') !== (targetBooking.room || '')) return false
-    if ((b.date || '') !== (targetBooking.date || '')) return false
-    if (isSameBooker(b, targetBooking)) return false
-    const otherStart = getBookingStartDateTime(b)
-    const otherEnd = getBookingEndDateTime(b)
-    if (!otherStart || !otherEnd) return false
-    return targetStart < otherEnd && targetEnd > otherStart
-  })
-}
-
-const cancelDialogBooking = computed(() => bookings.value.find(b => b.id === cancelBookingId.value) || null)
-const cancelDialogIsRestore = computed(() => isBookingCanceledStatus(cancelDialogBooking.value?.status))
-const cancelDialogTitle = computed(() => (cancelDialogIsRestore.value ? 'Restore Booking' : 'Cancel Booking'))
-const cancelDialogConfirmLabel = computed(() => (cancelDialogIsRestore.value ? 'Restore' : 'Confirm'))
-const canManageBookingCancelOrRestore = (booking) => {
+const cancelDialogTitle = computed(() =>
+  isAdminAllBookingsView.value ? 'Release Booking' : 'Cancel Booking'
+)
+const cancelDialogConfirmLabel = computed(() => 'Confirm')
+const canManageBookingCancel = (booking) => {
   if (isAdminAllBookingsView.value) {
     return String(booking?.status || '').toLowerCase() === 'upcoming'
   }
-  return canToggleBookingStatus(booking)
+  return String(booking?.status || '').toLowerCase() === 'upcoming' && canToggleBookingStatus(booking)
 }
 
 const cancelDialogMessage = computed(() => {
-  if (cancelDialogIsRestore.value) {
-    return 'You may restore this booking before the meeting start time. System will check time conflict with other bookings.'
-  }
   if (isAdminAllBookingsView.value) {
-    return 'Are you sure you want to cancel this venue booking? This action cannot be undone.'
+    return 'Are you sure you want to release this venue booking? This action cannot be undone.'
   }
-  return 'You may cancel this booking now and restore it later before the meeting start time.'
+  return 'Are you sure you want to cancel this venue booking?'
 })
 
 const employeeList = ref([])
@@ -1435,10 +1503,12 @@ const handleForm = ref({
   userName: '',
   departmentUnit: '',
   contactPhone: '',
-  contactEmail: ''
+  contactEmail: '',
+  displayOnHomepage: true,
+  userDefinedUploadEventTitle: true
 })
 
-/** 嵌套弹窗内 Reject Template 下拉：大屏挂 body，14" 视口与 MeetingApproval 一致 */
+/** ??????Reject Template ?????? body??4" ????MeetingApproval ???*/
 const REJECT_BOOKING_SELECT_MQ = HTML_ZOOM_BREAKPOINT_MQ
 const rejectBookingSelectTeleported = ref(true)
 let rejectBookingSelectMq = null
@@ -1464,17 +1534,21 @@ const editForm = ref({
   endTime: '',
   teaServiceRequired: false,
   teaServiceOption: '1',
+  teaServiceOption4: false,
   teaServiceRatioFrom: null,
   teaServiceRatioTo: null,
   teaServiceTeaPots: null,
   teaServiceWaterPots: null,
   teaServiceParticipants: 1,
   teaServiceSpecialRequest: '',
-  displayTitlePublic: true
+  displayOnHomepage: true
 })
 const editFormRules = {
   room: [{ required: true, message: 'Please select room', trigger: 'change' }],
-  topic: [{ required: true, message: 'Please enter topic', trigger: 'blur' }],
+  topic: [
+    { required: true, message: 'Please enter topic', trigger: 'blur' },
+    { max: 80, message: 'Meeting / Event Title must be at most 80 characters', trigger: 'blur' }
+  ],
   date: [{ required: true, message: 'Please select date', trigger: 'change' }],
   startTime: [{ required: true, message: 'Please select start time', trigger: 'change' }],
   endTime: [{ required: true, message: 'Please select end time', trigger: 'change' }]
@@ -1483,6 +1557,7 @@ const editFormRules = {
 function snapshotEditTeaSelection (form) {
   return {
     teaServiceOption: String(form.teaServiceOption || '1'),
+    teaServiceOption4: Boolean(form.teaServiceOption4),
     teaServiceRatioFrom: form.teaServiceRatioFrom ?? null,
     teaServiceRatioTo: form.teaServiceRatioTo ?? null,
     teaServiceTeaPots: form.teaServiceTeaPots ?? null,
@@ -1506,16 +1581,19 @@ function resolveEditTeaFields (booking) {
   }
   const parsed = parseTeaServiceToForm(teaServiceObj)
   const option = booking?.teaServiceOption
-  const normalizedOption = option && option !== 'none' ? String(option) : parsed.teaServiceOption
+  let normalizedOption = option && option !== 'none' ? String(option) : parsed.teaServiceOption
+  if (normalizedOption === '4') normalizedOption = '1'
+  const special = String(
+    booking?.teaServiceSpecialRequest || parsed.teaServiceSpecialRequest || ''
+  ).trim()
   return {
     teaServiceOption: normalizedOption || '1',
+    teaServiceOption4: Boolean(parsed.teaServiceOption4 || special),
     teaServiceRatioFrom: booking?.teaServiceRatioFrom ?? parsed.teaServiceRatioFrom,
     teaServiceRatioTo: booking?.teaServiceRatioTo ?? parsed.teaServiceRatioTo,
     teaServiceTeaPots: booking?.teaServiceTeaPots ?? parsed.teaServiceTeaPots,
     teaServiceWaterPots: booking?.teaServiceWaterPots ?? parsed.teaServiceWaterPots,
-    teaServiceSpecialRequest: String(
-      booking?.teaServiceSpecialRequest || parsed.teaServiceSpecialRequest || ''
-    ).trim()
+    teaServiceSpecialRequest: special
   }
 }
 
@@ -1525,34 +1603,52 @@ function isEditBookingDateTodayOrEarlier(ymd) {
   return date <= todayYmdInAppTimeZone()
 }
 
-const showEditTeaServiceRequiredOption = computed(() =>
-  venueOffersTeaService(selectedEditVenueMeta.value) &&
-  !isEditBookingDateTodayOrEarlier(editForm.value.date)
-)
+const showEditTeaServiceRequiredOption = computed(() => {
+  if (!venueOffersTeaService(selectedEditVenueMeta.value)) return false
+  //  ????????????????????
+  if (isAdmin.value) return true
+  return !isEditBookingDateTodayOrEarlier(editForm.value.date)
+})
 
 function applyEditTeaServiceVisibilityRules() {
-  if (
-    venueOffersTeaService(selectedEditVenueMeta.value) &&
-    !isEditBookingDateTodayOrEarlier(editForm.value.date)
-  ) {
-    return
+  if (venueOffersTeaService(selectedEditVenueMeta.value)) {
+    if (isAdmin.value || !isEditBookingDateTodayOrEarlier(editForm.value.date)) {
+      return
+    }
   }
   editForm.value.teaServiceRequired = false
+  editForm.value.teaServiceOption4 = false
   editForm.value.teaServiceSpecialRequest = ''
 }
 
-const isEditTeaServiceUnavailable = computed(() =>
-  !venueOffersTeaService(selectedEditVenueMeta.value) ||
-  isEditBookingDateTodayOrEarlier(editForm.value.date)
-)
+const isEditTeaServiceUnavailable = computed(() => {
+  if (!venueOffersTeaService(selectedEditVenueMeta.value)) return true
+  if (isAdmin.value) return false
+  return isEditBookingDateTodayOrEarlier(editForm.value.date)
+})
 
-/** Approved：普通用户仅可改 My Note；管理员不受审批状态约束 */
+const showEditUploadEventTitleOption = computed(() => {
+  const venue = selectedEditVenueMeta.value
+  if (venue == null) return false
+  return venue.userDefinedUploadEventTitle !== false
+})
+
+const showHandleUploadEventTitleOption = computed(() => {
+  return handleForm.value.userDefinedUploadEventTitle !== false
+})
+
+function applyEditUploadEventTitleVisibilityRules() {
+  if (showEditUploadEventTitleOption.value) return
+  editForm.value.displayOnHomepage = true
+}
+
+/** Approved???????? My Note?????????????*/
 const isEditApprovedOnlyNote = computed(() =>
   !isAdmin.value &&
   String(currentEditBookingApprovalStatus.value || '').toLowerCase() === 'approved'
 )
 const isEditTopicLocked = computed(() => isEditApprovedOnlyNote.value)
-/** 普通用户仅在 pending 时可改会场/日期/时间；管理员始终可改 */
+/** ???????pending ????????/?????????? */
 const isEditScheduleLocked = computed(() => {
   if (isAdmin.value) return false
   const status = String(currentEditBookingApprovalStatus.value || 'pending').toLowerCase()
@@ -1684,7 +1780,7 @@ const setEditAvailabilityPass = () => {
   }
 }
 
-/** fieldErrors 中 true = 该字段不合规 */
+/** fieldErrors ??true = ?????? */
 const setEditAvailabilityFromFieldErrors = (fieldErrors) => {
   const dateFail = Boolean(fieldErrors?.date)
   const startFail = Boolean(fieldErrors?.startTime)
@@ -1775,7 +1871,7 @@ const checkEditAvailability = async () => {
   }
 }
 
-/** 14" html zoom 断点：卡片 Popover / 茶歇提示挂 body 会偏移，与 style.css / MonthDayMorePopover 一致 */
+/** 14" html zoom ??????Popover / ??????body ??????style.css / MonthDayMorePopover ???*/
 const cardPopoverTeleported = ref(true)
 let cardPopoverTeleportedMq = null
 
@@ -1788,7 +1884,7 @@ function updateCardPopoverTeleported () {
 const HANDLE_BOOKING_MODAL_MQ = HTML_ZOOM_BREAKPOINT_MQ
 const handleBookingModalMaxHeight = ref('94vh')
 const editBookingModalMaxHeight = ref('98vh')
-/** Tea Service 为 Yes 时整段表单在 modal-body 内统一滚动 */
+/** Tea Service ??Yes ?????? modal-body ????? */
 const editBookingModalClass = computed(() =>
   editForm.value.teaServiceRequired
     ? 'edit-booking-modal edit-booking-modal--unified-scroll'
@@ -1844,7 +1940,9 @@ const availableColumns = ref([
   { key: 'status', label: 'Status', visible: true, required: false },
   { key: 'approvalStatus', label: 'Approval', visible: true, required: false },
   { key: 'bookedOn', label: 'Application Date', visible: true, required: false },
-  { key: 'myNote', label: 'My Note', visible: true, required: false }
+  { key: 'displayOnHomepage', label: 'Display on Homepage', visible: true, required: false },
+  { key: 'myNote', label: 'My Note', visible: true, required: false },
+  { key: 'cancelledBy', label: 'Cancelled by', visible: true, required: false }
 ])
 
 const bookings = ref([])
@@ -1991,25 +2089,6 @@ const formatIsoDateToDisplay = (isoDate) => {
   return `${day} ${month} ${year}`
 }
 
-/** 营业时间范围 07:00–21:00；分钟自由选择，便于配合场地预订间隔 */
-const VENUE_BOOKING_HOUR_START = 7
-const VENUE_BOOKING_HOUR_END = 21
-
-function disabledVenueBookingHours () {
-  const hours = []
-  for (let h = 0; h < 24; h++) {
-    if (h < VENUE_BOOKING_HOUR_START || h > VENUE_BOOKING_HOUR_END) hours.push(h)
-  }
-  return hours
-}
-
-function disabledVenueBookingMinutes (hour) {
-  if (hour !== VENUE_BOOKING_HOUR_END) return []
-  const minutes = []
-  for (let m = 1; m < 60; m++) minutes.push(m)
-  return minutes
-}
-
 const getSortValue = (booking, key) => {
   switch (key) {
     case 'dateTime':
@@ -2032,6 +2111,10 @@ const getSortValue = (booking, key) => {
       return booking.submitter || ''
     case 'bookedOn':
       return parseBookedOnDateTime(booking.bookedOn).getTime()
+    case 'displayOnHomepage':
+      return booking.displayOnHomepage !== false ? 1 : 0
+    case 'cancelledBy':
+      return booking.cancelledBy || ''
     default:
       return ''
   }
@@ -2072,8 +2155,8 @@ const toggleSort = (key) => {
 
 const getSortIndicator = (key) => {
   const idx = sortState.value.findIndex(item => item.key === key)
-  if (idx === -1) return '↕'
-  const arrow = sortState.value[idx].order === 'asc' ? '↑' : '↓'
+  if (idx === -1) return ''
+  const arrow = sortState.value[idx].order === 'asc' ? '?' : '?'
   return `${arrow}${idx + 1}`
 }
 
@@ -2234,7 +2317,7 @@ const currentExportDescription = computed(() => {
   if (searchQuery.value.trim()) {
     parts.push(`Search: "${searchQuery.value.trim()}"`)
   }
-  return parts.join(' · ')
+  return parts.join(' ? ')
 })
 
 const closeExportMenu = () => {
@@ -2332,6 +2415,8 @@ const handleExportExcel = async (mode = 'current', quickValue) => {
       'Approval': formatStatus(booking.approvalStatus || 'pending'),
       'Submitted By': booking.submitter || '',
       'Application Date': booking.bookedOn || '',
+      'Display on Homepage': formatDisplayOnHomepage(booking),
+      'Cancelled by': formatCancelledBy(booking),
       'Tea Service': formatTeaServiceStatus(booking),
       'Tea Special Requests': formatTeaSpecialRequest(booking),
       'Reject Reason': booking.reason || booking.rejectReason || '',
@@ -2387,17 +2472,45 @@ watch(() => editForm.value.date, () => {
 
 watch(() => editForm.value.room, () => {
   applyEditTeaServiceVisibilityRules()
+  applyEditUploadEventTitleVisibilityRules()
 })
 
 watch(() => editForm.value.teaServiceRequired, (yes) => {
   if (!yes) {
+    editForm.value.teaServiceOption4 = false
     editForm.value.teaServiceSpecialRequest = ''
     return
   }
-  if (!editForm.value.teaServiceOption || editForm.value.teaServiceOption === 'none') {
+  if (!editForm.value.teaServiceOption || editForm.value.teaServiceOption === 'none' || editForm.value.teaServiceOption === '4') {
     editForm.value.teaServiceOption = '1'
   }
 })
+
+watch(() => editForm.value.teaServiceOption4, (on) => {
+  if (!on) {
+    editForm.value.teaServiceSpecialRequest = ''
+  }
+})
+
+watch(() => editForm.value.teaServiceOption, (option) => {
+  if (!['1', '2', '3'].includes(String(option || ''))) {
+    editForm.value.teaServiceOption4 = false
+    editForm.value.teaServiceSpecialRequest = ''
+  }
+})
+
+/** Start ?????15 ?????? End Time ???? */
+function nextVenueEndTimeAfter (startHm, endHour = 21, step = 15) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(startHm || '').trim())
+  if (!m) return ''
+  let total = Number(m[1]) * 60 + Number(m[2]) + step
+  total = Math.ceil(total / step) * step
+  const hour = Math.floor(total / 60)
+  const minute = total % 60
+  if (hour > endHour || (hour === endHour && minute > 0)) return ''
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${pad(hour)}:${pad(minute)}`
+}
 
 watch(() => editForm.value.startTime, (start) => {
   clearEditAvailabilityIndicators()
@@ -2405,8 +2518,8 @@ watch(() => editForm.value.startTime, (start) => {
     editForm.value.endTime = ''
     return
   }
-  if (editForm.value.endTime && editForm.value.endTime <= start) {
-    editForm.value.endTime = ''
+  if (!editForm.value.endTime || editForm.value.endTime <= start) {
+    editForm.value.endTime = nextVenueEndTimeAfter(start)
   }
 })
 
@@ -2423,20 +2536,27 @@ const formatStatus = (status) => {
 }
 
 const getCardTitle = (booking) => {
-  const isMyBookingsView = !isAdminAllBookingsView.value
-  const note = String(booking?.myNote || '').trim()
-  if (isMyBookingsView && canViewMyNote(booking) && note) {
-    return note
-  }
   return booking?.title || booking?.topic || '-'
 }
 
 const isBookingTeaServiceYes = (booking) => {
-  if (booking?.teaServiceRequired === true) return true
-  return Boolean(String(booking?.teaServiceSummary || '').trim())
+  const flag = booking?.teaServiceRequired
+  if (flag === true || flag === 1 || flag === 'true' || flag === '1') return true
+  if (flag === false || flag === 0 || flag === 'false' || flag === '0') return false
+
+  // ??????????option / summary ????????????? Yes
+  const option = String(
+    booking?.teaServiceOption ?? booking?.teaService?.option ?? ''
+  ).trim()
+  if (option === 'none') return false
+  if (option === '1' || option === '2' || option === '3' || option === '4') return true
+
+  const summary = String(booking?.teaServiceSummary || '').trim()
+  if (!summary || summary === '-' || summary.startsWith('???')) return false
+  return true
 }
 
-/** 卡片视图：仅显示 Yes (人数) / No */
+/** ???????? Yes (??) / No */
 const formatTeaServiceCardLabel = (booking) => {
   if (!isBookingTeaServiceYes(booking)) return 'No'
   const count = booking.teaServiceParticipants ?? booking.attendeeCount ?? booking.participants
@@ -2445,8 +2565,13 @@ const formatTeaServiceCardLabel = (booking) => {
 }
 
 const getTeaServiceSummaryText = (booking) => {
-  const summary = String(booking?.teaServiceSummary || '').trim()
-  if (summary) return summary
+  const count = booking?.teaServiceParticipants ?? booking?.attendeeCount ?? booking?.participants
+  if (booking?.teaService && typeof booking.teaService === 'object') {
+    const text = formatTeaServiceDisplay(booking.teaService, count, { includeSpecialRequest: false })
+    if (text && text !== '-') return text
+  }
+  const summary = stripTeaServiceSpecialSuffix(booking?.teaServiceSummary)
+  if (summary && summary !== '-') return summary
   if (booking?.teaServiceRequired === true) return 'Tea service required'
   return ''
 }
@@ -2456,10 +2581,12 @@ const formatTeaServiceStatus = (booking) => {
   if (!isBookingTeaServiceYes(booking)) {
     return formatTeaServiceDisplay({ option: 'none', attendees: count }, count)
   }
-  if (booking?.teaServiceSummary) {
-    return String(booking.teaServiceSummary)
+  if (booking?.teaService && typeof booking.teaService === 'object') {
+    return formatTeaServiceDisplay(booking.teaService, count, { includeSpecialRequest: false })
   }
-  return formatTeaServiceDisplay(booking?.teaService, count)
+  const summary = stripTeaServiceSpecialSuffix(booking?.teaServiceSummary)
+  if (summary) return summary
+  return formatTeaServiceDisplay(booking?.teaService, count, { includeSpecialRequest: false })
 }
 
 const formatTeaSpecialRequest = (booking) => {
@@ -2473,7 +2600,9 @@ const formatTeaSpecialRequest = (booking) => {
       teaServiceObj = null
     }
   }
-  const fromTeaService = String(teaServiceObj?.notes || '').trim()
+  const fromTeaService = String(
+    teaServiceObj?.specialRequest || teaServiceObj?.notes || ''
+  ).trim()
   if (fromTeaService) return fromTeaService
   return '-'
 }
@@ -2486,6 +2615,16 @@ const formatApplicationDateForCard = (bookedOn) => {
     return `${parts[0]} ${parts[1]} ${parts[2]}`
   }
   return text
+}
+
+const formatCancelledBy = (booking) => {
+  if (!isBookingCanceledStatus(booking?.status)) return '-'
+  const name = String(booking?.cancelledBy || '').trim()
+  return name || '-'
+}
+
+const formatDisplayOnHomepage = (booking) => {
+  return booking?.displayOnHomepage !== false ? 'Yes' : 'No'
 }
 
 // Toggle status filter
@@ -2684,17 +2823,17 @@ const isQuickDateActive = (option) => {
 const cancelBooking = (id) => {
   const booking = bookings.value.find(b => b.id === id)
   if (!booking) return
-  if (!canManageBookingCancelOrRestore(booking)) {
-    showNotice(
-      isAdminAllBookingsView.value
-        ? 'Only upcoming bookings can be cancelled.'
-        : 'Only bookings before meeting start time can be cancelled/restored.',
-      'Warning'
-    )
+  if (isBookingCanceledStatus(booking.status)) {
+    showNotice('Cancelled bookings cannot be restored.', 'Warning')
     return
   }
-  if (isAdminAllBookingsView.value && isBookingCanceledStatus(booking.status)) {
-    showNotice('Cancelled bookings cannot be restored by administrators.', 'Warning')
+  if (!canManageBookingCancel(booking)) {
+    showNotice(
+      isAdminAllBookingsView.value
+        ? 'Only upcoming bookings can be released.'
+        : 'Only bookings before meeting start time can be cancelled.',
+      'Warning'
+    )
     return
   }
   cancelBookingId.value = id
@@ -2704,12 +2843,12 @@ const cancelBooking = (id) => {
 const confirmCancel = async () => {
   const booking = bookings.value.find(b => b.id === cancelBookingId.value)
   if (!booking) return
-  if (!canManageBookingCancelOrRestore(booking)) {
+  if (isBookingCanceledStatus(booking.status) || !canManageBookingCancel(booking)) {
     showCancelDialog.value = false
     showNotice(
       isAdminAllBookingsView.value
-        ? 'Only upcoming bookings can be cancelled.'
-        : 'Only bookings before meeting start time can be cancelled/restored.',
+        ? 'Only upcoming bookings can be released.'
+        : 'Only bookings before meeting start time can be cancelled.',
       'Warning'
     )
     return
@@ -2722,17 +2861,20 @@ const confirmCancel = async () => {
       userStore.refreshSessionUser()
     ])
     showCancelDialog.value = false
-    const wasCanceled = isBookingCanceledStatus(booking.status)
     showNotice(
-      wasCanceled
-        ? 'Venue booking restored successfully!'
-        : isAdminAllBookingsView.value
-          ? 'Venue booking cancelled successfully!'
-          : 'Venue booking cancelled successfully! You can restore it before meeting start time.',
+      isAdminAllBookingsView.value
+        ? 'Venue booking released successfully!'
+        : 'Venue booking cancelled successfully!',
       'Success'
     )
   } catch (error) {
-    showNotice(getErrorMessage(error, 'Failed to update booking status'), 'Error')
+    showNotice(
+      getErrorMessage(
+        error,
+        isAdminAllBookingsView.value ? 'Failed to release booking' : 'Failed to cancel booking'
+      ),
+      'Error'
+    )
   }
 }
 
@@ -2760,10 +2902,11 @@ const editBooking = (id) => {
     endTime: endTime.trim(),
     teaServiceRequired: Boolean(booking.teaServiceRequired),
     teaServiceParticipants: booking.teaServiceParticipants || booking.attendeeCount || 1,
-    displayTitlePublic: booking.displayTitlePublic !== false,
+    displayOnHomepage: booking.displayOnHomepage !== false,
     ...teaFields
   }
   applyEditTeaServiceVisibilityRules()
+  applyEditUploadEventTitleVisibilityRules()
   showEditDialog.value = true
 }
 
@@ -2771,7 +2914,7 @@ const confirmEditBooking = async () => {
   const id = currentEditBookingId.value
   if (id == null) return
 
-  // Approved：只允许更新 My Note
+  // Approved?????? My Note
   if (isEditApprovedOnlyNote.value) {
     try {
       await updateVenueManageBooking(String(id), {
@@ -2792,6 +2935,10 @@ const confirmEditBooking = async () => {
     showNotice('Please enter Meeting / Event', 'Warning')
     return
   }
+  if (editForm.value.topic.trim().length > 80) {
+    showNotice('Meeting / Event Title must be at most 80 characters', 'Warning')
+    return
+  }
   const schedule = isEditScheduleLocked.value
     ? editScheduleSnapshot.value
     : {
@@ -2802,6 +2949,17 @@ const confirmEditBooking = async () => {
   if (!schedule.date) {
     showNotice('Please select Booking Date', 'Warning')
     return
+  }
+  if (!isEditScheduleLocked.value) {
+    const dateRangeCheck = validateVenueBookingDateRange(
+      schedule.date,
+      venueBookingWindow.value.currentStartDate,
+      venueBookingWindow.value.currentEndDate
+    )
+    if (!dateRangeCheck.ok) {
+      showNotice(dateRangeCheck.message, 'Warning')
+      return
+    }
   }
   if (!schedule.startTime || !schedule.endTime) {
     showNotice('Please select Start Time and End Time', 'Warning')
@@ -2822,7 +2980,7 @@ const confirmEditBooking = async () => {
   const teaCheck = validateTeaServiceForm({
     ...editForm.value,
     attendeeCount: editForm.value.teaServiceParticipants
-  })
+  }, { isAdmin: isAdmin.value })
   if (!teaCheck.ok) {
     showNotice(teaCheck.message, 'Warning')
     return
@@ -2831,6 +2989,7 @@ const confirmEditBooking = async () => {
     ...editForm.value,
     attendeeCount: editForm.value.teaServiceParticipants
   })
+  applyEditUploadEventTitleVisibilityRules()
   try {
     await updateVenueManageBooking(String(id), {
       room: isEditScheduleLocked.value ? editScheduleSnapshot.value.room : editForm.value.room,
@@ -2847,7 +3006,7 @@ const confirmEditBooking = async () => {
       teaServiceWaterPots: teaPayload.teaServiceWaterPots,
       teaServiceParticipants: editForm.value.teaServiceParticipants || 1,
       teaServiceSpecialRequest: teaPayload.teaServiceSpecialRequest || '',
-      displayTitlePublic: editForm.value.displayTitlePublic !== false
+      displayOnHomepage: editForm.value.displayOnHomepage !== false
     })
     await loadBookings()
     showEditDialog.value = false
@@ -2874,6 +3033,10 @@ function openHandleBooking (booking) {
   const matched = employeeList.value.find(
     (e) => e.name === name || (e.name && name && e.name.toLowerCase() === name.toLowerCase())
   )
+  const venueMeta = editableVenueMeta.value.find((v) => v.name === booking.room)
+  const uploadEnabled =
+    booking.userDefinedUploadEventTitle !== false &&
+    (venueMeta == null || venueMeta.userDefinedUploadEventTitle !== false)
   handleForm.value = {
     room: booking.room || '',
     topic: booking.topic || '',
@@ -2886,9 +3049,11 @@ function openHandleBooking (booking) {
       ?? '-',
     teaService: formatTeaServiceStatus(booking),
     userName: booking.reservedBy || '',
-    departmentUnit: matched?.department || '-',
+    departmentUnit: matched?.department || booking.department || '-',
     contactPhone: booking.contact || '-',
-    contactEmail: booking.email || '-'
+    contactEmail: booking.email || '-',
+    displayOnHomepage: booking.displayOnHomepage !== false,
+    userDefinedUploadEventTitle: uploadEnabled
   }
   showHandleDialog.value = true
 }
@@ -2907,8 +3072,16 @@ function closeRejectBookingDialog () {
 async function confirmHandleApprove () {
   const id = currentHandleBookingId.value
   if (id == null) return
+  const topic = handleForm.value.topic.trim()
+  if (topic.length > 80) {
+    showNotice('Meeting / Event Title must be at most 80 characters', 'Warning')
+    return
+  }
   try {
-    await approveVenueManageBooking(String(id), { topic: handleForm.value.topic.trim() })
+    await approveVenueManageBooking(String(id), {
+      topic,
+      displayOnHomepage: handleForm.value.displayOnHomepage !== false
+    })
     showHandleDialog.value = false
     currentHandleBookingId.value = null
     await loadBookings()
@@ -2927,10 +3100,16 @@ async function confirmRejectBooking () {
   }
   const id = currentHandleBookingId.value
   if (id == null) return
+  const topic = handleForm.value.topic.trim()
+  if (topic.length > 80) {
+    showNotice('Meeting / Event Title must be at most 80 characters', 'Warning')
+    return
+  }
   try {
     await rejectVenueManageBooking(String(id), {
-      topic: handleForm.value.topic.trim(),
-      reason: rejectBookingForm.value.reason.trim()
+      topic,
+      reason: rejectBookingForm.value.reason.trim(),
+      displayOnHomepage: handleForm.value.displayOnHomepage !== false
     })
     showRejectBookingDialog.value = false
     showHandleDialog.value = false
@@ -2987,12 +3166,27 @@ const loadEditableVenues = async () => {
           name: String(v?.name || '').trim(),
           color: String(v?.color || '#3b82f6').trim() || '#3b82f6',
           roomCapacity: v?.roomCapacity ?? null,
-          teaServiceAvailable: v?.teaServiceAvailable !== false
+          teaServiceAvailable: v?.teaServiceAvailable !== false,
+          userDefinedUploadEventTitle: v?.userDefinedUploadEventTitle !== false
         }))
         .filter((v) => v.name)
       : []
   } catch {
     editableVenueMeta.value = []
+  }
+}
+
+const loadVenueBookingWindow = async () => {
+  try {
+    const window = await getVenueBookingWindow()
+    if (window?.currentStartDate && window?.currentEndDate) {
+      venueBookingWindow.value = {
+        currentStartDate: window.currentStartDate,
+        currentEndDate: window.currentEndDate
+      }
+    }
+  } catch {
+    // keep previous / empty; submit validation will still warn if empty
   }
 }
 
@@ -3017,6 +3211,7 @@ onMounted(() => {
   void loadRejectPrompts()
   void loadSystemFixedPrompts()
   void loadEditableVenues()
+  void loadVenueBookingWindow()
   void loadHolidays()
 })
 
@@ -3576,7 +3771,7 @@ onUnmounted(() => {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
-/* teleported=false：浮层留在 zoom 后的 DOM 内，提高层级避免被卡片网格遮挡 */
+/* teleported=false??????zoom ?? DOM ????????????????*/
 .booking-card-popover.el-popper,
 .booking-card-tea-popover.el-popper {
   z-index: 100;
@@ -3711,6 +3906,28 @@ onUnmounted(() => {
 .badge-approval-pending {
   background-color: #fef3c7;
   color: #92400e;
+}
+
+.badge-display-homepage-yes {
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+.badge-display-homepage-no {
+  background-color: #f3f4f6;
+  color: #6b7280;
+}
+
+.display-homepage-badge,
+.card-display-homepage-badge {
+  width: auto;
+  min-width: 0;
+  padding: 0.125rem 0.4rem;
+  text-align: center;
+}
+
+.card-display-homepage-badge {
+  font-size: 0.625rem;
 }
 
 .card-body {
@@ -3871,7 +4088,9 @@ onUnmounted(() => {
 
 .field-with-availability__control.el-date-editor,
 .field-with-availability :deep(.venue-edit-time-picker.el-date-editor),
-.field-with-availability :deep(.venue-edit-time-picker.el-input) {
+.field-with-availability :deep(.venue-edit-time-picker.el-input),
+.field-with-availability :deep(.venue-edit-time-picker .el-input),
+.field-with-availability :deep(.venue-step-time-picker) {
   width: 100%;
 }
 
@@ -3976,6 +4195,24 @@ onUnmounted(() => {
   gap: 0.5rem;
 }
 
+.edit-tea-service-options .tea-service-option4 {
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px dashed #e5e7eb;
+  width: 100%;
+}
+
+.edit-tea-service-options .tea-service-option4 :deep(.el-checkbox) {
+  align-items: flex-start;
+  height: auto;
+  white-space: normal;
+}
+
+.edit-tea-service-options .tea-service-option4 :deep(.el-checkbox__label) {
+  white-space: normal;
+  line-height: 1.4;
+}
+
 .edit-tea-service-options .tea-option-label,
 .edit-tea-service-options .tea-option-zh,
 .edit-tea-service-options .tea-inline-text {
@@ -4029,6 +4266,50 @@ onUnmounted(() => {
 .edit-tea-line :deep(.el-form-item__label) {
   justify-content: flex-end;
   text-align: right;
+  white-space: nowrap;
+}
+
+.display-title-public-item :deep(.el-form-item__label) {
+  display: none;
+}
+
+.meeting-title-textarea :deep(.el-textarea__inner) {
+  line-height: 1.4;
+  max-height: calc(1.4em * 4 + 1rem);
+  overflow-y: auto;
+  word-break: break-word;
+  resize: none;
+}
+
+.display-title-public-item :deep(.el-form-item__content) {
+  margin-left: 0 !important;
+  justify-content: flex-start !important;
+}
+
+.display-title-public-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.75rem 1.25rem;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.display-title-public-label {
+  flex: 0 1 auto;
+  white-space: normal;
+  color: #2c2c2c;
+  font-size: inherit;
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.display-title-public-item :deep(.el-radio-group) {
+  flex: 0 0 auto;
+  display: inline-flex;
+  flex-wrap: nowrap;
   white-space: nowrap;
 }
 
@@ -4124,14 +4405,6 @@ onUnmounted(() => {
 
 .btn-cancel:hover {
   background-color: #dc2626;
-}
-
-.btn-restore {
-  background: #9ca3af;
-}
-
-.btn-restore:hover {
-  background: #6b7280;
 }
 
 /* Table View */
@@ -4236,6 +4509,15 @@ onUnmounted(() => {
   min-width: 220px;
   max-width: 280px;
   box-sizing: border-box;
+}
+
+.bookings-table th.col-display-homepage,
+.bookings-table td.col-display-homepage {
+  text-align: center;
+}
+
+.bookings-table th.col-display-homepage .th-sort-btn {
+  justify-content: center;
 }
 
 .bookings-table td.col-mynote {
@@ -4379,14 +4661,6 @@ onUnmounted(() => {
 
 .btn-cancel-small:hover {
   background-color: #dc2626;
-}
-
-.btn-restore-small {
-  background-color: #9ca3af;
-}
-
-.btn-restore-small:hover {
-  background-color: #6b7280;
 }
 
 /* Status Filter */
@@ -4799,7 +5073,7 @@ onUnmounted(() => {
 }
 </style>
 
-/* Edit Booking 日期面板：箭头相对日历顶部居中 */
+/* Edit Booking ????????????????*/
 <style>
 .edit-booking-date-popper.el-picker__popper[data-popper-placement^='bottom'] .el-popper__arrow {
   left: 50% !important;

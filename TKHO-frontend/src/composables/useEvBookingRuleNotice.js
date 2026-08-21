@@ -4,7 +4,7 @@ import { extractNoticeBannerSummary } from '@/utils/noticeBannerSummary'
 import { getPromptContentByKey, hasPromptHtmlContent } from '@/utils/promptList'
 import { SILENT_ERROR } from '@/utils/requestOptions'
 
-export const EV_BOOKING_RULE_UPDATE_NOTICE_KEY = 'ev_booking_rule_update_notice'
+export const EV_BOOKING_RULE_UPDATE_NOTICE_KEY = 'ev_alert_message'
 
 export function useEvBookingRuleNotice () {
   const evRuleNoticeRaw = ref('')

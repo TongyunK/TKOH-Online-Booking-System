@@ -1,4 +1,4 @@
-import { IsBoolean, IsInt, IsOptional, IsString, Matches, Min } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, IsString, Matches, MaxLength, Min } from 'class-validator';
 
 export class UpdateVenueManageBookingDto {
   @IsOptional()
@@ -7,6 +7,7 @@ export class UpdateVenueManageBookingDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(80)
   topic?: string;
 
   @IsOptional()
@@ -29,10 +30,10 @@ export class UpdateVenueManageBookingDto {
   @IsBoolean()
   teaServiceRequired?: boolean;
 
-  /** 是否允许会议标题在 display 大屏公开显示 */
+  /** Whether to upload meeting title to TKOH homepage Upcoming Events */
   @IsOptional()
   @IsBoolean()
-  displayTitlePublic?: boolean;
+  displayOnHomepage?: boolean;
 
   @IsOptional()
   @IsString()

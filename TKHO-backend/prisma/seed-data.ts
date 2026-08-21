@@ -25,6 +25,7 @@ export type SeedVenue = {
   location?: string;
   locationZh?: string;
   displayType?: string;
+  userDefinedUploadEventTitle?: boolean;
   image?: string | null;
   status?: string;
 };
@@ -195,13 +196,13 @@ const users: SeedUser[] = [
 ];
 
 const venues: SeedVenue[] = [
-  { id: 1, name: 'Conference Room 1', nameZh: '會議室1', tab: 'conference_discussion', type: 'conference', roomCapacity: 8, color: '#3b82f6', location: '8/F Ambulatory Care Block', locationZh: '日間醫療大樓8樓', displayType: 'merge', image: null, status: 'active' },
-  { id: 2, name: 'Conference Room 2', nameZh: '會議室2', tab: 'conference_discussion', type: 'conference', roomCapacity: 20, color: '#10b981', location: '8/F Ambulatory Care Block', locationZh: '日間醫療大樓8樓', displayType: 'merge', image: null, status: 'active' },
-  { id: 3, name: 'Conference Room 3', nameZh: '會議室3', tab: 'conference_discussion', type: 'conference', roomCapacity: 40, color: '#06b6d4', location: '8/F Ambulatory Care Block', locationZh: '日間醫療大樓8樓', displayType: 'merge', image: null, status: 'active' },
-  { id: 4, name: 'Discussion Room', nameZh: '討論室', tab: 'conference_discussion', type: 'discussion', roomCapacity: 12, color: '#f59e0b', location: '3F', locationZh: '3樓', displayType: 'single', image: null, status: 'active' },
-  { id: 5, name: 'Function Room', nameZh: '多功能室', tab: 'other_venues', type: 'other', roomCapacity: 60, color: '#ec4899', location: 'Ground Floor', locationZh: '地下', displayType: 'single', image: null, status: 'active' },
-  { id: 6, name: 'Lecture Theatre', nameZh: '演講廳', tab: 'other_venues', type: 'other', roomCapacity: 70, color: '#6366f1', location: '8/F Ambulatory Care Block', locationZh: '日間醫療大樓8樓', displayType: 'single', image: null, status: 'active' },
-  { id: 7, name: 'Auditorium', nameZh: '禮堂', tab: 'other_venues', type: 'other', roomCapacity: 99, color: '#8b5cf6', location: '1F', locationZh: '1樓', displayType: 'single', image: null, status: 'active' },
+  { id: 1, name: 'Conference Room 1', nameZh: '會議室1', tab: 'conference_discussion', type: 'conference', roomCapacity: 8, color: '#3b82f6', location: '8/F Ambulatory Care Block', locationZh: '日間醫療大樓8樓', displayType: 'merge', userDefinedUploadEventTitle: true, image: null, status: 'active' },
+  { id: 2, name: 'Conference Room 2', nameZh: '會議室2', tab: 'conference_discussion', type: 'conference', roomCapacity: 20, color: '#10b981', location: '8/F Ambulatory Care Block', locationZh: '日間醫療大樓8樓', displayType: 'merge', userDefinedUploadEventTitle: true, image: null, status: 'active' },
+  { id: 3, name: 'Conference Room 3', nameZh: '會議室3', tab: 'conference_discussion', type: 'conference', roomCapacity: 40, color: '#06b6d4', location: '8/F Ambulatory Care Block', locationZh: '日間醫療大樓8樓', displayType: 'merge', userDefinedUploadEventTitle: true, image: null, status: 'active' },
+  { id: 4, name: 'Discussion Room', nameZh: '討論室', tab: 'conference_discussion', type: 'discussion', roomCapacity: 12, color: '#f59e0b', location: '3F', locationZh: '3樓', displayType: 'single', userDefinedUploadEventTitle: true, image: null, status: 'active' },
+  { id: 5, name: 'Function Room', nameZh: '多功能室', tab: 'other_venues', type: 'other', roomCapacity: 60, color: '#ec4899', location: 'Ground Floor', locationZh: '地下', displayType: 'single', userDefinedUploadEventTitle: true, image: null, status: 'active' },
+  { id: 6, name: 'Lecture Theatre', nameZh: '演講廳', tab: 'other_venues', type: 'other', roomCapacity: 70, color: '#6366f1', location: '8/F Ambulatory Care Block', locationZh: '日間醫療大樓8樓', displayType: 'single', userDefinedUploadEventTitle: true, image: null, status: 'active' },
+  { id: 7, name: 'Auditorium', nameZh: '禮堂', tab: 'other_venues', type: 'other', roomCapacity: 99, color: '#8b5cf6', location: '1F', locationZh: '1樓', displayType: 'single', userDefinedUploadEventTitle: true, image: null, status: 'active' },
 ];
 
 const evSlots: SeedEvSlot[] = [
@@ -293,8 +294,8 @@ const prompts: SeedPrompt[] = [
   },
   {
     id: 8,
-    promptKey: 'ev_booking_rule_update_notice',
-    name: 'EV Booking Rule Update Notice',
+    promptKey: 'ev_alert_message',
+    name: 'EV Alert Message',
     content: `<p style="text-align: center"><span style="color: rgb(225, 60, 57)"><strong>[ For Attention, please ]</strong></span></p><p style="text-align: center"><span style="color: rgb(225, 60, 57)"><strong>Updates on Booking Rules of EV Charging Facilities</strong></span></p><p><u><strong>Effective from 01 JAN 2025</strong></u></p><p>a. Booking quota: Change from 2 sessions/week to <span style="color: rgb(225, 60, 57)">1 session/week</span></p><p>b. Period of AM session: Change from 09:00hr-13:15hr to<span style="color: rgb(225, 60, 57)"> 08:30hr-13:00hr</span></p><p>c. Period of PM session: Change from 14:00hr-18:15hr to <span style="color: rgb(225, 60, 57)">13:45hr-18:15hr</span></p><p><u><strong>Effective from 13 JAN 2025</strong></u></p><p>d. New booking timeslots releasing time: Change from 00:00hr everyday to <span style="color: rgb(225, 60, 57)">13:00hr everyday</span></p>`,
     category: 'system_fixed',
     canAdd: false,
@@ -302,8 +303,8 @@ const prompts: SeedPrompt[] = [
   },
   {
     id: 9,
-    promptKey: 'venue_booking_rule_update_notice',
-    name: 'Venue Booking Rule Update Notice',
+    promptKey: 'venue_alert_message',
+    name: 'Venue Alert Message',
     content: `<p class="venue-notice-line">Lecture Theatre is temporarily closed.</p><p class="venue-notice-line zh">演講廳暫停使用</p>`,
     category: 'system_fixed',
     canAdd: false,

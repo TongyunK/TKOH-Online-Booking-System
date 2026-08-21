@@ -1,5 +1,8 @@
 <template>
   <div class="reg-page">
+    <header class="reg-header">
+      <FloatingHelpButton />
+    </header>
     <!-- 与 UserManagement「Pending Approval Details」一致：BookingStyleModal + pending-approval-detail-modal -->
     <BookingStyleModal
       v-model="resultOpen"
@@ -47,18 +50,16 @@
             <el-option v-for="d in departments" :key="d.id" :label="d.departmentName" :value="d.departmentName" />
           </el-select>
         </el-form-item>
-        <el-form-item label="Role">
-          <el-select v-model="form.role" style="width: 100%" placeholder="Select role">
-            <el-option v-for="r in roles" :key="r.id" :label="r.roleName" :value="r.roleName" />
-          </el-select>
-        </el-form-item>
         <el-form-item label="Reason">
           <el-input v-model="form.reason" type="textarea" :rows="4" placeholder="Optional: brief reason for application" />
         </el-form-item>
       </el-form>
       <div class="actions">
-        <el-button type="default" class="reg-action-btn" @click="resetForm">Reset</el-button>
-        <el-button type="primary" class="reg-action-btn" :loading="submitting" @click="submit">Submit Application</el-button>
+        <el-button type="default" class="reg-action-btn back-login-btn" @click="goToLogin">Back to Login</el-button>
+        <div class="actions-right">
+          <el-button type="default" class="reg-action-btn" @click="resetForm">Reset</el-button>
+          <el-button type="primary" class="reg-action-btn" :loading="submitting" @click="submit">Submit Application</el-button>
+        </div>
       </div>
     </div>
   </div>
@@ -66,14 +67,16 @@
 
 <script setup>
 import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { Check, Close, WarningFilled } from '@element-plus/icons-vue'
 import BookingStyleModal from '@/components/BookingStyleModal.vue'
+import FloatingHelpButton from '@/components/FloatingHelpButton.vue'
 import { getRegistrationOptions, submitUserRegistration } from '@/api/userManagement'
 import { notifyPendingUsersUpdated } from '@/utils/pendingUsersSync'
 
 const departments = ref([])
-const roles = ref([])
 const submitting = ref(false)
+const router = useRouter()
 
 const resultOpen = ref(false)
 const resultKind = ref('success')
@@ -121,14 +124,17 @@ const form = ref({
   corpId: '',
   name: '',
   department: '',
-  role: '',
   email: '',
   contactNo: '',
   reason: ''
 })
 
 function resetForm () {
-  form.value = { corpId: '', name: '', department: '', role: '', email: '', contactNo: '', reason: '' }
+  form.value = { corpId: '', name: '', department: '', email: '', contactNo: '', reason: '' }
+}
+
+function goToLogin () {
+  router.push('/login')
 }
 
 function normalizeSubmitErrorMessage (error) {
@@ -143,11 +149,11 @@ function normalizeSubmitErrorMessage (error) {
 }
 
 async function submit () {
-  if (!form.value.corpId || !form.value.name || !form.value.department || !form.value.role || !form.value.email || !form.value.contactNo) {
+  if (!form.value.corpId || !form.value.name || !form.value.department || !form.value.email || !form.value.contactNo) {
     showResult(
       'warning',
       'Cannot submit',
-      'Please complete all required fields (Corp ID, Name, Email, Contact No., Department, Role).'
+      'Please complete all required fields (Corp ID, Name, Email, Contact No., Department).'
     )
     return
   }
@@ -174,9 +180,13 @@ onMounted(async () => {
   syncRegistrationFormLayout()
   regLayoutMq.addEventListener('change', syncRegistrationFormLayout)
 
-  const data = await getRegistrationOptions()
-  departments.value = data?.departments || []
-  roles.value = data?.roles || []
+  try {
+    const data = await getRegistrationOptions()
+    departments.value = data?.departments || []
+  } catch (e) {
+    console.error(e)
+    departments.value = []
+  }
 })
 
 onUnmounted(() => {
@@ -190,10 +200,22 @@ onUnmounted(() => {
   z-index: 0;
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   background: linear-gradient(180deg, #f5f7fa 0%, #edf2f7 100%);
   padding: 24px;
+}
+
+.reg-header {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 12px 24px;
 }
 /* 外壳与 UserManagement 的 notice / pending 弹窗一致；此处仅排布图标与说明文案 */
 .registration-result-body {
@@ -267,9 +289,18 @@ onUnmounted(() => {
 }
 .actions {
   display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.actions-right {
+  display: flex;
   justify-content: flex-end;
   gap: 12px;
   flex-wrap: wrap;
+  margin-left: auto;
 }
 
 @media screen and (max-width: 639px) {
@@ -317,6 +348,14 @@ onUnmounted(() => {
     justify-content: stretch;
     gap: 10px;
     margin-top: 4px;
+  }
+  .actions-right {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: stretch;
+    gap: 10px;
+    margin-left: 0;
+    width: 100%;
   }
   .reg-action-btn {
     width: 100%;

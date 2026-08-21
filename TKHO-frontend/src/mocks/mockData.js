@@ -571,8 +571,8 @@ export function getMockPromptList () {
     },
     {
       id: 15,
-      key: 'ev_booking_rule_update_notice',
-      name: 'EV Booking Rule Update Notice',
+      key: 'ev_alert_message',
+      name: 'EV Alert Message',
       content: `<p class="attention-line">[ For Attention, please ]</p>
 <p class="main-title">Updates on Booking Rules of EV Charging Facilities</p>
 <p class="section-title">Effective from 01 JAN 2025</p>
@@ -586,8 +586,8 @@ export function getMockPromptList () {
     },
     {
       id: 16,
-      key: 'venue_booking_rule_update_notice',
-      name: 'Venue Booking Rule Update Notice',
+      key: 'venue_alert_message',
+      name: 'Venue Alert Message',
       content: `<p class="venue-notice-line">Lecture Theatre is temporarily closed.</p>
 <p class="venue-notice-line zh">演講廳暫停使用</p>`,
       category: 'system_fixed',
@@ -611,18 +611,19 @@ export function getMockVenueList () {
       locationZh: '日間醫療大樓8樓',
       roomCapacity: 8,
       displayType: 'merge',
+      userDefinedUploadEventTitle: true,
       image: '',
       blocks: [
         { id: 1001, startAt: '2026-03-30 13:00', endAt: '2026-03-30 16:00', reason: 'Projector maintenance' }
       ],
       status: 'active'
     },
-    { id: 2, name: 'Conference Room 2', nameZh: '會議室2', tab: 'conference_discussion', type: 'conference', color: '#10b981', location: '8/F Ambulatory Care Block', locationZh: '日間醫療大樓8樓', roomCapacity: 20, displayType: 'merge', image: '', blocks: [], status: 'active' },
-    { id: 3, name: 'Conference Room 3', nameZh: '會議室3', tab: 'conference_discussion', type: 'conference', color: '#06b6d4', location: '8/F Ambulatory Care Block', locationZh: '日間醫療大樓8樓', roomCapacity: 40, displayType: 'merge', image: '', blocks: [], status: 'active' },
-    { id: 4, name: 'Discussion Room', nameZh: '討論室', tab: 'conference_discussion', type: 'discussion', color: '#f59e0b', location: '3F', locationZh: '3樓', roomCapacity: 12, displayType: 'single', image: '', blocks: [], status: 'active' },
-    { id: 5, name: 'Function Room', nameZh: '多功能室', tab: 'other_venues', type: 'other', color: '#ec4899', location: 'Ground Floor', locationZh: '地下', roomCapacity: 60, displayType: 'single', image: '', blocks: [], status: 'active' },
-    { id: 6, name: 'Lecture Theatre', nameZh: '演講廳', tab: 'other_venues', type: 'other', color: '#6366f1', location: '8/F Ambulatory Care Block', locationZh: '日間醫療大樓8樓', roomCapacity: 70, displayType: 'single', image: '', blocks: [], status: 'active' },
-    { id: 7, name: 'Auditorium', nameZh: '禮堂', tab: 'other_venues', type: 'other', color: '#8b5cf6', location: '1F', locationZh: '1樓', roomCapacity: 99, displayType: 'single', image: '', blocks: [], status: 'active' }
+    { id: 2, name: 'Conference Room 2', nameZh: '會議室2', tab: 'conference_discussion', type: 'conference', color: '#10b981', location: '8/F Ambulatory Care Block', locationZh: '日間醫療大樓8樓', roomCapacity: 20, displayType: 'merge', userDefinedUploadEventTitle: true, image: '', blocks: [], status: 'active' },
+    { id: 3, name: 'Conference Room 3', nameZh: '會議室3', tab: 'conference_discussion', type: 'conference', color: '#06b6d4', location: '8/F Ambulatory Care Block', locationZh: '日間醫療大樓8樓', roomCapacity: 40, displayType: 'merge', userDefinedUploadEventTitle: true, image: '', blocks: [], status: 'active' },
+    { id: 4, name: 'Discussion Room', nameZh: '討論室', tab: 'conference_discussion', type: 'discussion', color: '#f59e0b', location: '3F', locationZh: '3樓', roomCapacity: 12, displayType: 'single', userDefinedUploadEventTitle: true, image: '', blocks: [], status: 'active' },
+    { id: 5, name: 'Function Room', nameZh: '多功能室', tab: 'other_venues', type: 'other', color: '#ec4899', location: 'Ground Floor', locationZh: '地下', roomCapacity: 60, displayType: 'single', userDefinedUploadEventTitle: true, image: '', blocks: [], status: 'active' },
+    { id: 6, name: 'Lecture Theatre', nameZh: '演講廳', tab: 'other_venues', type: 'other', color: '#6366f1', location: '8/F Ambulatory Care Block', locationZh: '日間醫療大樓8樓', roomCapacity: 70, displayType: 'single', userDefinedUploadEventTitle: true, image: '', blocks: [], status: 'active' },
+    { id: 7, name: 'Auditorium', nameZh: '禮堂', tab: 'other_venues', type: 'other', color: '#8b5cf6', location: '1F', locationZh: '1樓', roomCapacity: 99, displayType: 'single', userDefinedUploadEventTitle: true, image: '', blocks: [], status: 'active' }
   ]
   return cloneMockList(_venueList)
 }

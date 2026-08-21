@@ -5,6 +5,7 @@ import {
   IsString,
   Matches,
   Max,
+  MaxLength,
   Min,
 } from 'class-validator';
 
@@ -22,6 +23,7 @@ export class CreateVenueCalendarBookingDto {
   endTime!: string;
 
   @IsString()
+  @MaxLength(80)
   topic!: string;
 
   @IsOptional()
@@ -38,10 +40,10 @@ export class CreateVenueCalendarBookingDto {
   @IsBoolean()
   teaServiceRequired?: boolean;
 
-  /** 是否允许会议标题在 display 大屏公开显示 */
+  /** 是否允许会议标题�?display 大屏公开显示 */
   @IsOptional()
   @IsBoolean()
-  displayTitlePublic?: boolean;
+  displayOnHomepage?: boolean;
 
   @IsOptional()
   @IsString()
@@ -85,7 +87,7 @@ export class CreateVenueCalendarBookingDto {
   @IsString()
   roomType?: string;
 
-  /** 管理员代订时指定预订人用户 ID；默认本人 */
+  /** 管理员代订时指定预订人用�?ID；默认本�?*/
   @IsOptional()
   @IsString()
   @Matches(/^\d+$/, { message: 'reservedByUserId must be a numeric id' })

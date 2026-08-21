@@ -101,6 +101,7 @@
                   </div>
                 </div>
                 <div class="form-group">
+                  <p class="password-warning">Please DO NOT use any HA login password as your new password.</p>
                   <label class="form-label">New Password <span class="required">*</span></label>
                   <div class="password-input-wrapper">
                     <input :type="showPassword.new ? 'text' : 'password'" v-model="password.new" class="form-input password-input" placeholder="Enter new password" />
@@ -525,6 +526,14 @@ onUnmounted(() => {
 .password-input-wrapper {
   position: relative;
   width: 100%;
+}
+
+.password-warning {
+  margin: 0 0 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #dc2626;
+  line-height: 1.4;
 }
 
 .password-input {

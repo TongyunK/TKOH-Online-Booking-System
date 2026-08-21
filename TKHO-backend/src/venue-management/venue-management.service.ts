@@ -32,7 +32,7 @@ import {
   normalizeVenueTeaService,
 } from '../common/venue-tea-service';
 
-/** 公共显示屏上未获批会议标题的统一占位文案 */
+/** ???????????????????? */
 const DEFAULT_PUBLIC_VENUE_MEETING_TITLE = 'Reserved';
 
 const teaDisplayBookingInclude = {
@@ -41,7 +41,7 @@ const teaDisplayBookingInclude = {
 } satisfies Prisma.VenueBookingsInclude;
 
 const manageBookingRowInclude = {
-  venue: { select: { id: true, name: true } },
+  venue: { select: { id: true, name: true, userDefinedUploadEventTitle: true } },
   reservedBy: {
     select: {
       id: true,
@@ -53,6 +53,13 @@ const manageBookingRowInclude = {
     },
   },
   submitter: {
+    select: {
+      id: true,
+      corpId: true,
+      name: true,
+    },
+  },
+  cancelledBy: {
     select: {
       id: true,
       corpId: true,
@@ -112,7 +119,7 @@ export class VenueManagementService {
     'Dec',
   ] as const;
 
-  /** 若 imageUrl 指向本地上传目录，则删除磁盘文件（忽略不存在等错误） */
+  /** ? imageUrl ?????????????????????????? */
   private async unlinkVenueUploadFile(imageUrl: string | null | undefined) {
     const path = imageUrl || '';
     if (!path.startsWith(this.uploadsBasePath)) return;
@@ -172,6 +179,7 @@ export class VenueManagementService {
       locationZh: venue.locationZh || '',
       roomCapacity: venue.roomCapacity ?? null,
       teaServiceAvailable: venue.teaServiceAvailable !== false,
+      userDefinedUploadEventTitle: venue.userDefinedUploadEventTitle !== false,
       dailyBookingStartTime: venue.dailyBookingStartTime || null,
       dailyBookingEndTime: venue.dailyBookingEndTime || null,
       displayType: venue.displayType || 'single',
@@ -228,6 +236,7 @@ export class VenueManagementService {
         locationZh: dto.locationZh || null,
         roomCapacity: dto.roomCapacity ?? null,
         teaServiceAvailable: dto.teaServiceAvailable ?? true,
+        userDefinedUploadEventTitle: dto.userDefinedUploadEventTitle ?? true,
         dailyBookingStartTime: dailyWindow.start,
         dailyBookingEndTime: dailyWindow.end,
         displayType: dto.displayType || 'single',
@@ -287,6 +296,10 @@ export class VenueManagementService {
           dto.teaServiceAvailable !== undefined
             ? dto.teaServiceAvailable
             : exists.teaServiceAvailable,
+        userDefinedUploadEventTitle:
+          dto.userDefinedUploadEventTitle !== undefined
+            ? dto.userDefinedUploadEventTitle
+            : exists.userDefinedUploadEventTitle,
         dailyBookingStartTime: dailyWindow.start,
         dailyBookingEndTime: dailyWindow.end,
         displayType: dto.displayType ?? exists.displayType,
@@ -602,6 +615,7 @@ export class VenueManagementService {
       time: `${this.formatTimeValue(row.startTime)} - ${this.formatTimeValue(row.endTime)}`,
       reservedBy: row.reservedBy?.name || '',
       submitter: row.submitter?.name ?? '',
+      cancelledBy: row.cancelledBy?.name || '',
       department: row.reservedBy?.department?.department_name ?? '',
       contact: row.reservedBy?.contact || '',
       email: row.reservedBy?.email || '',
@@ -619,7 +633,8 @@ export class VenueManagementService {
       corpId: row.reservedBy?.corpId || '',
       reason: row.rejectReason || '',
       teaServiceRequired: row.teaServiceRequired,
-      displayTitlePublic: row.displayTitlePublic !== false,
+      displayOnHomepage: row.displayOnHomepage !== false,
+      userDefinedUploadEventTitle: row.venue?.userDefinedUploadEventTitle !== false,
       teaServiceParticipants: Number(tea?.attendees || row.attendees || 1),
       teaServiceSummary: formatVenueTeaServiceDisplay(tea, row.attendees ?? null),
       teaServiceSpecialRequest: String(tea?.specialRequest || tea?.notes || '').trim(),
@@ -746,7 +761,10 @@ export class VenueManagementService {
 
       return tx.venueBookings.update({
         where: { id },
-        data: { status: next },
+        data: {
+          status: next,
+          cancelledByUserId: next === 'cancelled' ? me : null,
+        },
         include: manageBookingRowInclude,
       });
     });
@@ -779,7 +797,7 @@ export class VenueManagementService {
     }
 
     const approval = String(row.approvalStatus || '').toLowerCase();
-    // Approved：非管理员仅允许更新 My Note；管理员（All Bookings 等）可改任意字段
+    // Approved?????????? My Note?????All Bookings ????????
     if (approval === 'approved' && !admin) {
       const updated = await this.prisma.venueBookings.update({
         where: { id },
@@ -791,7 +809,7 @@ export class VenueManagementService {
       return { booking: this.mapManageBookingRow(updated) };
     }
 
-    /** 管理员，或 pending（含空/未设）本人：可改会场/日期/时间 */
+    /** ????? pending???/??????????/??/?? */
     const canEditSchedule =
       admin || approval === 'pending' || approval === '';
 
@@ -816,10 +834,10 @@ export class VenueManagementService {
 
     const teaRequired = dto.teaServiceRequired ?? row.teaServiceRequired;
     const attendees = dto.teaServiceParticipants ?? row.attendees ?? 1;
-    const displayTitlePublic =
-      canEditSchedule && dto.displayTitlePublic !== undefined
-        ? Boolean(dto.displayTitlePublic)
-        : row.displayTitlePublic;
+    const displayOnHomepage =
+      canEditSchedule && dto.displayOnHomepage !== undefined
+        ? Boolean(dto.displayOnHomepage)
+        : row.displayOnHomepage;
     const nextReservedByUserId = await this.resolveManageReservedByUserId(
       admin,
       dto.reservedByUserId,
@@ -838,7 +856,7 @@ export class VenueManagementService {
           endTime,
           teaServiceRequired: teaRequired,
           attendees,
-          displayTitlePublic,
+          displayOnHomepage,
           ...(nextReservedByUserId != null
             ? { reservedByUserId: nextReservedByUserId }
             : {}),
@@ -903,6 +921,9 @@ export class VenueManagementService {
         handleByUserId: handlerId,
         handledAt: new Date(),
         ...(dto.topic?.trim() ? { meetingTitle: dto.topic.trim() } : {}),
+        ...(dto.displayOnHomepage !== undefined
+          ? { displayOnHomepage: Boolean(dto.displayOnHomepage) }
+          : {}),
       },
       include: manageBookingRowInclude,
     });
@@ -929,6 +950,9 @@ export class VenueManagementService {
         handleByUserId: handlerId,
         handledAt: new Date(),
         ...(dto.topic?.trim() ? { meetingTitle: dto.topic.trim() } : {}),
+        ...(dto.displayOnHomepage !== undefined
+          ? { displayOnHomepage: Boolean(dto.displayOnHomepage) }
+          : {}),
       },
       include: manageBookingRowInclude,
     });
@@ -1079,8 +1103,8 @@ export class VenueManagementService {
     const { fromDate, dates, bookingDates } =
       await this.resolveTeaDisplayDates(fromDateYmd);
 
-    // 茶水展示屏：即使当天/下一个工作日完全没有预订，
-    // 也需要显示「支持 Tea Service 的 venue 名称」。
+    // ??????????/?????????????
+    // ???????? Tea Service ? venue ????
     const displayVenues = await this.prisma.venues.findMany({
       where: {
         teaServiceAvailable: true,
@@ -1234,12 +1258,9 @@ export class VenueManagementService {
     const approval = String(row.approvalStatus ?? '')
       .trim()
       .toLowerCase();
-    // 未审批通过（pending / rejected / 空）时大屏统一显示 Reserved
+    // Pending / rejected: show Reserved on venue display; approved: show meeting title.
+    // displayOnHomepage only controls TKOH homepage Upcoming Events upload, not venue display.
     if (approval !== 'approved') {
-      return DEFAULT_PUBLIC_VENUE_MEETING_TITLE;
-    }
-    // 用户未允许公开标题时，大屏统一显示 Reserved
-    if (row.displayTitlePublic === false) {
       return DEFAULT_PUBLIC_VENUE_MEETING_TITLE;
     }
     const title = String(row.meetingTitle ?? '').trim();
@@ -1278,7 +1299,7 @@ export class VenueManagementService {
       location: venue.location || '',
       locationZh: venue.locationZh || '',
       displayType: this.normalizeVenueDisplayType(venue.displayType),
-      /** display_venue_rules.display_name；空/空白时前端回退 venues.name */
+      /** display_venue_rules.display_name??/??????? venues.name */
       displayName: String(displayNameRaw || '').trim(),
     };
   }

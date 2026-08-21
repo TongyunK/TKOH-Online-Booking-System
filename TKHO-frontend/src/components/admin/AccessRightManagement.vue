@@ -118,7 +118,7 @@
       </div>
         </el-tab-pane>
 
-        <el-tab-pane label="Department" name="department">
+        <el-tab-pane label="Department / Unit" name="department">
           <div class="table-card">
       <el-table :data="paginatedDepartmentData" height="100%" border stripe table-layout="auto" style="width: 100%">
         <el-table-column
@@ -133,7 +133,7 @@
         <el-table-column prop="departmentName" min-width="220">
           <template #header>
             <SortableFilterHeader
-              label="Department Name"
+              label="Abbreviation"
               :sort-indicator="getSortIndicator('department', 'departmentName')"
               :filter-active="filterStates.department.departmentName.length > 0"
               :options="departmentNameOptions"

@@ -1,6 +1,6 @@
 import { getAppDisplayDateTimeParts, todayYmdInAppTimeZone } from './appTimezone'
 
-/** 用户端日历可见天数（不含今天） */
+/** 用户端日历可见天数 */
 export const EV_BOOKING_VISIBLE_DAY_COUNT = 14
 
 const DEFAULT_EV_DATE_UPDATE_TIME = '13:00'
@@ -49,9 +49,8 @@ export function isEvDateUpdateTimeReached (
 
 /**
  * 在管理员发布的年度范围内，取用户可见的 14 天：
- * - 不显示今天
- * - 更新时间前：明天起 14 天（例：07.08 13:00 前 → 07.09~07.22）
- * - 更新时间后：后天起 14 天（例：07.08 13:00 后 → 07.10~07.23）
+ * - 更新时间前：从今天起 14 天（例：07.08 13:00 前 → 07.08~07.21）
+ * - 更新时间后：从明天起 14 天（例：07.08 13:00 后 → 07.09~07.22）
  */
 export function resolveEvVisibleBookingRange (
   windowStartYmd,
@@ -69,10 +68,8 @@ export function resolveEvVisibleBookingRange (
   } = options
 
   const rolled = isEvDateUpdateTimeReached(evDateUpdateTime, now)
-  const startOffsetDays = rolled ? 2 : 1
-  const endOffsetDays = rolled
-    ? EV_BOOKING_VISIBLE_DAY_COUNT + 1
-    : EV_BOOKING_VISIBLE_DAY_COUNT
+  const startOffsetDays = rolled ? 1 : 0
+  const endOffsetDays = startOffsetDays + EV_BOOKING_VISIBLE_DAY_COUNT - 1
 
   const displayStartYmd = addDaysToYmd(todayYmd, startOffsetDays)
   const displayEndYmd = addDaysToYmd(todayYmd, endOffsetDays)

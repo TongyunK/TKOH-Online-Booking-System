@@ -172,32 +172,14 @@ export class UserManagementService {
   }
 
   async getRegistrationOptions() {
-    const [departments, roles] = await Promise.all([
-      this.prisma.departments.findMany({
-        orderBy: { id: 'asc' },
-        select: { id: true, department_name: true },
-      }),
-      this.prisma.access_roles.findMany({
-        where: {
-          NOT: {
-            role_name: {
-              equals: 'SuperAdmin',
-              mode: 'insensitive',
-            },
-          },
-        },
-        orderBy: { id: 'asc' },
-        select: { id: true, role_name: true },
-      }),
-    ]);
+    const departments = await this.prisma.departments.findMany({
+      orderBy: { id: 'asc' },
+      select: { id: true, department_name: true },
+    });
     return {
       departments: departments.map((d) => ({
         id: d.id.toString(),
         departmentName: d.department_name,
-      })),
-      roles: roles.map((r) => ({
-        id: r.id.toString(),
-        roleName: r.role_name,
       })),
     };
   }

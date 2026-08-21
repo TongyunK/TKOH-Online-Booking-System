@@ -29,6 +29,10 @@
           <el-icon class="booking-popover-icon"><Phone /></el-icon>
           <span>{{ getBookingContact() }}</span>
         </div>
+        <div class="booking-popover-row">
+          <el-icon class="booking-popover-icon"><Message /></el-icon>
+          <span>{{ getBookingEmail() }}</span>
+        </div>
       </div>
     </template>
     <template #reference>
@@ -75,6 +79,12 @@ const popoverTitleStyle = computed(() =>
 
 function getBookingContact() {
   return props.booking.contact ?? props.booking.contactNumber ?? props.booking.phone ?? props.booking.tel ?? 'N/A'
+}
+
+function getBookingEmail() {
+  const email = props.booking.email ?? props.booking.contactEmail ?? props.booking.reservedByEmail
+  const text = email == null ? '' : String(email).trim()
+  return text || 'N/A'
 }
 
 function resolveBookingDate() {

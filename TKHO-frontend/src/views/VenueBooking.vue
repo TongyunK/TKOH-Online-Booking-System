@@ -2,11 +2,24 @@
   <div class="booking-page">
     <AppHeader />
 
+    <div v-if="hasVenueRuleNotice && !showTopTip" class="top-tip-toggle-wrapper">
+      <button
+        type="button"
+        class="top-tip-toggle-btn"
+        aria-label="Show alert message"
+        title="Show alert message"
+        @click="showTopTip = true"
+      ></button>
+    </div>
+
     <!-- Main container: viewport minus header and bottom space -->
-    <main class="booking-main">
-      <div v-if="hasVenueRuleNotice" class="booking-window-tip">
-        <span>Important Note: {{ venueRuleNoticeBannerText }}</span>
-        <button type="button" class="read-more-link" @click="noticeDialogVisible = true">Read more...</button>
+    <main class="booking-main" :class="{ 'tip-collapsed-gap': hasVenueRuleNotice && !showTopTip }">
+      <div v-if="hasVenueRuleNotice && showTopTip" class="booking-window-tip">
+        <span>Alert Message:</span>
+        <button type="button" class="read-more-link" @click="noticeDialogVisible = true">Click here to read more</button>
+        <button type="button" class="tip-close-btn" aria-label="Hide alert message" @click="showTopTip = false">
+          &times;
+        </button>
       </div>
       <div class="booking-content">
         <h2 class="booking-title">What venue would you like to book?</h2>
@@ -48,7 +61,7 @@
     <BookingStyleModal
       v-if="hasVenueRuleNotice"
       v-model="noticeDialogVisible"
-      title="Important Note"
+      title="Alert Message"
       max-width="820px"
       custom-class="important-note-modal"
     >
@@ -64,21 +77,33 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import AppHeader from '../components/AppHeader.vue'
 import BookingStyleModal from '../components/BookingStyleModal.vue'
 import VenueBookingCardImages from '@/components/VenueBookingCardImages.vue'
 import { useVenueBookingImages } from '@/composables/useVenueBookingImages'
 import { useVenueBookingRuleNotice } from '@/composables/useVenueBookingRuleNotice'
+import { useUserStore } from '@/stores/user'
 import { markVenueCalendarBookNowFilter } from '@/utils/venueCalendarRoomFilter'
+import {
+  loadImportantNoteTipExpanded,
+  saveImportantNoteTipExpanded
+} from '@/utils/importantNoteTip'
 import '@/styles/rich-content.css'
 
 const router = useRouter()
+const userStore = useUserStore()
+const { userInfo } = storeToRefs(userStore)
 const noticeDialogVisible = ref(false)
+const tipUserKey = () => userInfo.value?.id ?? null
+const showTopTip = ref(loadImportantNoteTipExpanded('venue', tipUserKey()))
+watch(showTopTip, (expanded) => {
+  saveImportantNoteTipExpanded('venue', tipUserKey(), expanded)
+})
 const {
   venueRuleNoticeContent,
-  venueRuleNoticeBannerText,
   venueRuleNoticeLoading,
   hasVenueRuleNotice,
   loadVenueRuleNotice
@@ -128,16 +153,20 @@ const goToOtherVenues = () => {
   justify-content: flex-start;
 }
 
+.booking-main.tip-collapsed-gap {
+  margin-top: 6px;
+}
+
 .booking-window-tip {
   margin: 0 0 0.25rem;
   width: 100%;
-  background: #ecfdf3;
-  border: 1px solid #bbf7d0;
-  color: #166534;
+  background: #f4b898;
+  border: 1px solid #f5c4a0;
+  color: #fe0302;
   border-radius: 8px;
   padding: 0.45rem 0.75rem;
   font-size: 0.8125rem;
-  font-weight: 600;
+  font-weight: 700;
   display: flex;
   gap: 6px;
   align-items: center;
@@ -147,7 +176,7 @@ const goToOtherVenues = () => {
 .read-more-link {
   border: none;
   background: transparent;
-  color: #0f766e;
+  color: #fe0302;
   font-size: inherit;
   font-weight: 700;
   padding: 0;
@@ -156,7 +185,76 @@ const goToOtherVenues = () => {
 }
 
 .read-more-link:hover {
-  color: #115e59;
+  color: #d10201;
+}
+
+.tip-close-btn {
+  margin-left: auto;
+  width: 22px;
+  height: 22px;
+  border: 1px solid #f5c4a0;
+  border-radius: 9999px;
+  background: #fcd9c0;
+  color: #fe0302;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.tip-close-btn:hover {
+  background: #f5c4a0;
+  border-color: #ef9a6a;
+}
+
+.top-tip-toggle-wrapper {
+  position: relative;
+  height: 0;
+  z-index: 30;
+}
+
+.top-tip-toggle-btn {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  width: 34px;
+  height: 18px;
+  border: 1px solid #ea580c;
+  border-top: none;
+  border-radius: 0 0 16px 16px;
+  background: linear-gradient(180deg, #fb923c 0%, #f97316 100%);
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 2px 8px rgba(234, 88, 12, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.top-tip-toggle-btn::before {
+  content: '';
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 7px solid #ffffff;
+  opacity: 0.95;
+}
+
+.top-tip-toggle-btn:hover {
+  background: linear-gradient(180deg, #f97316 0%, #ea580c 100%);
+  transform: translateX(-50%) translateY(1px);
+  box-shadow: 0 3px 10px rgba(234, 88, 12, 0.35);
+}
+
+.top-tip-toggle-btn:focus-visible {
+  outline: 2px solid #fdba74;
+  outline-offset: 2px;
 }
 
 /* Content container: max width and centered */

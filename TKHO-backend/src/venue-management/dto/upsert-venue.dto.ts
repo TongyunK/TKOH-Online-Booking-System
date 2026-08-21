@@ -39,6 +39,10 @@ export class UpsertVenueDto {
   teaServiceAvailable?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  userDefinedUploadEventTitle?: boolean;
+
+  @IsOptional()
   @ValidateIf((_, value) => value !== null && value !== '')
   @IsString()
   @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, {

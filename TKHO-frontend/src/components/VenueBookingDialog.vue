@@ -1,5 +1,5 @@
 <template>
-  <!-- 自定义遮罩 + 弹窗 -->
+  <!-- 自定义遮�?+ 弹窗 -->
   <div class="modal-overlay" @click.self="handleClose" v-if="visible">
     <div
       class="booking-dialog-wrapper"
@@ -50,7 +50,7 @@
               </el-select>
             </el-form-item>
 
-            <!-- 修复后的日期选择框 -->
+            <!-- 修复后的日期选择�?-->
             <el-form-item label="Date" prop="date" :rules="[{ required: true, message: 'Please select a date' }]">
               <div class="field-with-availability">
                 <el-date-picker
@@ -63,7 +63,7 @@
                   :disabled="isApprovedOnlyNote"
                   :disabled-date="disabledDate"
                   :picker-options="{
-                    firstDayOfWeek: 1 // 周一作为每周第一天
+                    firstDayOfWeek: 1
                   }"
                   clearable
                   :teleported="bookingPopperTeleported"
@@ -85,57 +85,48 @@
             <div class="form-row">
               <el-form-item label="Start Time" prop="startTime" :rules="[{ required: true, message: 'Please select start time' }]" class="form-item-half">
                 <div class="field-with-availability">
-                  <el-time-picker
+                  <VenueTimePicker
                     v-model="form.startTime"
                     class="field-with-availability__control venue-time-picker"
                     placeholder="Select start time"
-                    format="HH:mm"
-                    value-format="HH:mm"
                     :clearable="true"
                     :disabled="isApprovedOnlyNote"
                     :teleported="bookingPopperTeleported"
-                    popper-class="venue-time-picker-popper"
-                    :disabled-hours="disabledVenueBookingHours"
-                    :disabled-minutes="disabledVenueBookingMinutes"
                   />
                   <span
                     v-if="!isApprovedOnlyNote && availabilityFieldOk.startTime"
                     class="availability-ok"
-                    aria-hidden="true"
-                  >✓</span>
+                  aria-hidden="true"
+                >✓</span>
                   <span
                     v-else-if="!isApprovedOnlyNote && availabilityFieldFail.startTime"
                     class="availability-fail"
-                    aria-hidden="true"
-                  >✕</span>
+                  aria-hidden="true"
+                >✕</span>
                 </div>
               </el-form-item>
 
               <el-form-item label="End Time" prop="endTime" :rules="[{ required: true, message: 'Please select end time' }]" class="form-item-half">
                 <div class="field-with-availability">
-                  <el-time-picker
+                  <VenueTimePicker
                     v-model="form.endTime"
                     class="field-with-availability__control venue-time-picker"
                     placeholder="Select end time"
-                    format="HH:mm"
-                    value-format="HH:mm"
                     :clearable="true"
                     :disabled="isApprovedOnlyNote"
                     :teleported="bookingPopperTeleported"
-                    popper-class="venue-time-picker-popper"
-                    :disabled-hours="disabledVenueBookingHours"
-                    :disabled-minutes="disabledVenueBookingMinutes"
+                    :min-time="form.startTime"
                   />
                   <span
                     v-if="!isApprovedOnlyNote && availabilityFieldOk.endTime"
                     class="availability-ok"
-                    aria-hidden="true"
-                  >✓</span>
+                  aria-hidden="true"
+                >✓</span>
                   <span
                     v-else-if="!isApprovedOnlyNote && availabilityFieldFail.endTime"
                     class="availability-fail"
-                    aria-hidden="true"
-                  >✕</span>
+                  aria-hidden="true"
+                >✕</span>
                 </div>
               </el-form-item>
             </div>
@@ -152,14 +143,24 @@
           <!-- Event + Additional Services -->
           <div class="form-section paired-layout">
             <div class="paired-left">
-              <el-form-item label="Meeting / Event Title" prop="topic" :rules="[{ required: true, message: 'Please enter topic' }]" class="topic-item no-wrap-label">
+              <el-form-item
+                label="Meeting / Event Title"
+                prop="topic"
+                :rules="[
+                  { required: true, message: 'Please enter topic' },
+                  { max: 80, message: 'Meeting / Event Title must be at most 80 characters', trigger: 'blur' }
+                ]"
+                class="topic-item no-wrap-label"
+              >
                 <el-input
                   v-model="form.topic"
                   type="textarea"
-                  :autosize="{ minRows: 1, maxRows: 2 }"
+                  :autosize="{ minRows: 1, maxRows: 4 }"
                   resize="none"
-                  class="two-line-input"
+                  class="meeting-title-textarea"
                   placeholder="e.g. Quarterly Performance"
+                  maxlength="80"
+                  show-word-limit
                   :disabled="isApprovedOnlyNote"
                 ></el-input>
               </el-form-item>
@@ -196,22 +197,9 @@
               </el-form-item>
 
               <el-form-item
-                label="Show title on display?"
-                class="no-wrap-label display-title-public-item"
-              >
-                <el-radio-group
-                  v-model="form.displayTitlePublic"
-                  :disabled="isApprovedOnlyNote"
-                >
-                  <el-radio :label="true">Yes</el-radio>
-                  <el-radio :label="false">No</el-radio>
-                </el-radio-group>
-              </el-form-item>
-
-              <el-form-item
                 v-if="showTeaServiceRequiredOption"
                 prop="teaServiceRequired"
-                class="no-wrap-label"
+                class="no-wrap-label tea-service-required-item"
               >
                 <template #label>
                   <span class="service-label-with-icon">
@@ -374,27 +362,54 @@
                     />
                     <span class="tea-inline-text">Pot(s) <span class="tea-option-zh">(壺水)</span> + cups</span>
                   </div>
-
-                  <div class="tea-service-option-row tea-service-option-row--stacked">
-                    <el-radio label="4">
-                      <span class="tea-option-label">
-                        Option 4: Special requests other than Option 1 / 2 / 3
-                        <span class="tea-option-zh tea-option-zh--required">(請用中文輸入)</span>
-                      </span>
-                    </el-radio>
-                    <el-input
-                      v-model="form.teaServiceSpecialRequest"
-                      type="textarea"
-                      :autosize="{ minRows: 2, maxRows: 4 }"
-                      resize="none"
-                      class="tea-service-special-textarea"
-                      :disabled="isApprovedOnlyNote || form.teaServiceOption !== '4'"
-                      placeholder="請用中文輸入特殊要求"
-                    />
-                  </div>
                 </el-radio-group>
+
+                <div
+                  v-if="isAdmin"
+                  class="tea-service-option-row tea-service-option-row--stacked tea-service-option4"
+                >
+                  <el-checkbox
+                    v-model="form.teaServiceOption4"
+                    :disabled="isApprovedOnlyNote || !['1', '2', '3'].includes(String(form.teaServiceOption || ''))"
+                  >
+                    <span class="tea-option-label">
+                      Option 4: Special requests other than Option 1 / 2 / 3
+                      <span class="tea-option-zh tea-option-zh--required">(請用中文輸入)</span>
+                    </span>
+                  </el-checkbox>
+                  <el-input
+                    v-model="form.teaServiceSpecialRequest"
+                    type="textarea"
+                    :autosize="{ minRows: 2, maxRows: 4 }"
+                    resize="none"
+                    class="tea-service-special-textarea"
+                    :disabled="isApprovedOnlyNote || !form.teaServiceOption4"
+                    placeholder="請用中文輸入特殊要求"
+                  />
+                </div>
               </div>
             </div>
+
+            <!-- 长文案整行放�?Tea Service 下方，避免与右侧 Venue Setup 等重�?-->
+            <el-form-item
+              v-if="showUploadEventTitleOption"
+              class="display-title-public-item paired-tea-full-width"
+              label-width="0"
+            >
+              <div class="display-title-public-row">
+                <span class="display-title-public-label">
+                  Upload event title to "Upcoming Events" on TKOH homepage?
+                </span>
+                <el-radio-group
+                  v-model="form.displayOnHomepage"
+                  class="display-title-public-radios"
+                  :disabled="isApprovedOnlyNote"
+                >
+                  <el-radio :label="true">Yes</el-radio>
+                  <el-radio :label="false">No</el-radio>
+                </el-radio-group>
+              </div>
+            </el-form-item>
           </div>
 
           <el-divider class="section-divider" />
@@ -456,6 +471,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import BookingStyleModal from '@/components/BookingStyleModal.vue'
 import ReservedByUserField from '@/components/ReservedByUserField.vue'
+import VenueTimePicker from '@/components/VenueTimePicker.vue'
 import { InfoFilled } from '@element-plus/icons-vue'
 import { getPrompts } from '@/api/promptManagement'
 import { checkRoomAvailability } from '@/api/calendar'
@@ -466,6 +482,10 @@ import { todayYmdInAppTimeZone } from '@/utils/appTimezone'
 import { useUserStore } from '@/stores/user'
 import { buildTeaServiceApiPayload, validateTeaServiceForm, parseTeaServiceToForm, venueOffersTeaService } from '@/utils/venueTeaService'
 import { validateVenueDailyBookingWindow } from '@/utils/venueDailyBookingWindow'
+import {
+  validateVenueBookingDateRange,
+  isYmdOutsideVenueBookingDateRange
+} from '@/utils/venueBookingDateRange'
 import { pickPromptTooltipText } from '@/utils/promptTooltip'
 
 const props = defineProps({
@@ -493,6 +513,15 @@ const props = defineProps({
     type: Object,
     default: () => ({})
   },
+  /** Venue Booking Date Range（YYYY-MM-DD�?*/
+  bookingWindowStart: {
+    type: String,
+    default: ''
+  },
+  bookingWindowEnd: {
+    type: String,
+    default: ''
+  },
   isAdmin: {
     type: Boolean,
     default: false
@@ -516,14 +545,14 @@ const submitButtonLabel = computed(() =>
   props.mode === 'edit' ? 'SAVE BOOKING' : 'SUBMIT BOOKING'
 )
 
-/** 已 Approved：普通用户仅可改 My Note；管理员可改任意字段 */
+/** �?Approved：普通用户仅可改 My Note；管理员可改任意字段 */
 const isApprovedOnlyNote = computed(() =>
   props.mode === 'edit' &&
   !props.isAdmin &&
   String(props.booking?.approvalStatus || '').toLowerCase() === 'approved'
 )
 
-/** All Bookings 管理员代改他人：不展示 My Note；本人 My Bookings / 日历自订保留 */
+/** All Bookings 管理员代改他人：不展�?My Note；本�?My Bookings / 日历自订保留 */
 const showMyNoteField = computed(() => !(props.isAdmin && props.allowAdminReservedBy))
 
 const emit = defineEmits(['confirm', 'close'])
@@ -625,7 +654,7 @@ const showNotice = (message, title = 'Notice') => {
 
 const promptList = ref([])
 
-/** Check Availability 结果：Date / Start / End 右侧绿色 ✓ 或红色 ✕ */
+/** Check Availability 结果：Date / Start / End 右侧绿色 �?或红�?�?*/
 const availabilityFieldOk = ref({
   date: false,
   startTime: false,
@@ -664,7 +693,7 @@ function setAvailabilityPass () {
   }
 }
 
-/** fieldErrors 中 true = 该字段不合规 */
+/** fieldErrors �?true = 该字段不合规 */
 function setAvailabilityFromFieldErrors (fieldErrors) {
   const dateFail = Boolean(fieldErrors?.date)
   const startFail = Boolean(fieldErrors?.startTime)
@@ -719,10 +748,10 @@ const dragStartY = ref(0)
 const dialogX = ref(0)
 const dialogY = ref(0)
 
-/** 14" 视口（1100–1599）：弹窗略增高，与 MeetingApproval / UserManagement 一致 */
+/** 14" 视口�?100�?599）：弹窗略增高，�?MeetingApproval / UserManagement 一�?*/
 const VENUE_BOOKING_DIALOG_MODAL_MQ = HTML_ZOOM_BREAKPOINT_MQ
 const venueBookingDialogMaxHeight = ref('')
-/** 14" html zoom：Room / Date / Time / Prompt Tooltip 勿挂 body，避免坐标偏移与 Teleport 目标为 null */
+/** 14" html zoom：Room / Date / Time / Prompt Tooltip 勿挂 body，避免坐标偏移与 Teleport 目标�?null */
 const bookingPopperTeleported = ref(true)
 
 function updateVenueBookingDialogMaxHeight () {
@@ -790,8 +819,9 @@ const form = ref({
   remark: '',
   teaServiceRequired: false,
   attendeeCount: null,
-  displayTitlePublic: true,
+  displayOnHomepage: true,
   teaServiceOption: '1',
+  teaServiceOption4: false,
   teaServiceRatioFrom: null,
   teaServiceRatioTo: null,
   teaServiceTeaPots: null,
@@ -811,7 +841,8 @@ const availableRooms = computed(() => {
       name: room.name,
       color: room.color,
       roomCapacity: room.roomCapacity ?? room.capacity ?? null,
-      teaServiceAvailable: room.teaServiceAvailable
+      teaServiceAvailable: room.teaServiceAvailable,
+      userDefinedUploadEventTitle: room.userDefinedUploadEventTitle !== false
     }))
   }
   return []
@@ -836,7 +867,15 @@ function validateSelectedVenueDailyBookingWindow () {
   )
 }
 
-/** 所选场地容量；无有效值时为 null */
+function validateSelectedVenueBookingDateRange () {
+  return validateVenueBookingDateRange(
+    form.value.date,
+    props.bookingWindowStart,
+    props.bookingWindowEnd
+  )
+}
+
+/** 所选场地容量；无有效值时�?null */
 const selectedVenueCapacity = computed(() => {
   const cap = Number(selectedVenue.value?.roomCapacity)
   return Number.isFinite(cap) && cap >= 1 ? cap : null
@@ -870,52 +909,63 @@ function validateParticipantCount () {
   return { ok: true }
 }
 
-/** 营业时间范围 07:00–21:00；分钟自由选择，便于配合场地预订间隔（如 11:15） */
-const VENUE_BOOKING_HOUR_START = 7
-const VENUE_BOOKING_HOUR_END = 21
-
-function disabledVenueBookingHours () {
-  const hours = []
-  for (let h = 0; h < 24; h++) {
-    if (h < VENUE_BOOKING_HOUR_START || h > VENUE_BOOKING_HOUR_END) hours.push(h)
-  }
-  return hours
-}
-
-function disabledVenueBookingMinutes (hour) {
-  if (hour !== VENUE_BOOKING_HOUR_END) return []
-  // 最晚 21:00，禁止 21:01–21:59
-  const minutes = []
-  for (let m = 1; m < 60; m++) minutes.push(m)
-  return minutes
-}
-
 function isVenueBookingDateTodayOrEarlier(ymd) {
   const date = String(ymd || '').trim()
   if (!date) return false
   return date <= todayYmdInAppTimeZone()
 }
 
+/** Start 之后最�?15 分钟刻度，供 End Time 自动回填 */
+function nextVenueEndTimeAfter (startHm, endHour = 21, step = 15) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(startHm || '').trim())
+  if (!m) return ''
+  let total = Number(m[1]) * 60 + Number(m[2]) + step
+  total = Math.ceil(total / step) * step
+  const hour = Math.floor(total / 60)
+  const minute = total % 60
+  if (hour > endHour || (hour === endHour && minute > 0)) return ''
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${pad(hour)}:${pad(minute)}`
+}
+
 function applyTeaServiceVisibilityRules() {
-  if (
-    venueOffersTeaService(selectedVenue.value) &&
-    !isVenueBookingDateTodayOrEarlier(form.value.date)
-  ) {
-    return
+  if (venueOffersTeaService(selectedVenue.value)) {
+    // 管理员：今日/过去日期也可选茶歇；普通用户仅未来日期可见
+    if (props.isAdmin || !isVenueBookingDateTodayOrEarlier(form.value.date)) {
+      return
+    }
   }
   form.value.teaServiceRequired = false
+  form.value.teaServiceOption4 = false
   form.value.teaServiceSpecialRequest = ''
 }
 
-const showTeaServiceRequiredOption = computed(() =>
-  venueOffersTeaService(selectedVenue.value) &&
-  !isVenueBookingDateTodayOrEarlier(form.value.date)
-)
+const showTeaServiceRequiredOption = computed(() => {
+  if (!venueOffersTeaService(selectedVenue.value)) return false
+  //  管理员不受「今日及以前不可选茶歇」约�?
+  if (props.isAdmin) return true
+  return !isVenueBookingDateTodayOrEarlier(form.value.date)
+})
 
-// 非管理员禁用今日之前；管理员可选择过去日期添加预定
+/** 仅当场地开�?Upload event title 开关时显示该选项 */
+const showUploadEventTitleOption = computed(() => {
+  const venue = selectedVenue.value ?? selectedVenueRecord.value
+  if (venue == null) return false
+  return venue.userDefinedUploadEventTitle !== false
+})
+
+function applyUploadEventTitleVisibilityRules() {
+  if (showUploadEventTitleOption.value) return
+  form.value.displayOnHomepage = true
+}
+
+// 非管理员禁用今日之前；所有人禁用 Venue Booking Date Range 之外；管理员可周�?假日
 function disabledDate(date) {
   const ymd = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
   if (!props.isAdmin && ymd < todayYmdInAppTimeZone()) return true
+  if (isYmdOutsideVenueBookingDateRange(ymd, props.bookingWindowStart, props.bookingWindowEnd)) {
+    return true
+  }
   return isRestrictedBookingDay(ymd, {
     isAdmin: props.isAdmin,
     publicHolidayDates: props.publicHolidayDates
@@ -933,6 +983,13 @@ async function checkAvailability () {
   if (form.value.startTime >= form.value.endTime) {
     setAvailabilityFromFieldErrors({ date: false, startTime: true, endTime: true })
     showNotice('End time must be after start time', 'Warning')
+    return
+  }
+
+  const dateRangeCheck = validateSelectedVenueBookingDateRange()
+  if (!dateRangeCheck.ok) {
+    setAvailabilityFromFieldErrors({ date: true, startTime: false, endTime: false })
+    showNotice(dateRangeCheck.message, 'Warning')
     return
   }
 
@@ -975,7 +1032,7 @@ async function checkAvailability () {
   }
 }
 
-/** 仅提交可持久化字段（场地布置/设备等 ℹ️ 行不入库） */
+/** Build confirm payload with persistable fields only */
 function buildBookingConfirmPayload () {
   const reservedByUserId = resolveSubmitReservedByUserId()
   const teaPayload = buildTeaServiceApiPayload(form.value)
@@ -988,11 +1045,11 @@ function buildBookingConfirmPayload () {
     endTime: form.value.endTime,
     topic: form.value.topic,
     attendeeCount: form.value.attendeeCount,
-    displayTitlePublic: form.value.displayTitlePublic !== false,
+    displayOnHomepage: form.value.displayOnHomepage !== false,
     ...teaPayload,
     id: props.booking?.id
   }
-  // 管理员不编辑 My Note，避免覆盖用户备注
+  // Admin does not edit My Note; avoid overwriting user note
   if (showMyNoteField.value) {
     payload.remark = form.value.remark
   }
@@ -1016,10 +1073,18 @@ function initializeForm() {
         ?? props.booking.teaServiceParticipants
         ?? props.booking.participants
         ?? null,
-      displayTitlePublic: props.booking.displayTitlePublic !== false,
-      teaServiceOption: props.booking.teaServiceOption && props.booking.teaServiceOption !== 'none'
-        ? String(props.booking.teaServiceOption)
-        : teaFromService.teaServiceOption,
+      displayOnHomepage: props.booking.displayOnHomepage !== false,
+      teaServiceOption: (() => {
+        const raw = props.booking.teaServiceOption && props.booking.teaServiceOption !== 'none'
+          ? String(props.booking.teaServiceOption)
+          : teaFromService.teaServiceOption
+        return raw === '4' ? '1' : raw
+      })(),
+      teaServiceOption4: Boolean(
+        teaFromService.teaServiceOption4 ||
+        props.booking.teaServiceOption4 ||
+        String(props.booking.teaServiceSpecialRequest || teaFromService.teaServiceSpecialRequest || '').trim()
+      ),
       teaServiceSpecialRequest: props.booking.teaServiceSpecialRequest
         || teaFromService.teaServiceSpecialRequest
         || ''
@@ -1040,15 +1105,15 @@ function initializeForm() {
     form.value = {
       reservedByUserId: selfId,
       room: '',
-      date: null, // 初始化日期为空
-      startTime: '',
+      date: null, // 初始化日期为�?      startTime: '',
       endTime: '',
       topic: '',
       remark: '',
       teaServiceRequired: false,
       attendeeCount: null,
-      displayTitlePublic: true,
+      displayOnHomepage: true,
       teaServiceOption: '1',
+      teaServiceOption4: false,
       teaServiceRatioFrom: null,
       teaServiceRatioTo: null,
       teaServiceTeaPots: null,
@@ -1060,9 +1125,13 @@ function initializeForm() {
       form.value.date = props.selectedTime.date
       form.value.startTime = props.selectedTime.time
       form.value.room = props.selectedTime.room || ''
+      if (form.value.startTime) {
+        form.value.endTime = nextVenueEndTimeAfter(form.value.startTime)
+      }
     }
   }
   applyTeaServiceVisibilityRules()
+  applyUploadEventTitleVisibilityRules()
 }
 
 function handleConfirm() {
@@ -1090,17 +1159,25 @@ function handleConfirm() {
     return
   }
 
-  const teaCheck = validateTeaServiceForm(form.value)
+  const teaCheck = validateTeaServiceForm(form.value, { isAdmin: props.isAdmin })
   if (!teaCheck.ok) {
     showNotice(teaCheck.message, 'Error')
     return
   }
 
+  applyUploadEventTitleVisibilityRules()
+
   formRef.value.validate((valid) => {
     if (valid) {
-      // 验证结束时间是否晚于开始时间
+      //  验证结束时间是否晚于开始时�?
       if (form.value.startTime && form.value.endTime && form.value.startTime >= form.value.endTime) {
         showNotice('End time must be later than start time', 'Error')
+        return
+      }
+      const dateRangeCheck = validateSelectedVenueBookingDateRange()
+      if (!dateRangeCheck.ok) {
+        setAvailabilityFromFieldErrors({ date: true, startTime: false, endTime: false })
+        showNotice(dateRangeCheck.message, 'Error')
         return
       }
       const dailyWindowCheck = validateSelectedVenueDailyBookingWindow()
@@ -1120,7 +1197,7 @@ function handleConfirm() {
 function handleClose() {
   clearAvailabilityIndicators()
   emit('close')
-  // 重置表单验证状态
+  //  重置表单验证状�?
   if (formRef.value) {
     formRef.value.clearValidate()
   }
@@ -1130,8 +1207,7 @@ watch(() => props.visible, (val) => {
   if (val) {
     initializeForm()
     clearAvailabilityIndicators()
-    // 重置对话框位置
-    dialogX.value = 0
+    // 重置对话框位�?    dialogX.value = 0
     dialogY.value = 0
   }
 })
@@ -1148,6 +1224,7 @@ watch(
 watch(() => form.value.room, () => {
   clearAvailabilityIndicators()
   applyTeaServiceVisibilityRules()
+  applyUploadEventTitleVisibilityRules()
 })
 
 watch(
@@ -1162,24 +1239,39 @@ watch(() => form.value.date, () => {
 })
 
 watch(() => form.value.startTime, (start) => {
-  if (start && form.value.endTime && form.value.endTime <= start) {
-    form.value.endTime = ''
+  if (!start) return
+  if (!form.value.endTime || form.value.endTime <= start) {
+    form.value.endTime = nextVenueEndTimeAfter(start)
   }
 })
 
 watch(() => form.value.teaServiceRequired, (yes) => {
   if (!yes) {
+    form.value.teaServiceOption4 = false
     form.value.teaServiceSpecialRequest = ''
     return
   }
-  if (!form.value.teaServiceOption) {
+  if (!form.value.teaServiceOption || form.value.teaServiceOption === '4' || form.value.teaServiceOption === 'none') {
     form.value.teaServiceOption = '1'
+  }
+})
+
+watch(() => form.value.teaServiceOption4, (on) => {
+  if (!on) {
+    form.value.teaServiceSpecialRequest = ''
+  }
+})
+
+watch(() => form.value.teaServiceOption, (option) => {
+  if (!['1', '2', '3'].includes(String(option || ''))) {
+    form.value.teaServiceOption4 = false
+    form.value.teaServiceSpecialRequest = ''
   }
 })
 </script>
 
 <style>
-/* 遮罩层 */
+/* 遮罩�?*/
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -1210,7 +1302,7 @@ watch(() => form.value.teaServiceRequired, (yes) => {
   overflow: visible;
   position: relative;
   z-index: 10000;
-  /* 修复小屏滚动：确保容器在flex布局中正确计算高度 */
+  /* 修复小屏滚动：确保容器在flex布局中正确计算高�?*/
   flex-shrink: 0;
 }
 
@@ -1224,7 +1316,7 @@ watch(() => form.value.teaServiceRequired, (yes) => {
   justify-content: space-between;
   cursor: move;
   user-select: none;
-  flex-shrink: 0; /* 头部不收缩 */
+  flex-shrink: 0; /* 头部不收�?*/
   border-top-left-radius: 12px;
   border-top-right-radius: 12px;
 }
@@ -1234,7 +1326,7 @@ watch(() => form.value.teaServiceRequired, (yes) => {
   line-height: 1.5;
 }
 
-/* 关闭按钮（加粗 ×） */
+/* 关闭按钮（加�?×�?*/
 .modal-close {
   background: none;
   border: none;
@@ -1259,15 +1351,15 @@ watch(() => form.value.teaServiceRequired, (yes) => {
   stroke: #d1fae5;
 }
 
-/* 内容区 - 修复滚动和日期选择器样式问题 */
+/* 内容�?- 修复滚动和日期选择器样式问�?*/
 .modal-body {
   padding: 1.125rem 1.75rem;
   flex: 1;
-  /* clip：teleported=false 时提示可越界显示，且不会像 visible+auto 那样把 overflow-x 算成 auto 产生横滚 */
+  /* clip：teleported=false 时提示可越界显示，且不会�?visible+auto 那样�?overflow-x 算成 auto 产生横滚 */
   overflow-x: clip;
   overflow-y: auto;
   padding-bottom: 20px;
-  /* 确保内容区高度计算正确 */
+  /* 确保内容区高度计算正�?*/
   min-height: 0;
 }
 .modal-body::-webkit-scrollbar {
@@ -1289,10 +1381,10 @@ watch(() => form.value.teaServiceRequired, (yes) => {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  flex-shrink: 0; /* 底部不收缩 */
+  flex-shrink: 0; /* 底部不收�?*/
 }
 
-/* 修复下拉框样式 */
+/* 修复下拉框样�?*/
 .room-select-popper,
 .venue-time-picker-popper,
 .date-picker-popper,
@@ -1359,12 +1451,12 @@ watch(() => form.value.teaServiceRequired, (yes) => {
   color: #333;
 }
 
-/* teleported=false：相对触发器定位；勿用 fixed（html zoom 0.8 挂 body 时会偏移） */
+/* teleported=false：相对触发器定位；勿�?fixed（html zoom 0.8 �?body 时会偏移�?*/
 :deep(.date-picker-popper) {
   z-index: 100000 !important;
 }
 
-/* Tooltip 默认挂到 body，scoped 的 :deep(.el-popper) 无法作用到其上，会被 modal-overlay(9999) 挡住 */
+/* Tooltip 默认挂到 body，scoped �?:deep(.el-popper) 无法作用到其上，会被 modal-overlay(9999) 挡住 */
 .venue-booking-prompt-tooltip {
   z-index: 100001 !important;
   box-sizing: border-box;
@@ -1378,7 +1470,7 @@ watch(() => form.value.teaServiceRequired, (yes) => {
   text-align: left;
 }
 
-/* 右侧 Venue Setup 等：与主提示同一尺寸规则，避免 14" 窄列挤换行或超长单行 */
+/* 右侧 Venue Setup 等：与主提示同一尺寸规则，避�?14" 窄列挤换行或超长单行 */
 .venue-booking-prompt-tooltip--service {
   min-width: 10rem;
   max-width: min(320px, 90vw) !important;
@@ -1418,7 +1510,7 @@ watch(() => form.value.teaServiceRequired, (yes) => {
   flex-direction: column;
 }
 
-/* 左侧（茶歇等）较宽内容可能溢出到视觉上的右侧；抬高右列层级并让其在网格行内拉满高度，避免下半区事件落到左列 */
+/* 左侧（茶歇等）较宽内容可能溢出到视觉上的右侧；抬高右列层级并让其在网格行内拉满高度，避免下半区事件落到左�?*/
 .paired-left {
   padding-left: 0.75rem;
   position: relative;
@@ -1439,16 +1531,19 @@ watch(() => form.value.teaServiceRequired, (yes) => {
   min-width: 0;
 }
 
-/* 小屏单列：左列 → 茶歇选项 → 右侧服务标签（避免茶歇块跑到 Venue Setup 下面） */
+/* 小屏单列：左�?�?茶歇选项 �?右侧服务标签 */
 @media (max-width: 1099px) {
   .paired-layout > .paired-left {
     order: 1;
   }
-  .paired-layout > .paired-tea-full-width {
+  .paired-layout > .paired-tea-full-width:not(.display-title-public-item) {
     order: 2;
   }
   .paired-layout > .paired-right {
     order: 3;
+  }
+  .paired-layout > .display-title-public-item.paired-tea-full-width {
+    order: 4;
   }
 }
 
@@ -1507,11 +1602,14 @@ watch(() => form.value.teaServiceRequired, (yes) => {
 }
 
 .field-with-availability :deep(.venue-time-picker.el-date-editor),
-.field-with-availability :deep(.venue-time-picker.el-input) {
+.field-with-availability :deep(.venue-time-picker.el-input),
+.field-with-availability :deep(.venue-time-picker .el-input),
+.field-with-availability :deep(.venue-step-time-picker) {
   width: 100%;
 }
 
-.field-with-availability__control.el-date-editor {
+.field-with-availability__control.el-date-editor,
+.field-with-availability__control.venue-step-time-picker {
   width: 100% !important;
 }
 
@@ -1581,7 +1679,7 @@ watch(() => form.value.teaServiceRequired, (yes) => {
   gap: 0.75rem;
   width: 100%;
   align-items: flex-start;
-  /* Element Plus 的 .el-radio-group 默认 font-size: 0，行内 span 会继承为 0 而不可见 */
+  /* Element Plus �?.el-radio-group 默认 font-size: 0，行�?span 会继承为 0 而不可见 */
   font-size: 14px;
   line-height: 1.45;
 }
@@ -1617,6 +1715,23 @@ watch(() => form.value.teaServiceRequired, (yes) => {
   flex-direction: column;
   align-items: flex-start;
   gap: 0.5rem;
+}
+
+.tea-service-option4 {
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px dashed #e5e7eb;
+}
+
+.tea-service-option4 :deep(.el-checkbox) {
+  align-items: flex-start;
+  height: auto;
+  white-space: normal;
+}
+
+.tea-service-option4 :deep(.el-checkbox__label) {
+  white-space: normal;
+  line-height: 1.4;
 }
 
 .tea-option-label,
@@ -1748,7 +1863,7 @@ watch(() => form.value.teaServiceRequired, (yes) => {
   z-index: 2;
 }
 
-/* 仅标签、无输入域时左侧 content 仍占 flex 空间，可能挡住同项内靠后的 label/图标命中与 cursor */
+/* 仅标签、无输入域时左侧 content 仍占 flex 空间，可能挡住同项内靠后�?label/图标命中�?cursor */
 .service-label-left :deep(.el-form-item__content) {
   pointer-events: none;
 }
@@ -1843,6 +1958,14 @@ watch(() => form.value.teaServiceRequired, (yes) => {
   word-break: break-word;
 }
 
+.meeting-title-textarea :deep(.el-textarea__inner) {
+  line-height: 1.4;
+  max-height: calc(1.4em * 4 + 1rem);
+  overflow-y: auto;
+  word-break: break-word;
+  resize: none;
+}
+
 .topic-item :deep(.el-form-item__label) {
   white-space: nowrap;
 }
@@ -1850,6 +1973,47 @@ watch(() => form.value.teaServiceRequired, (yes) => {
 .no-wrap-label :deep(.el-form-item__label) {
   white-space: nowrap;
   overflow: visible;
+}
+
+.display-title-public-item {
+  margin-bottom: 0.35rem !important;
+  margin-top: 0.25rem;
+}
+
+.display-title-public-item :deep(.el-form-item__content) {
+  margin-left: 0 !important;
+  justify-content: flex-start !important;
+}
+
+.display-title-public-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.75rem 1.25rem;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.display-title-public-label {
+  flex: 0 1 auto;
+  white-space: normal;
+  font-size: 0.8125rem;
+  color: #374151;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.display-title-public-radios {
+  flex: 0 0 auto;
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.tea-service-required-item {
+  margin-bottom: 0.35rem !important;
 }
 
 .booking-form :deep(.el-input.is-disabled .el-input__inner) {
@@ -1928,7 +2092,7 @@ watch(() => form.value.teaServiceRequired, (yes) => {
   .paired-layout {
     grid-template-columns: 1fr;
   }
-  /* 小屏增加表单间距，提升可读性 */
+  /* 小屏增加表单间距，提升可读�?*/
   .booking-form :deep(.el-form-item) {
     margin-bottom: 1rem;
   }
@@ -1948,7 +2112,7 @@ watch(() => form.value.teaServiceRequired, (yes) => {
   .paired-layout {
     grid-template-columns: 1fr;
   }
-  /* 小屏增加表单间距，提升可读性 */
+  /* 小屏增加表单间距，提升可读�?*/
   .booking-form :deep(.el-form-item) {
     margin-bottom: 1rem;
   }
@@ -1957,7 +2121,7 @@ watch(() => form.value.teaServiceRequired, (yes) => {
 @media (min-width: 1100px) and (max-width: 1599px) {
   .booking-dialog-wrapper {
     width: 95% !important;
-    /* max-height：124vh 由脚本 dialogWrapperStyle 控制（与 MeetingApproval 一致） */
+    /* max-height�?24vh 由脚�?dialogWrapperStyle 控制（与 MeetingApproval 一致） */
   }
 }
 
@@ -1965,15 +2129,16 @@ watch(() => form.value.teaServiceRequired, (yes) => {
 
 @media (min-width: 2240px) {}
 
-/* 确保下拉框内容可见 */
+/* 确保下拉框内容可�?*/
 :deep(.el-select-dropdown),
 :deep(.el-popper) {
   z-index: 99999 !important;
 }
 
-/* 半宽 Start/End Time 的时间选择器 */
+/* 半宽 Start/End Time 的时间选择�?*/
 :deep(.form-row .form-item-half .venue-time-picker),
-:deep(.form-row .form-item-half .el-date-editor.el-input) {
+:deep(.form-row .form-item-half .el-date-editor.el-input),
+:deep(.form-row .form-item-half .el-select) {
   width: 100%;
 }
 </style>

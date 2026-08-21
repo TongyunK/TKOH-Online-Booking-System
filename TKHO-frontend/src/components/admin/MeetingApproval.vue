@@ -599,7 +599,15 @@
         </el-form-item>
         
         <el-form-item label="Meeting / Event Title" class="no-wrap-label">
-          <el-input v-model="handleForm.meetingTitle" type="textarea" :rows="2" />
+          <el-input
+            v-model="handleForm.meetingTitle"
+            type="textarea"
+            :autosize="{ minRows: 1, maxRows: 4 }"
+            resize="none"
+            class="meeting-title-textarea"
+            maxlength="80"
+            show-word-limit
+          />
         </el-form-item>
         <el-form-item label="Date">
           <el-input v-model="handleForm.date" disabled />
@@ -612,6 +620,21 @@
         </el-form-item>
         <el-form-item label="Tea Service">
           <el-input v-model="handleForm.teaService" disabled />
+        </el-form-item>
+        <el-form-item
+          v-if="showHandleUploadEventTitleOption"
+          class="display-title-public-item"
+          label-width="0"
+        >
+          <div class="display-title-public-row">
+            <span class="display-title-public-label">
+              Upload event title to "Upcoming Events" on TKOH homepage?
+            </span>
+            <el-radio-group v-model="handleForm.displayOnHomepage">
+              <el-radio :label="true">Yes</el-radio>
+              <el-radio :label="false">No</el-radio>
+            </el-radio-group>
+          </div>
         </el-form-item>
         <div class="contact-info-section">
           <el-form-item label="Name" label-width="154px">
@@ -1007,8 +1030,8 @@ function toggleSortState(state, key) {
 
 function getSortIndicatorFromState(state, key) {
   const idx = state.value.findIndex(item => item.key === key)
-  if (idx === -1) return '↕'
-  const arrow = state.value[idx].order === 'asc' ? '▲' : '▼'
+  if (idx === -1) return ''
+  const arrow = state.value[idx].order === 'asc' ? '↑' : '↓'
   return `${arrow}${idx + 1}`
 }
 
@@ -1228,7 +1251,7 @@ const showHandleDialog = ref(false)
 const showRejectBookingDialog = ref(false)
 const currentHandleRow = ref(null)
 
-/** 嵌套弹窗内下拉挂到 body，避免被裁切；14" 视口与 UserManagement 一致 */
+/** 嵌套弹窗内下拉挂�?body，避免被裁切�?4" 视口�?UserManagement 一�?*/
 const REJECT_BOOKING_SELECT_MQ = '(min-width: 1100px) and (max-width: 1599px)'
 const rejectBookingSelectTeleported = ref(true)
 let rejectBookingSelectMq = null
@@ -1332,7 +1355,13 @@ const handleForm = ref({
   date: '',
   time: '',
   participantCount: '-',
-  teaService: 'No'
+  teaService: 'No',
+  displayOnHomepage: true,
+  userDefinedUploadEventTitle: true
+})
+
+const showHandleUploadEventTitleOption = computed(() => {
+  return handleForm.value.userDefinedUploadEventTitle !== false
 })
 
 function formatTeaServiceStatus(row) {
@@ -1409,7 +1438,9 @@ const handleOpen = (row) => {
       ?? row.teaServiceParticipants
       ?? row.teaService?.attendees
       ?? '-',
-    teaService: formatTeaServiceStatus(row)
+    teaService: formatTeaServiceStatus(row),
+    displayOnHomepage: row.displayOnHomepage !== false,
+    userDefinedUploadEventTitle: row.userDefinedUploadEventTitle !== false
   }
   showHandleDialog.value = true
 }
@@ -1428,9 +1459,15 @@ function closeRejectBookingDialog () {
 const confirmHandleApprove = async () => {
   if (!currentHandleRow.value) return
   const row = currentHandleRow.value
+  const meetingTitle = handleForm.value.meetingTitle?.trim() || undefined
+  if (meetingTitle && meetingTitle.length > 80) {
+    showNotice('Meeting / Event Title must be at most 80 characters', 'Warning')
+    return
+  }
   try {
     await approveBooking(row.id, {
-      meetingTitle: handleForm.value.meetingTitle?.trim() || undefined
+      meetingTitle,
+      displayOnHomepage: handleForm.value.displayOnHomepage !== false
     })
     showHandleDialog.value = false
     currentHandleRow.value = null
@@ -1451,10 +1488,16 @@ const confirmRejectBooking = async () => {
   }
 
   const row = currentHandleRow.value
+  const meetingTitle = handleForm.value.meetingTitle?.trim() || undefined
+  if (meetingTitle && meetingTitle.length > 80) {
+    showNotice('Meeting / Event Title must be at most 80 characters', 'Warning')
+    return
+  }
   try {
     await rejectBooking(row.id, {
       reason: rejectBookingForm.value.reason.trim(),
-      meetingTitle: handleForm.value.meetingTitle?.trim() || undefined
+      meetingTitle,
+      displayOnHomepage: handleForm.value.displayOnHomepage !== false
     })
     showRejectBookingDialog.value = false
     showHandleDialog.value = false
@@ -2256,6 +2299,44 @@ const confirmRejectBooking = async () => {
 
 .handle-booking-form :deep(.no-wrap-label .el-form-item__label) {
   white-space: nowrap;
+}
+
+.meeting-title-textarea :deep(.el-textarea__inner) {
+  line-height: 1.4;
+  max-height: calc(1.4em * 4 + 1rem);
+  overflow-y: auto;
+  word-break: break-word;
+  resize: none;
+}
+
+.display-title-public-item :deep(.el-form-item__label) {
+  display: none;
+}
+
+.display-title-public-item :deep(.el-form-item__content) {
+  margin-left: 0 !important;
+  justify-content: flex-start !important;
+}
+
+.display-title-public-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.75rem 1rem;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.display-title-public-label {
+  flex: 0 1 auto;
+  color: #374151;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.display-title-public-item :deep(.el-radio-group) {
+  flex: 0 0 auto;
 }
 
 .notice-message {

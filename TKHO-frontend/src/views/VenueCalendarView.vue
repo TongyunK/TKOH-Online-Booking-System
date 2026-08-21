@@ -5,16 +5,16 @@
       <button
         type="button"
         class="top-tip-toggle-btn"
-        aria-label="Show important note"
-        title="Show important note"
+        aria-label="Show alert message"
+        title="Show alert message"
         @click="showTopTip = true"
       ></button>
     </div>
-    <div v-if="hasVenueRuleNotice && showTopTip" class="top-tip-wrapper px-2 md:px-3 lg:px-4 pt-2 pb-0">
+    <div v-if="hasVenueRuleNotice && showTopTip" class="top-tip-wrapper px-2 md:px-3 lg:px-4">
       <div class="booking-window-tip">
-        <span>Important Note: {{ venueRuleNoticeBannerText }}</span>
-        <button type="button" class="read-more-link" @click="noticeDialogVisible = true">Read more...</button>
-        <button type="button" class="tip-close-btn" aria-label="Close important note" @click="showTopTip = false">
+        <span>Alert Message:</span>
+        <button type="button" class="read-more-link" @click="noticeDialogVisible = true">Click here to read more</button>
+        <button type="button" class="tip-close-btn" aria-label="Hide alert message" @click="showTopTip = false">
           &times;
         </button>
       </div>
@@ -256,6 +256,8 @@
       :selected-time="selectedTime"
       :venue-list="venueList"
       :public-holiday-dates="holidaysByDate"
+      :booking-window-start="venueBookingWindow.currentStartDate"
+      :booking-window-end="venueBookingWindow.currentEndDate"
       :is-admin="isAdmin"
       @confirm="handleBookingConfirm"
       @close="closeBookingDialog"
@@ -330,7 +332,7 @@
     <BookingStyleModal
       v-if="hasVenueRuleNotice"
       v-model="noticeDialogVisible"
-      title="Important Note"
+      title="Alert Message"
       max-width="820px"
       custom-class="important-note-modal"
     >
@@ -398,7 +400,7 @@ const route = useRoute()
 const userStore = useUserStore()
 const { isAdmin, userInfo } = storeToRefs(userStore)
 
-// Current calendar view mode（刷新后从 sessionStorage 恢复）
+// Current calendar view mode (restored from sessionStorage after refresh)
 const currentView = ref(loadVenueCalendarView())
 
 // Current anchor date
@@ -437,7 +439,6 @@ const showNotice = (message, title = 'Notice') => {
 }
 const {
   venueRuleNoticeContent,
-  venueRuleNoticeBannerText,
   venueRuleNoticeLoading,
   hasVenueRuleNotice,
   loadVenueRuleNotice
@@ -455,7 +456,7 @@ const blockForm = ref({
   reason: ''
 })
 
-/** 14寸断点（1100-1599px）下增加 Block Time 弹窗高度，参考 MeetingApproval 的实现 */
+/** 14????1100-1599px???? Block Time ????????MeetingApproval ????*/
 const BLOCK_MODAL_MQ = '(min-width: 1100px) and (max-width: 1599px)'
 const blockDialogMaxHeight = ref('94vh')
 
@@ -479,7 +480,7 @@ const venueWindowRange = computed(() => ({
 
 const conferenceRooms = ref([])
 const otherVenues = ref([])
-/** 已从 sessionStorage 恢复筛选时，不再用预订列表自动勾选场地 */
+/** ?? sessionStorage ????????????????????*/
 const roomFilterRestoredFromStorage = ref(false)
 const roomFilterPersistenceReady = ref(false)
 
@@ -533,7 +534,7 @@ function loadBlockRecordsFromVenues () {
   })
 }
 
-/** 拉取结果里出现的场地自动勾选，避免预订被筛选藏掉（已从 storage 恢复或 URL 带 roomType 初始筛选时不覆盖） */
+/** ??????????????????????????? storage ????URL ??roomType ????????? */
 function syncSelectedRoomsWithBookings (bookingList) {
   if (roomFilterRestoredFromStorage.value) {
     return
@@ -690,7 +691,7 @@ function toBookingYmd (date) {
   return String(date || '').trim()
 }
 
-/** 非管理员不可预定今日之前的日期；管理员可添加过去预定 */
+/** ?????????????????????????? */
 function assertNotPastDateForNonAdmin (date) {
   if (isAdmin.value) return true
   const ymd = toBookingYmd(date)
@@ -1074,7 +1075,7 @@ function buildBookingPayload (bookingData) {
     topic: bookingData.topic,
     remark: bookingData.remark,
     attendeeCount: bookingData.attendeeCount,
-    displayTitlePublic: bookingData.displayTitlePublic !== false,
+    displayOnHomepage: bookingData.displayOnHomepage !== false,
     teaServiceRequired: bookingData.teaServiceRequired,
     teaServiceOption: bookingData.teaServiceOption,
     teaServiceRatioFrom: bookingData.teaServiceRatioFrom,
@@ -1205,14 +1206,13 @@ async function loadCalendarData () {
     roomFilterRestoredFromStorage.value = false
     const filterState = loadVenueCalendarRoomFilterState()
     if (filterState?.bookNowRoomType) {
-      // 刚从 Book Now 进入：用 Book Now 类型默认筛选，并立刻落盘为 selectedIds
+      // ?? Book Now ???? Book Now ????????????? selectedIds
       roomType.value = filterState.bookNowRoomType
       applyRoomTypeRouteFilter()
       saveVenueCalendarRoomFilter(allRooms.value)
       roomFilterRestoredFromStorage.value = true
     } else if (filterState?.selectedIds) {
-      // 刷新 / 同会话再进日历：恢复上次手动筛选
-      applyVenueCalendarRoomFilter(allRooms.value, filterState.selectedIds)
+      // ?? / ?????????????????      applyVenueCalendarRoomFilter(allRooms.value, filterState.selectedIds)
       roomFilterRestoredFromStorage.value = true
     } else if (route.query.roomType === 'conference' || route.query.roomType === 'other') {
       applyRoomTypeRouteFilter()
@@ -1242,8 +1242,8 @@ watch([currentDate, currentView], () => {
 watch(
   () => route.query.roomType,
   (val) => {
-    // 仅同步 roomType 状态；筛选由 Book Now 标记 / sessionStorage 在 loadCalendarData 处理
-    // 避免同页 query 变化时误覆盖用户已保存的筛选
+    // ????roomType ?????? Book Now ?? / sessionStorage ??loadCalendarData ??
+    //  ???? query ???????????????
     if (val === 'conference' || val === 'other') {
       roomType.value = val
     }
@@ -1309,6 +1309,12 @@ onUnmounted(() => {
   padding-top: 0.5rem;
 }
 
+.top-tip-wrapper {
+  /* ?????tip-collapsed-gap ???????????header ??????*/
+  padding-top: 6px;
+  padding-bottom: 0;
+}
+
 .toolbar {
   background: #ffffff;
   padding: 1rem;
@@ -1339,13 +1345,13 @@ onUnmounted(() => {
 
 .booking-window-tip {
   margin-bottom: 0.25rem;
-  background: #ecfdf3;
-  border: 1px solid #bbf7d0;
-  color: #166534;
+  background: #f4b898;
+  border: 1px solid #f5c4a0;
+  color: #fe0302;
   border-radius: 8px;
   padding: 0.45rem 0.75rem;
   font-size: 0.8125rem;
-  font-weight: 600;
+  font-weight: 700;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1355,7 +1361,7 @@ onUnmounted(() => {
 .read-more-link {
   border: none;
   background: transparent;
-  color: #0f766e;
+  color: #fe0302;
   font-size: inherit;
   font-weight: 700;
   padding: 0;
@@ -1364,17 +1370,17 @@ onUnmounted(() => {
 }
 
 .read-more-link:hover {
-  color: #115e59;
+  color: #d10201;
 }
 
 .tip-close-btn {
   margin-left: auto;
   width: 22px;
   height: 22px;
-  border: 1px solid #86efac;
+  border: 1px solid #f5c4a0;
   border-radius: 9999px;
-  background: #dcfce7;
-  color: #166534;
+  background: #fcd9c0;
+  color: #fe0302;
   font-size: 14px;
   font-weight: 700;
   line-height: 1;
@@ -1386,8 +1392,8 @@ onUnmounted(() => {
 }
 
 .tip-close-btn:hover {
-  background: #bbf7d0;
-  border-color: #4ade80;
+  background: #f5c4a0;
+  border-color: #ef9a6a;
 }
 
 .top-tip-toggle-wrapper {
@@ -1403,13 +1409,13 @@ onUnmounted(() => {
   transform: translateX(-50%);
   width: 34px;
   height: 18px;
-  border: 1px solid #166534;
+  border: 1px solid #ea580c;
   border-top: none;
   border-radius: 0 0 16px 16px;
-  background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
+  background: linear-gradient(180deg, #fb923c 0%, #f97316 100%);
   cursor: pointer;
   transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-  box-shadow: 0 2px 8px rgba(22, 101, 52, 0.25);
+  box-shadow: 0 2px 8px rgba(234, 88, 12, 0.28);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1426,13 +1432,13 @@ onUnmounted(() => {
 }
 
 .top-tip-toggle-btn:hover {
-  background: linear-gradient(180deg, #16a34a 0%, #15803d 100%);
+  background: linear-gradient(180deg, #f97316 0%, #ea580c 100%);
   transform: translateX(-50%) translateY(1px);
-  box-shadow: 0 3px 10px rgba(22, 101, 52, 0.32);
+  box-shadow: 0 3px 10px rgba(234, 88, 12, 0.35);
 }
 
 .top-tip-toggle-btn:focus-visible {
-  outline: 2px solid #bbf7d0;
+  outline: 2px solid #fdba74;
   outline-offset: 2px;
 }
 

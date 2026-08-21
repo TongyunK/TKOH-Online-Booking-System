@@ -9,7 +9,7 @@ import { ApproveBookingDto } from './dto/approve-booking.dto';
 import { RejectBookingDto } from './dto/reject-booking.dto';
 
 const bookingInclude = {
-  venue: { select: { id: true, name: true, color: true } },
+  venue: { select: { id: true, name: true, color: true, userDefinedUploadEventTitle: true } },
   reservedBy: {
     select: {
       id: true,
@@ -44,7 +44,7 @@ export class MeetingApprovalService {
       .toLowerCase();
   }
 
-  /** 与 booking_date（UTC 日期）比较：早于今日视为审批超时未处理 */
+  /** �?booking_date（UTC 日期）比较：早于今日视为审批超时未处�?*/
   private getUtcTodayDate(): Date {
     const now = new Date();
     return new Date(
@@ -59,7 +59,7 @@ export class MeetingApprovalService {
     };
   }
 
-  /** 待审批且未超过预约日（含当日） */
+  /** 待审批且未超过预约日（含当日�?*/
   private pendingNotExpiredWhere(): Prisma.VenueBookingsWhereInput {
     const today = this.getUtcTodayDate();
     return {
@@ -68,7 +68,7 @@ export class MeetingApprovalService {
     };
   }
 
-  /** 待审批且预约日已过（仍未 Handle） */
+  /** 待审批且预约日已过（仍未 Handle�?*/
   private pendingExpiredWhere(): Prisma.VenueBookingsWhereInput {
     return {
       ...this.pendingBaseWhere(),
@@ -148,6 +148,8 @@ export class MeetingApprovalService {
       attendeeCount: row.attendees ?? null,
       participants: row.attendees ?? null,
       teaServiceRequired: row.teaServiceRequired,
+      displayOnHomepage: row.displayOnHomepage !== false,
+      userDefinedUploadEventTitle: row.venue?.userDefinedUploadEventTitle !== false,
       teaService,
       submittedAt: this.formatDateTime(row.submittedAt ?? row.createdAt),
       approvalStatus: status,
@@ -219,7 +221,7 @@ export class MeetingApprovalService {
     return rows.map((row) => this.mapBookingRow(row, 'pending'));
   }
 
-  /** Admin 角标：仅统计未过期的待审批会议 */
+  /** Admin 角标：仅统计未过期的待审批会�?*/
   async countPendingNotExpired(): Promise<number> {
     return this.prisma.venueBookings.count({
       where: this.pendingNotExpiredWhere(),
@@ -243,6 +245,9 @@ export class MeetingApprovalService {
         handleByUserId: handlerId,
         handledAt: new Date(),
         ...(meetingTitle ? { meetingTitle } : {}),
+        ...(dto.displayOnHomepage !== undefined
+          ? { displayOnHomepage: Boolean(dto.displayOnHomepage) }
+          : {}),
       },
       include: bookingInclude,
     });
@@ -272,6 +277,9 @@ export class MeetingApprovalService {
         handleByUserId: handlerId,
         handledAt: new Date(),
         ...(meetingTitle ? { meetingTitle } : {}),
+        ...(dto.displayOnHomepage !== undefined
+          ? { displayOnHomepage: Boolean(dto.displayOnHomepage) }
+          : {}),
       },
       include: bookingInclude,
     });

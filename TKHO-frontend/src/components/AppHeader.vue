@@ -109,27 +109,30 @@
         </nav>
       </div>
 
-      <div class="logout-wrapper">
-        <button type="button" class="logout-btn" @click="userStore.performLogout">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-            <polyline points="16 17 21 12 16 7"></polyline>
-            <line x1="21" y1="12" x2="9" y2="12"></line>
-          </svg>
-          <span class="logout-text">Log out</span>
-        </button>
-        <!-- 非管理员且非单一系统角色：悬停显示 Venue/EV 切换 -->
-        <div v-if="showSwitchButton" class="switch-dropdown">
-          <button type="button" class="switch-btn" @click="handleSwitch">
+      <div class="header-actions">
+        <div class="logout-wrapper">
+          <button type="button" class="logout-btn" @click="userStore.performLogout">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="17 1 21 5 17 9"></polyline>
-              <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
-              <polyline points="7 23 3 19 7 15"></polyline>
-              <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
             </svg>
-            {{ switchButtonText }}
+            <span class="logout-text">Log out</span>
           </button>
+          <!-- 非管理员且非单一系统角色：悬停显示 Venue/EV 切换 -->
+          <div v-if="showSwitchButton" class="switch-dropdown">
+            <button type="button" class="switch-btn" @click="handleSwitch">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="17 1 21 5 17 9"></polyline>
+                <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                <polyline points="7 23 3 19 7 15"></polyline>
+                <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+              </svg>
+              {{ switchButtonText }}
+            </button>
+          </div>
         </div>
+        <FloatingHelpButton />
       </div>
     </div>
   </header>
@@ -143,6 +146,7 @@ import { useAdminStore } from '@/stores/admin'
 import { storeToRefs } from 'pinia'
 import { useAdminPendingUsersSync } from '@/composables/useAdminPendingUsersSync'
 import { canSwitchBookingSystem } from '@/utils/systemAccess'
+import FloatingHelpButton from '@/components/FloatingHelpButton.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -497,9 +501,32 @@ const saveCurrentPath = () => {
   color: #065f46;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.header-actions :deep(.tips-root) {
+  display: flex;
+  align-items: center;
+}
+
+.header-actions :deep(.tips-button) {
+  width: 28px;
+  height: 28px;
+}
+
+.header-actions :deep(.tips-icon) {
+  width: 28px;
+  height: 28px;
+}
+
 .logout-wrapper {
   position: relative;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
 }
 
 .logout-wrapper:hover .switch-dropdown,
@@ -626,6 +653,12 @@ const saveCurrentPath = () => {
     height: 24px;
   }
 
+  .header-actions :deep(.tips-button),
+  .header-actions :deep(.tips-icon) {
+    width: 22px;
+    height: 22px;
+  }
+
   .header-right {
     gap: 0.4rem;
   }
@@ -640,6 +673,12 @@ const saveCurrentPath = () => {
 
   .header-logo {
     height: 24px;
+  }
+
+  .header-actions :deep(.tips-button),
+  .header-actions :deep(.tips-icon) {
+    width: 22px;
+    height: 22px;
   }
 
   .header-right {

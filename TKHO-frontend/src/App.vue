@@ -2,24 +2,18 @@
   <div id="app">
     <router-view />
     <GlobalStatusDialog />
-    <FloatingHelpButton v-if="showFloatingHelpButton" />
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from './stores/user'
 import { isPublicRoute } from './utils/publicRoutes'
-import FloatingHelpButton from './components/FloatingHelpButton.vue'
 import GlobalStatusDialog from './components/GlobalStatusDialog.vue'
 
 const userStore = useUserStore()
 const route = useRoute()
-const isAdminRoute = computed(() => route.path.startsWith('/admin'))
-const showFloatingHelpButton = computed(
-  () => !isAdminRoute.value && !isPublicRoute(route.path)
-)
 
 onMounted(async () => {
   userStore.initUserInfo()

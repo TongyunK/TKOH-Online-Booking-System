@@ -97,6 +97,16 @@
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column label="Display on Homepage" min-width="150" align="center">
+          <template #default="{ row }">
+            <el-tag
+              effect="light"
+              :class="normalizeUserDefinedUploadEventTitle(row.userDefinedUploadEventTitle) ? 'upload-event-title-tag-yes' : 'upload-event-title-tag-no'"
+            >
+              {{ normalizeUserDefinedUploadEventTitle(row.userDefinedUploadEventTitle) ? 'Yes' : 'No' }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column min-width="150">
           <template #header>
             <SortableFilterHeader
@@ -331,6 +341,13 @@
             :inactive-value="false"
           />
         </el-form-item>
+        <el-form-item label="Display on Homepage">
+          <el-switch
+            v-model="formData.userDefinedUploadEventTitle"
+            :active-value="true"
+            :inactive-value="false"
+          />
+        </el-form-item>
         <el-form-item label="Active">
           <el-switch v-model="formData.status" active-value="active" inactive-value="inactive" />
         </el-form-item>
@@ -502,6 +519,13 @@ function normalizeTeaServiceAvailable (value, defaultValue = true) {
   return Boolean(value)
 }
 
+function normalizeUserDefinedUploadEventTitle (value, defaultValue = true) {
+  if (value === true || value === 'true') return true
+  if (value === false || value === 'false') return false
+  if (value === undefined || value === null) return defaultValue
+  return Boolean(value)
+}
+
 function normalizeDailyBookingTime (value) {
   const raw = String(value ?? '').trim()
   return raw || null
@@ -633,6 +657,7 @@ const formData = ref({
   dailyBookingStartTime: null,
   dailyBookingEndTime: null,
   teaServiceAvailable: true,
+  userDefinedUploadEventTitle: true,
   displayType: 'single',
   image: '',
   imageList: [],
@@ -740,8 +765,8 @@ const clearSort = (key) => {
 
 const getSortIndicator = (key) => {
   const idx = sortState.value.findIndex(item => item.key === key)
-  if (idx === -1) return '↕'
-  const arrow = sortState.value[idx].order === 'asc' ? '▲' : '▼'
+  if (idx === -1) return ''
+  const arrow = sortState.value[idx].order === 'asc' ? '↑' : '↓'
   return `${arrow}${idx + 1}`
 }
 
@@ -899,6 +924,7 @@ const handleExport = () => {
     'Capacity': item.roomCapacity ?? item.capacity ?? '',
     'Daily Open Hours': formatVenueDailyBookingWindowLabel(item) || '-',
     'Tea Service': normalizeTeaServiceAvailable(item.teaServiceAvailable) ? 'Yes' : 'No',
+    'Display on homepage': normalizeUserDefinedUploadEventTitle(item.userDefinedUploadEventTitle) ? 'Yes' : 'No',
     'Display Type': item.displayType === 'single' ? 'Single' : 'Merge',
     'Status': item.status === 'active' ? 'Active' : 'Inactive'
   }))
@@ -974,6 +1000,7 @@ const handleAdd = () => {
     dailyBookingStartTime: null,
     dailyBookingEndTime: null,
     teaServiceAvailable: true,
+    userDefinedUploadEventTitle: true,
     displayType: 'single',
     image: '',
     imageList: [],
@@ -999,6 +1026,7 @@ const handleEdit = async (row) => {
     dailyBookingStartTime: row?.dailyBookingStartTime || null,
     dailyBookingEndTime: row?.dailyBookingEndTime || null,
     teaServiceAvailable: normalizeTeaServiceAvailable(row?.teaServiceAvailable),
+    userDefinedUploadEventTitle: normalizeUserDefinedUploadEventTitle(row?.userDefinedUploadEventTitle),
     displayType: row?.displayType || 'single',
     image: imagePath,
     imageList: [],
@@ -1074,6 +1102,7 @@ const handleSave = async () => {
     dailyBookingStartTime: dailyStart,
     dailyBookingEndTime: dailyEnd,
     teaServiceAvailable: normalizeTeaServiceAvailable(formData.value.teaServiceAvailable),
+    userDefinedUploadEventTitle: normalizeUserDefinedUploadEventTitle(formData.value.userDefinedUploadEventTitle),
     displayType: formData.value.displayType,
     status: formData.value.status,
     image: selectedImageFile ? (formData.value.image || '') : (formData.value.imageList?.[0]?.url || '')
@@ -2009,6 +2038,22 @@ const handlePreview = (file) => {
 }
 
 .page-content :deep(.tea-service-tag-no) {
+  border-radius: 999px;
+  font-weight: 600;
+  padding: 0 10px;
+  background-color: #f3f4f6;
+  color: #6b7280;
+}
+
+.page-content :deep(.upload-event-title-tag-yes) {
+  border-radius: 999px;
+  font-weight: 600;
+  padding: 0 10px;
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+.page-content :deep(.upload-event-title-tag-no) {
   border-radius: 999px;
   font-weight: 600;
   padding: 0 10px;

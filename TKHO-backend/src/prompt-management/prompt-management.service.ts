@@ -54,7 +54,7 @@ export class PromptManagementService {
 
   /** EV / Venue 预订页 Important Note 横幅与弹窗（无需 JWT） */
   async listPublicBookingNotices() {
-    const keys = ['ev_booking_rule_update_notice', 'venue_booking_rule_update_notice'];
+    const keys = ['ev_alert_message', 'venue_alert_message'];
     const rows = await this.prisma.prompts.findMany({
       where: {
         category: 'system_fixed',

@@ -1,16 +1,19 @@
 /**
  * @param {Record<string, unknown> | null | undefined} teaService
  * @param {number | null | undefined} [fallbackAttendees]
+ * @param {{ includeSpecialRequest?: boolean }} [options]
  */
-export function formatTeaServiceDisplay (teaService, fallbackAttendees) {
+export function formatTeaServiceDisplay (teaService, fallbackAttendees, options = {}) {
   if (!teaService) return '-'
 
+  const includeSpecialRequest = options.includeSpecialRequest !== false
   const attendees = teaService.attendees ?? fallbackAttendees ?? ''
   let option = String(teaService.option || '').trim()
+  const special = String(teaService.specialRequest || teaService.notes || '').trim()
 
   if (!option) {
     const beverages = String(teaService.beverages || '').trim()
-    const notes = String(teaService.specialRequest || teaService.notes || '').trim()
+    const notes = special
     if (beverages.includes('不用茶')) option = 'none'
     else if (notes && !beverages) option = '4'
     else if (beverages.includes('壺茶') || beverages.includes('壺水')) option = '3'
@@ -20,23 +23,32 @@ export function formatTeaServiceDisplay (teaService, fallbackAttendees) {
   }
 
   if (option === 'none') return `不用茶 / ${attendees}`
-  if (option === '1') return `每位茶 / ${attendees}`
-  if (option === '2') {
+
+  let base = ''
+  if (option === '1') {
+    base = `每位茶 / ${attendees}`
+  } else if (option === '2') {
     const from = teaService.ratioFrom ?? '?'
     const to = teaService.ratioTo ?? '?'
-    return `每位茶 / ${from} 對 ${to}`
-  }
-  if (option === '3') {
+    base = `每位茶 / ${from} 對 ${to}`
+  } else if (option === '3') {
     const teaPots = teaService.teaPots ?? '?'
     const waterPots = teaService.waterPots ?? '?'
-    return `${teaPots} 壺茶 / ${waterPots} 壺水 + 杯`
-  }
-  if (option === '4') {
-    const text = String(teaService.specialRequest || teaService.notes || '').trim()
-    return text || '-'
+    base = `${teaPots} 壺茶 / ${waterPots} 壺水 + 杯`
+  } else if (option === '4') {
+    // 旧数据：仅特殊要求
+    return includeSpecialRequest ? (special || '-') : '-'
+  } else {
+    return '-'
   }
 
-  return '-'
+  if (includeSpecialRequest && special) return `${base}（${special}）`
+  return base
+}
+
+/** 去掉「主选项（特殊要求）」尾部括号，避免与独立 Special Requests 列重复 */
+export function stripTeaServiceSpecialSuffix (summary) {
+  return String(summary || '').replace(/（[^）]*）\s*$/u, '').trim()
 }
 
 /**
@@ -54,7 +66,10 @@ export function buildTeaServiceApiPayload (form) {
     }
   }
 
-  const option = String(form.teaServiceOption || '1')
+  let option = String(form.teaServiceOption || '1').trim()
+  // Option 4 仅为追加，不能作为主选项
+  if (option === '4' || option === 'none' || !option) option = '1'
+
   const payload = {
     teaServiceRequired: true,
     teaServiceOption: option,
@@ -67,7 +82,9 @@ export function buildTeaServiceApiPayload (form) {
   } else if (option === '3') {
     payload.teaServiceTeaPots = Number(form.teaServiceTeaPots)
     payload.teaServiceWaterPots = Number(form.teaServiceWaterPots)
-  } else if (option === '4') {
+  }
+
+  if (form.teaServiceOption4) {
     payload.teaServiceSpecialRequest = String(form.teaServiceSpecialRequest || '').trim()
   }
 
@@ -76,13 +93,20 @@ export function buildTeaServiceApiPayload (form) {
 
 /**
  * @param {Record<string, unknown>} form
+ * @param {{ isAdmin?: boolean }} [opts]
  */
-export function validateTeaServiceForm (form) {
+export function validateTeaServiceForm (form, opts = {}) {
   if (!form.teaServiceRequired) return { ok: true }
 
-  const option = String(form.teaServiceOption || '').trim()
-  if (!option) {
-    return { ok: false, message: 'Please select a tea service option' }
+  let option = String(form.teaServiceOption || '').trim()
+  if (option === '4') {
+    return {
+      ok: false,
+      message: 'Please select Option 1 / 2 / 3 before adding Option 4 special requests'
+    }
+  }
+  if (!option || !['1', '2', '3'].includes(option)) {
+    return { ok: false, message: 'Please select a tea service option (1 / 2 / 3)' }
   }
 
   if (option === '2') {
@@ -104,7 +128,10 @@ export function validateTeaServiceForm (form) {
     }
   }
 
-  if (option === '4') {
+  if (form.teaServiceOption4) {
+    if (!opts.isAdmin) {
+      return { ok: false, message: 'Only administrators can add Option 4 special requests' }
+    }
     const text = String(form.teaServiceSpecialRequest || '').trim()
     if (!text) {
       return { ok: false, message: 'Please enter special requests in Chinese for Option 4' }
@@ -121,6 +148,7 @@ export function parseTeaServiceToForm (teaService) {
   if (!teaService) {
     return {
       teaServiceOption: '1',
+      teaServiceOption4: false,
       teaServiceRatioFrom: null,
       teaServiceRatioTo: null,
       teaServiceTeaPots: null,
@@ -130,23 +158,38 @@ export function parseTeaServiceToForm (teaService) {
   }
 
   let option = String(teaService.option || '').trim()
+  const special = String(teaService.specialRequest || teaService.notes || '').trim()
+
   if (!option) {
     const beverages = String(teaService.beverages || '').trim()
-    const notes = String(teaService.specialRequest || teaService.notes || '').trim()
     if (beverages.includes('不用茶')) option = 'none'
-    else if (notes && !beverages) option = '4'
+    else if (special && !beverages) option = '4'
     else if (beverages.includes('壺茶') || beverages.includes('壺水')) option = '3'
     else if (beverages.includes('對')) option = '2'
     else option = '1'
   }
 
+  // 旧 option=4：主选项回退为 1，并勾选追加 Option 4
+  if (option === '4') {
+    return {
+      teaServiceOption: '1',
+      teaServiceOption4: Boolean(special),
+      teaServiceRatioFrom: null,
+      teaServiceRatioTo: null,
+      teaServiceTeaPots: null,
+      teaServiceWaterPots: null,
+      teaServiceSpecialRequest: special
+    }
+  }
+
   return {
     teaServiceOption: option === 'none' ? '1' : option,
+    teaServiceOption4: Boolean(special),
     teaServiceRatioFrom: teaService.ratioFrom ?? null,
     teaServiceRatioTo: teaService.ratioTo ?? null,
     teaServiceTeaPots: teaService.teaPots ?? null,
     teaServiceWaterPots: teaService.waterPots ?? null,
-    teaServiceSpecialRequest: String(teaService.specialRequest || teaService.notes || '').trim()
+    teaServiceSpecialRequest: special
   }
 }
 

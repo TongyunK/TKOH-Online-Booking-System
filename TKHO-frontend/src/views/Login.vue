@@ -8,6 +8,7 @@
           <span class="title-subtitle">GA Service Center</span>
         </h1>
       </div>
+      <FloatingHelpButton :system-override="loginForm.system" />
     </header>
 
     <!-- 系统选择按钮区：在不同屏幕下自适应宽度和间距 -->
@@ -75,6 +76,9 @@
             Login
           </el-button>
         </el-form-item>
+        <div class="signup-row">
+          <RouterLink to="/register" class="signup-link">Sign Up</RouterLink>
+        </div>
       </el-form>
     </div>
 
@@ -102,6 +106,7 @@ import { getPublicPointsToNote } from '@/api/promptManagement'
 import { getMockPromptList } from '@/mocks/mockData'
 import { formatPointsToNoteForDisplay } from '@/utils/pointsToNoteHtml'
 import { canAccessSystem, canAccessPath, getDeniedSystemMessage, systemForPath } from '@/utils/systemAccess'
+import FloatingHelpButton from '@/components/FloatingHelpButton.vue'
 import '@/styles/rich-content.css'
 
 const route = useRoute()
@@ -289,6 +294,8 @@ const handleLogin = async () => {
   color: #ffffff;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
   box-shadow: 0 2px 12px rgba(0, 114, 58, 0.15);
   position: relative;
   z-index: 10;
@@ -608,6 +615,24 @@ const handleLogin = async () => {
 .login-button.is-loading {
   background: linear-gradient(135deg, #4a4a4a 0%, #3a3a3a 100%);
   cursor: not-allowed;
+}
+
+.signup-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -4px;
+}
+
+.signup-link {
+  color: #0A3D1F;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  line-height: 1;
+}
+
+.signup-link:hover {
+  text-decoration: underline;
 }
 
 .login-notes {

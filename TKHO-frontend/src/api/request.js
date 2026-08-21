@@ -74,6 +74,8 @@ const isOnPublicRoute = () => {
 /** 公开注册页自行用 ElMessageBox 提示，避免与全局 status 弹窗重复 */
 const isRegistrationSubmitRequest = (config) =>
   (config?.url || '').includes('/user-management/registration/submit')
+const isRegistrationOptionsRequest = (config) =>
+  (config?.url || '').includes('/user-management/registration/options')
 /** EV 订课页在 catch 里用本页 Reminder 弹窗，避免与 GlobalStatusDialog 重复 */
 const isEvBookingCreateRequest = (config) => {
   const method = String(config?.method || 'get').toLowerCase()
@@ -100,6 +102,7 @@ const skipsGlobalErrorDialog = (config) =>
   isPublicVenueDisplayRequest(config) ||
   isPublicEvDisplayRequest(config) ||
   isRegistrationSubmitRequest(config) ||
+  isRegistrationOptionsRequest(config) ||
   isEvBookingCreateRequest(config) ||
   isEvManageBookingRequest(config) ||
   isAdminPendingCountsRequest(config)

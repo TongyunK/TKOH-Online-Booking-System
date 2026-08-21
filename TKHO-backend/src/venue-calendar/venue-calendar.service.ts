@@ -91,6 +91,34 @@ export class VenueCalendarService {
     return new Date(`${text}T00:00:00.000Z`);
   }
 
+  private formatDateOnlyYmd(value: Date | null | undefined): string {
+    if (!value) return '';
+    const y = value.getUTCFullYear();
+    const m = String(value.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(value.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  /** 校验预订日是否在已发布的 Venue Booking Date Range �?*/
+  private async assertWithinVenueBookingDateRange(bookingDate: Date) {
+    const ymd = this.formatDateOnlyYmd(bookingDate);
+    const window = await this.prisma.booking_windows.findUnique({
+      where: { resource_type: 'venue' },
+    });
+    if (!window?.current_start_date || !window?.current_end_date) {
+      throw new BadRequestException(
+        'Selected date is outside the venue booking date range',
+      );
+    }
+    const start = this.formatDateOnlyYmd(window.current_start_date);
+    const end = this.formatDateOnlyYmd(window.current_end_date);
+    if (!ymd || ymd < start || ymd > end) {
+      throw new BadRequestException(
+        'Selected date is outside the venue booking date range',
+      );
+    }
+  }
+
   private combineDateAndTime(bookingDate: Date, time: Date): Date {
     const y = bookingDate.getUTCFullYear();
     const mo = bookingDate.getUTCMonth();
@@ -136,9 +164,9 @@ export class VenueCalendarService {
   }
 
   /**
-   * 将冲突归到 Start / End：间隔不足时只标责任端。
-   * 例：前场 09:00–11:00、后场 13:00–14:00，欲订 11:00–13:00、gap=15
-   * → Start ✕（需 ≥11:15）、End ✕（需 ≤12:45）；Date 仍 ✓
+   * Attribute conflicts to Start / End: when gap is insufficient, only mark the responsible end.
+   * Example: existing 09:00-11:00 and 13:00-14:00, proposed 11:00-13:00, gap=15
+   * -> Start fail (need >= 11:15), End fail (need <= 12:45); Date stays ok.
    */
   private analyzeSlotFieldErrors(
     startTime: Date,
@@ -159,15 +187,15 @@ export class VenueCalendarService {
       if (!(a0 < b1 + gap && a1 + gap > b0)) continue;
       anyOverlap = true;
 
-      // 开始落在占用段或占用结束后的强制间隔内
+      // Start falls inside occupied range or forced gap after occupied end
       if (a0 >= b0 && a0 < b1 + gap) {
         startFail = true;
       }
-      // 结束落在占用段或占用开始前的强制间隔内
+      // End falls inside occupied range or forced gap before occupied start
       if (a1 <= b1 && a1 > b0 - gap) {
         endFail = true;
       }
-      // 新时段完全包住既有预订
+      // New slot fully covers an existing booking
       if (a0 < b0 && a1 > b1) {
         startFail = true;
         endFail = true;
@@ -205,13 +233,13 @@ export class VenueCalendarService {
     };
   }
 
-  /** venue_bookings.notes 仅存备注纯文本；茶歇等写入 venue_tea_service */
+  /** venue_bookings.notes 仅存备注纯文本；茶歇等写�?venue_tea_service */
   private buildNotesPayload(dto: CreateVenueCalendarBookingDto | UpdateVenueCalendarBookingDto) {
     const text = dto.remark?.trim();
     return text || null;
   }
 
-  /** @db.Date 按 UTC 日历日输出 YYYY-MM-DD，避免前端用 ISO 解析时跨时区错位 */
+  /** @db.Date �?UTC 日历日输�?YYYY-MM-DD，避免前端用 ISO 解析时跨时区错位 */
   private formatCalendarDateOnly(value: Date | null | undefined): string {
     if (!value) return this.formatDateOnlyUtc(new Date());
     const d = new Date(value);
@@ -236,7 +264,7 @@ export class VenueCalendarService {
       status: row.status ?? 'upcoming',
       approvalStatus: String(row.approvalStatus ?? '').toLowerCase() || null,
       teaServiceRequired: row.teaServiceRequired,
-      displayTitlePublic: row.displayTitlePublic !== false,
+      displayOnHomepage: row.displayOnHomepage !== false,
       isBlocked: false,
     };
   }
@@ -259,7 +287,7 @@ export class VenueCalendarService {
     return undefined;
   }
 
-  /** 日历仅展示/查询 active 场地 */
+  /** 日历仅展�?查询 active 场地 */
   private calendarVenueWhere(roomType?: string): Prisma.VenuesWhereInput {
     const tabFilter = this.venueTabFilter(roomType);
     return {
@@ -312,7 +340,7 @@ export class VenueCalendarService {
     return `${y}-${m}-${d}`;
   }
 
-  /** 与前端 VenueCalendarMonth 网格一致：含上月尾、下月初的可见格 */
+  /** 与前�?VenueCalendarMonth 网格一致：含上月尾、下月初的可见格 */
   private getMonthGridDateRange(year: number, month: number) {
     const firstOfMonth = new Date(Date.UTC(year, month - 1, 1));
     const firstDow = firstOfMonth.getUTCDay();
@@ -688,6 +716,7 @@ export class VenueCalendarService {
         venueType: true,
         roomCapacity: true,
         teaServiceAvailable: true,
+        userDefinedUploadEventTitle: true,
         dailyBookingStartTime: true,
         dailyBookingEndTime: true,
       },
@@ -700,6 +729,7 @@ export class VenueCalendarService {
       type: v.venueType,
       roomCapacity: v.roomCapacity,
       teaServiceAvailable: v.teaServiceAvailable !== false,
+      userDefinedUploadEventTitle: v.userDefinedUploadEventTitle !== false,
       dailyBookingStartTime: v.dailyBookingStartTime || null,
       dailyBookingEndTime: v.dailyBookingEndTime || null,
     }));
@@ -719,6 +749,7 @@ export class VenueCalendarService {
     const endTime = this.parseTimeHm(dto.endTime);
 
     await this.hkPublicHolidaysService.assertBookableForUser(bookingDate, auth);
+    await this.assertWithinVenueBookingDateRange(bookingDate);
     this.assertWithinDailyBookingWindow(venue, startTime, endTime, auth);
     await this.assertSlotAvailable(venue.id, bookingDate, startTime, endTime);
 
@@ -743,7 +774,7 @@ export class VenueCalendarService {
           bookingType: 'venue',
           approvalStatus: 'pending',
           teaServiceRequired: teaRequired,
-          displayTitlePublic: dto.displayTitlePublic !== false,
+          displayOnHomepage: dto.displayOnHomepage !== false,
           submittedAt: new Date(),
           submitterUserId: actorUserId,
         },
@@ -806,7 +837,7 @@ export class VenueCalendarService {
     if (!existing) throw new NotFoundException('Booking not found');
 
     const approval = String(existing.approvalStatus || '').toLowerCase();
-    // Approved：非管理员仅允许更新 remark；管理员可改任意字段
+    // Approved: non-admin may only update remark; admin can edit any fields
     if (approval === 'approved' && !isAdminRole(auth)) {
       const notes =
         dto.remark !== undefined
@@ -835,6 +866,7 @@ export class VenueCalendarService {
       : existing.endTime!;
 
     await this.hkPublicHolidaysService.assertBookableForUser(bookingDate, auth);
+    await this.assertWithinVenueBookingDateRange(bookingDate);
     this.assertWithinDailyBookingWindow(venue, startTime, endTime, auth);
     await this.assertSlotAvailable(
       venue.id,
@@ -861,13 +893,13 @@ export class VenueCalendarService {
         notes,
         teaServiceRequired:
           dto.teaServiceRequired ?? existing.teaServiceRequired,
-        displayTitlePublic:
+        displayOnHomepage:
           (isAdminRole(auth) ||
             approval === 'pending' ||
             approval === '') &&
-          dto.displayTitlePublic !== undefined
-            ? Boolean(dto.displayTitlePublic)
-            : existing.displayTitlePublic,
+          dto.displayOnHomepage !== undefined
+            ? Boolean(dto.displayOnHomepage)
+            : existing.displayOnHomepage,
       },
       include: bookingInclude,
     });

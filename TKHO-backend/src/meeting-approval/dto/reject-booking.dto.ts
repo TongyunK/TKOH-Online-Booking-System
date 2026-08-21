@@ -1,4 +1,4 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class RejectBookingDto {
   @IsOptional()
@@ -11,5 +11,10 @@ export class RejectBookingDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(80)
   meetingTitle?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  displayOnHomepage?: boolean;
 }

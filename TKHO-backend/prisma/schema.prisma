@@ -31,6 +31,7 @@ model User {
   venueBookingsReserved VenueBookings[] @relation("VenueBookingReservedBy")
   venueBookingsHandled  VenueBookings[] @relation("VenueBookingHandler")
   venueBookingsSubmitted VenueBookings[] @relation("VenueBookingSubmitter")
+  venueBookingsCancelled VenueBookings[] @relation("VenueBookingCancelledBy")
   evBookingsSubmitted   EvBookings[]    @relation("EvBookingSubmitter")
 
   @@map("user")
@@ -51,6 +52,8 @@ model Venues {
   createdAt            DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
   roomCapacity         Int?                   @map("room_capacity")
   teaServiceAvailable  Boolean                @default(true) @map("tea_service_available")
+  /// 管理员开关：是否允许用户自行选择是否将会议标题投射到大屏/官网
+  userDefinedUploadEventTitle Boolean         @default(true) @map("user_defined_upload_event_title")
   dailyBookingStartTime String?               @map("daily_booking_start_time") @db.VarChar(5)
   dailyBookingEndTime   String?               @map("daily_booking_end_time") @db.VarChar(5)
   display_venue_rules  display_venue_rules?
@@ -243,12 +246,14 @@ model VenueBookings {
   rejectReason   String?   @map("reject_reason")
   /// 预订时是否勾选需要茶水服务；详情见 venue_tea_service.tea_service。
   teaServiceRequired Boolean @default(false) @map("tea_service_required")
-  /// 是否允许会议标题在 venue display 大屏公开显示；false 时大屏显示 Reserved。
-  displayTitlePublic Boolean @default(true) @map("display_title_public")
+  /// 是否将会议标题上传到 TKOH 官网 Upcoming Events（Display on Homepage）。
+  displayOnHomepage Boolean @default(true) @map("display_on_homepage")
   /// 用户提交预订的时间。
   submittedAt    DateTime? @map("submitted_at") @db.Timestamptz(6)
   /// 提交人用户 ID，关联 user.id；与 reserved_by（预订人）区分。
   submitterUserId BigInt?  @map("submitter")
+  /// 取消/释放操作人用户 ID，关联 user.id。
+  cancelledByUserId BigInt? @map("cancelled_by")
   /// 记录创建时间。
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   /// 记录最后修改时间；业务更新时应同步刷新。
@@ -257,6 +262,7 @@ model VenueBookings {
   reservedBy        User?                 @relation("VenueBookingReservedBy", fields: [reservedByUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   submitter         User?                 @relation("VenueBookingSubmitter", fields: [submitterUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   handler           User?                 @relation("VenueBookingHandler", fields: [handleByUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  cancelledBy       User?                 @relation("VenueBookingCancelledBy", fields: [cancelledByUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   venueTeaService   VenueTeaService?
 
   @@index([venueId, bookingDate], map: "idx_venue_bookings_venue_date")
