@@ -23,7 +23,7 @@
         </div>
         <div class="booking-popover-row">
           <el-icon class="booking-popover-icon"><User /></el-icon>
-          <span>{{ booking.reservedBy || 'N/A' }}</span>
+          <span>{{ formatPopoverReservedByLine() }}</span>
         </div>
         <div class="booking-popover-row">
           <el-icon class="booking-popover-icon"><Phone /></el-icon>
@@ -118,6 +118,13 @@ function formatPopoverRoomLine() {
   const name = props.booking.roomName?.trim()
   if (!name) return '—'
   if (props.booking.roomCode) return `${name} (${props.booking.roomCode})`
+  return name
+}
+
+function formatPopoverReservedByLine() {
+  const name = String(props.booking.reservedBy ?? '').trim() || 'N/A'
+  const department = String(props.booking.department ?? '').trim()
+  if (department) return `${name} (${department})`
   return name
 }
 </script>

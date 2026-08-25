@@ -8,7 +8,6 @@
           <span class="title-subtitle">GA Service Center</span>
         </h1>
       </div>
-      <FloatingHelpButton :system-override="loginForm.system" />
     </header>
 
     <!-- 系统选择按钮区：在不同屏幕下自适应宽度和间距 -->
@@ -106,7 +105,6 @@ import { getPublicPointsToNote } from '@/api/promptManagement'
 import { getMockPromptList } from '@/mocks/mockData'
 import { formatPointsToNoteForDisplay } from '@/utils/pointsToNoteHtml'
 import { canAccessSystem, canAccessPath, getDeniedSystemMessage, systemForPath } from '@/utils/systemAccess'
-import FloatingHelpButton from '@/components/FloatingHelpButton.vue'
 import '@/styles/rich-content.css'
 
 const route = useRoute()
@@ -178,7 +176,7 @@ onMounted(() => {
 
 const loginRules = {
   corpId: [
-    { required: true, message: 'Please enter CORP ID', trigger: 'blur' }
+    { required: true, message: 'Please enter CORP User ID', trigger: 'blur' }
   ],
   password: [
     { required: true, message: 'Please enter password', trigger: 'blur' }
@@ -215,7 +213,7 @@ const handleLogin = async () => {
   }
 
   if (!corpId || !password) {
-    showStatusDialog('Missing corp id / password', 'error')
+    showStatusDialog('Missing CORP User ID / password', 'error')
     return
   }
 
@@ -627,7 +625,7 @@ const handleLogin = async () => {
   color: #0A3D1F;
   font-size: 14px;
   font-weight: 700;
-  text-decoration: none;
+  text-decoration: underline;
   line-height: 1;
 }
 

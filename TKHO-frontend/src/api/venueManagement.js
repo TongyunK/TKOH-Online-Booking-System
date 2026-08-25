@@ -13,7 +13,7 @@ export function updateVenue(id, payload) {
 }
 
 export function deleteVenue(id) {
-  return request.delete(`/venue-management/venues/${id}`)
+  return request.delete(`/venue-management/venues/${id}`, { silentError: true })
 }
 
 export function getVenueBookingWindow() {

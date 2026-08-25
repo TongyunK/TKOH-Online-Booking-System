@@ -24,7 +24,7 @@
           :value="user.id"
         >
           <div class="reserved-by-option">
-            <span class="reserved-by-option-name">{{ user.name }}</span>
+            <span class="reserved-by-option-name">{{ formatUserDisplayName(user) }}</span>
             <span class="reserved-by-option-corp">{{ user.corpId }}</span>
           </div>
         </el-option>
@@ -55,7 +55,7 @@
         :value="user.id"
       >
         <div class="reserved-by-option">
-          <span class="reserved-by-option-name">{{ user.name }}</span>
+          <span class="reserved-by-option-name">{{ formatUserDisplayName(user) }}</span>
           <span class="reserved-by-option-corp">{{ user.corpId }}</span>
         </div>
       </el-option>
@@ -67,6 +67,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { listUserOwnerOptions } from '@/api/userManagement'
 import { HTML_ZOOM_BREAKPOINT_MQ } from '@/utils/venueCalendarApi'
+import { formatUserDisplayName } from '@/utils/userDisplayName'
 
 const props = defineProps({
   modelValue: {
@@ -152,7 +153,8 @@ const userOptions = ref([])
 
 function formatUserLabel (user) {
   if (!user) return ''
-  return `${user.name} (${user.corpId})`
+  const displayName = formatUserDisplayName(user)
+  return displayName ? `${displayName} (${user.corpId})` : String(user.corpId || '')
 }
 
 function mergeUsers (rows) {
@@ -198,7 +200,9 @@ const displayedOptions = computed(() => {
   if (props.modelValue && !selected && current?.id === props.modelValue) {
     list.unshift(current)
   }
-  return list.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
+  return list.sort((a, b) =>
+    String(formatUserDisplayName(a) || '').localeCompare(String(formatUserDisplayName(b) || ''))
+  )
 })
 
 let filterTimer = null

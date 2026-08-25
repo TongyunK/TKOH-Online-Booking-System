@@ -7,6 +7,7 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import * as bcrypt from 'bcryptjs';
 import { isSuperAdminRole } from './super-admin.util';
 import { assertUserCanAuthenticate } from './auth-user-status.util';
+import { formatUserDisplayName } from '../common/user-display-name';
 
 @Injectable()
 export class AuthService {
@@ -37,7 +38,11 @@ export class AuthService {
       id: user.id.toString(),
       corpId: user.corpId,
       account: user.account,
-      name: user.name,
+      name: formatUserDisplayName(user),
+      firstName: user.firstName ?? '',
+      lastName: user.lastName ?? '',
+      employeeNo: user.employeeNo ?? null,
+      rank: user.rank ?? null,
       department: departmentName,
       role: roleName,
       departmentId: user.departmentId != null ? user.departmentId.toString() : null,
@@ -92,7 +97,7 @@ export class AuthService {
       sub: String(user.id),
       system: dto.system,
       corpId: user.corpId,
-      name: user.name,
+      name: formatUserDisplayName(user),
       role: roleName,
       isSuperAdmin,
     });
@@ -125,11 +130,29 @@ export class AuthService {
 
   async updateProfile(auth: any, dto: UpdateProfileDto) {
     const id = this.parseAuthSub(auth);
-    const account = String(dto.employeeNo || '').trim();
-    const updateData: any = {
-      name: dto.fullName.trim(),
+    const updateData: Record<string, unknown> = {
       contact: dto.phone.trim(),
     };
+
+    if (dto.firstName !== undefined) {
+      updateData.firstName = String(dto.firstName).trim();
+    }
+    if (dto.lastName !== undefined) {
+      updateData.lastName = String(dto.lastName).trim();
+    } else if (dto.fullName !== undefined && dto.firstName === undefined) {
+      // Legacy fullName: write entire string to lastName; leave firstName unchanged
+      updateData.lastName = String(dto.fullName).trim();
+    }
+
+    if (dto.employeeNo !== undefined) {
+      const employeeNo = String(dto.employeeNo).trim();
+      updateData.employeeNo = employeeNo === '' ? null : employeeNo;
+    }
+
+    if (dto.rank !== undefined) {
+      const rank = String(dto.rank).trim();
+      updateData.rank = rank === '' ? null : rank;
+    }
 
     if (dto.department !== undefined && dto.department !== null) {
       const trimmed = dto.department.trim();
@@ -144,10 +167,6 @@ export class AuthService {
         }
         updateData.departmentId = dept.id;
       }
-    }
-
-    if (account) {
-      updateData.account = account;
     }
 
     try {

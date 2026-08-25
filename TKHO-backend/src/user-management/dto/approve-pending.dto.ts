@@ -11,7 +11,19 @@ export class ApprovePendingDto {
 
   @IsOptional()
   @IsString()
-  name?: string;
+  firstName?: string;
+
+  @IsOptional()
+  @IsString()
+  lastName?: string;
+
+  @IsOptional()
+  @IsString()
+  employeeNo?: string;
+
+  @IsOptional()
+  @IsString()
+  rank?: string;
 
   @IsOptional()
   @IsString()

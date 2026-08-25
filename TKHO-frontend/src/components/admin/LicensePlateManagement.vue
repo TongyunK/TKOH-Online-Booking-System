@@ -115,7 +115,7 @@
             filterable
             clearable
             style="width: 100%"
-            placeholder="Type owner name / corp ID"
+            placeholder="Type owner name / CORP User ID"
             :teleported="false"
             :reserve-keyword="false"
             :loading="ownerSearchLoading"
@@ -526,7 +526,7 @@ const getRowIndex = (index) => (currentPage.value - 1) * pageSize.value + index 
 
 const handleExport = () => {
   const exportData = licensePlateList.value.map(item => ({
-    'Corp ID': item.corpId,
+    'CORP User ID': item.corpId,
     'Plate Number': item.plateNumber,
     'Owner': item.owner
   }))

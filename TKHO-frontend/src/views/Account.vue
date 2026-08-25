@@ -20,49 +20,42 @@
 
             <div class="form-grid">
               <div class="form-row">
-                <div class="form-group full-width">
-                  <label class="form-label">Name (e.g. Peter CHAN / TM CHAN)<span class="required">*</span></label>
-                  <input type="text" v-model="profile.fullName" class="form-input" placeholder="Enter your first name + last name" disabled />
-                </div>
-              </div>
-
-              <div class="form-row">
                 <div class="form-group">
-                  <label class="form-label">Username (Corp ID)</label>
+                  <label class="form-label">CORP User ID</label>
                   <input type="text" v-model="profile.corpId" class="form-input" disabled />
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Email (e.g. xxx@ha.org.hk)</label>
-                  <input type="email" v-model="profile.email" class="form-input" disabled />
-                </div>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label class="form-label">Contact No. (Recommended: Office Tel.)<span class="required">*</span></label>
-                  <input type="text" v-model="profile.phone" class="form-input" placeholder="12345678" disabled />
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Employee No.<span class="required">*</span></label>
-                  <input type="text" v-model="profile.employeeNo" class="form-input" placeholder="123456" disabled />
-                </div>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label class="form-label">Department <span class="required">*</span></label>
-                  <input type="text" v-model="profile.department" class="form-input" placeholder="Enter your department" disabled />
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Assign Roles / Access Level</label>
-                  <input type="text" v-model="profile.accessLevel" class="form-input" disabled />
+                  <label class="form-label">Employee No.</label>
+                  <input type="text" v-model="profile.employeeNo" class="form-input" disabled />
                 </div>
               </div>
 
               <div class="form-row">
                 <div class="form-group full-width">
-                  <label class="form-label">Booking rule e.g. booking quotas</label>
-                  <input type="text" v-model="profile.bookingRule" class="form-input" disabled />
+                  <label class="form-label">Name</label>
+                  <input type="text" v-model="profile.fullName" class="form-input" disabled />
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Email</label>
+                  <input type="email" v-model="profile.email" class="form-input" disabled />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Contact No.</label>
+                  <input type="text" v-model="profile.phone" class="form-input" disabled />
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Department / Unit</label>
+                  <input type="text" v-model="profile.department" class="form-input" disabled />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Rank</label>
+                  <input type="text" v-model="profile.rank" class="form-input" disabled />
                 </div>
               </div>
             </div>
@@ -233,20 +226,27 @@ import {
   setDefaultAccountVehicle
 } from '../api/accountVehicle'
 import { isUserVenueRole } from '@/utils/systemAccess'
+import { formatUserDisplayName } from '@/utils/userDisplayName'
 
 const userStore = useUserStore()
 
 const showVehicleSection = computed(() => !isUserVenueRole(userStore.userInfo))
 
+const EMPTY_PROFILE_VALUE = '-'
+
+function displayProfileValue(value) {
+  const text = String(value ?? '').trim()
+  return text || EMPTY_PROFILE_VALUE
+}
+
 const profile = ref({
-  fullName: 'Karen SHEN',
-  corpId: 'E001',
-  email: 'karenshen@ha.org.hk',
-  phone: '12345678',
-  employeeNo: '123456',
-  department: 'Administration',
-  accessLevel: 'Staff',
-  bookingRule: 'EV: 1 session/week; Venue: 30 bookings/year'
+  corpId: EMPTY_PROFILE_VALUE,
+  employeeNo: EMPTY_PROFILE_VALUE,
+  fullName: EMPTY_PROFILE_VALUE,
+  email: EMPTY_PROFILE_VALUE,
+  phone: EMPTY_PROFILE_VALUE,
+  department: EMPTY_PROFILE_VALUE,
+  rank: EMPTY_PROFILE_VALUE
 })
 
 const password = ref({
@@ -285,11 +285,6 @@ const showStatusDialog = (message, type = 'warning') => {
 
 const notifyError = (message) => showStatusDialog(message, 'error')
 const notifySuccess = (message) => showStatusDialog(message, 'success')
-
-const formatQuotaRule = (used, annual) => {
-  if (Number(annual) === -1) return `${used ?? 0}/Unlimited`
-  return `${used ?? 0}/${annual ?? 0}`
-}
 
 const updatePassword = async () => {
   if (!password.value.current || !password.value.new || !password.value.confirm) {
@@ -386,14 +381,13 @@ onMounted(async () => {
   await userStore.refreshSessionUser()
   const u = userStore.userInfo || JSON.parse(localStorage.getItem('userInfo') || 'null')
   if (u) {
-    profile.value.fullName = u.name || ''
-    profile.value.corpId = u.corpId || ''
-    profile.value.email = u.email || ''
-    profile.value.phone = u.contact || ''
-    profile.value.employeeNo = u.account || ''
-    profile.value.department = u.department || ''
-    profile.value.accessLevel = u.role || ''
-    profile.value.bookingRule = `EV: ${formatQuotaRule(u.usedQuotaEv, u.annualQuotaEv)}; Venue: ${formatQuotaRule(u.usedQuotaVenue, u.annualQuotaVenue)}`
+    profile.value.corpId = displayProfileValue(u.corpId)
+    profile.value.employeeNo = displayProfileValue(u.employeeNo)
+    profile.value.fullName = displayProfileValue(formatUserDisplayName(u))
+    profile.value.email = displayProfileValue(u.email)
+    profile.value.phone = displayProfileValue(u.contact)
+    profile.value.department = displayProfileValue(u.department)
+    profile.value.rank = displayProfileValue(u.rank)
   }
   if (!isUserVenueRole(u)) {
     loadVehicles().catch((error) => {

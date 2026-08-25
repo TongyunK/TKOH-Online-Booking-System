@@ -7,6 +7,10 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ApproveBookingDto } from './dto/approve-booking.dto';
 import { RejectBookingDto } from './dto/reject-booking.dto';
+import {
+  formatUserDisplayName,
+  userDisplayNameSelect,
+} from '../common/user-display-name';
 
 const bookingInclude = {
   venue: { select: { id: true, name: true, color: true, userDefinedUploadEventTitle: true } },
@@ -14,13 +18,13 @@ const bookingInclude = {
     select: {
       id: true,
       corpId: true,
-      name: true,
+      ...userDisplayNameSelect,
       email: true,
       contact: true,
       department: { select: { department_name: true } },
     },
   },
-  handler: { select: { id: true, name: true } },
+  handler: { select: { id: true, ...userDisplayNameSelect } },
   venueTeaService: { select: { teaService: true } },
 } satisfies Prisma.VenueBookingsInclude;
 
@@ -44,7 +48,8 @@ export class MeetingApprovalService {
       .toLowerCase();
   }
 
-  /** �?booking_date（UTC 日期）比较：早于今日视为审批超时未处�?*/
+  /** ä¸?booking_dateï¼UTC æ¥æï¼æ¯è¾ï¼æ©äºä»æ¥è§ä¸ºå®¡æ¹è¶
+æ¶æªå¤ç?*/
   private getUtcTodayDate(): Date {
     const now = new Date();
     return new Date(
@@ -59,7 +64,9 @@ export class MeetingApprovalService {
     };
   }
 
-  /** 待审批且未超过预约日（含当日�?*/
+  /** å¾
+å®¡æ¹ä¸æªè¶
+è¿é¢çº¦æ¥ï¼å«å½æ¥ï¼?*/
   private pendingNotExpiredWhere(): Prisma.VenueBookingsWhereInput {
     const today = this.getUtcTodayDate();
     return {
@@ -68,7 +75,8 @@ export class MeetingApprovalService {
     };
   }
 
-  /** 待审批且预约日已过（仍未 Handle�?*/
+  /** å¾
+å®¡æ¹ä¸é¢çº¦æ¥å·²è¿ï¼ä»æª Handleï¼?*/
   private pendingExpiredWhere(): Prisma.VenueBookingsWhereInput {
     return {
       ...this.pendingBaseWhere(),
@@ -127,7 +135,7 @@ export class MeetingApprovalService {
 
   private mapBookingRow(row: BookingRow, approvalStatus: string) {
     const status = this.normalizeApprovalStatus(approvalStatus);
-    const handlerName = row.handler?.name ?? null;
+    const handlerName = formatUserDisplayName(row.handler) || null;
     const handledAtText = this.formatDateTime(row.handledAt);
     const teaService = this.mapTeaService(row);
 
@@ -137,7 +145,7 @@ export class MeetingApprovalService {
       venueId: row.venueId != null ? Number(row.venueId) : null,
       venueName: row.venue?.name ?? '',
       bookerCorpId: row.reservedBy?.corpId ?? '',
-      userName: row.reservedBy?.name ?? '',
+      userName: formatUserDisplayName(row.reservedBy),
       department: row.reservedBy?.department?.department_name ?? '',
       contactPhone: row.reservedBy?.contact ?? '',
       contactEmail: row.reservedBy?.email ?? '',
@@ -201,7 +209,9 @@ export class MeetingApprovalService {
     return rows.map((row) => this.mapBookingRow(row, status));
   }
 
-  /** Pending Approval：未超过 booking date 的待审批 */
+  /** Pending Approvalï¼æªè¶
+è¿ booking date çå¾
+å®¡æ¹ */
   async listPending() {
     const rows = await this.prisma.venueBookings.findMany({
       where: this.pendingNotExpiredWhere(),
@@ -211,7 +221,9 @@ export class MeetingApprovalService {
     return rows.map((row) => this.mapBookingRow(row, 'pending'));
   }
 
-  /** Expired：已超过 booking date 仍未 Handle 的待审批 */
+  /** Expiredï¼å·²è¶
+è¿ booking date ä»æª Handle çå¾
+å®¡æ¹ */
   async listPendingExpired() {
     const rows = await this.prisma.venueBookings.findMany({
       where: this.pendingExpiredWhere(),
@@ -221,7 +233,9 @@ export class MeetingApprovalService {
     return rows.map((row) => this.mapBookingRow(row, 'pending'));
   }
 
-  /** Admin 角标：仅统计未过期的待审批会�?*/
+  /** Admin è§æ ï¼ä»
+ç»è®¡æªè¿æçå¾
+å®¡æ¹ä¼è®?*/
   async countPendingNotExpired(): Promise<number> {
     return this.prisma.venueBookings.count({
       where: this.pendingNotExpiredWhere(),

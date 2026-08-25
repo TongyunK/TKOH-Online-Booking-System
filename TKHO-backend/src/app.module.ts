@@ -21,6 +21,7 @@ import { SystemSettingsModule } from './system-settings/system-settings.module';
 import { MeetingApprovalModule } from './meeting-approval/meeting-approval.module';
 import { AdminPendingModule } from './admin-pending/admin-pending.module';
 import { VenueCalendarModule } from './venue-calendar/venue-calendar.module';
+import { DataBackupModule } from './data-backup/data-backup.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { VenueCalendarModule } from './venue-calendar/venue-calendar.module';
     MeetingApprovalModule,
     AdminPendingModule,
     VenueCalendarModule,
+    DataBackupModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],
 })

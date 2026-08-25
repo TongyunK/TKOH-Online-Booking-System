@@ -2,7 +2,10 @@
 export type SeedUser = {
   id: number;
   corpId: string;
-  name: string;
+  firstName: string;
+  lastName: string;
+  employeeNo?: string | null;
+  rank?: string | null;
   departmentId: number;
   accessRoleId: number;
   email?: string;
@@ -163,7 +166,10 @@ const users: SeedUser[] = [
   {
     id: 0,
     corpId: 'SuperAdmin',
-    name: 'System SuperAdmin',
+    firstName: 'System',
+    lastName: 'SuperAdmin',
+    employeeNo: null,
+    rank: null,
     departmentId: 1,
     accessRoleId: 0,
     email: 'superadmin@tkho.local',
@@ -182,7 +188,10 @@ const users: SeedUser[] = [
     return {
       id: i,
       corpId: i === 1 ? 'Admin-test' : `E${String(i).padStart(3, '0')}`,
-      name: `Employee ${i}`,
+      firstName: 'Employee',
+      lastName: `${i}`,
+      employeeNo: i === 1 ? 'Admin-test' : `E${String(i).padStart(3, '0')}`,
+      rank: isAdmin ? 'Admin' : null,
       departmentId: index % departmentCodes.length + 1,
       accessRoleId: accessRoleIdFromAppRole(selectedRole),
       email: `employee${i}@tkho.local`,
@@ -367,7 +376,7 @@ const prompts: SeedPrompt[] = [
   {
     id: 16,
     promptKey: 'user_application_reject_template',
-    name: 'Department Information Missing',
+    name: 'Department / Unit Information Missing',
     content: `Your user application is rejected because department information is missing or incorrect. Please update and submit again.`,
     category: 'reject_template',
     canAdd: true,

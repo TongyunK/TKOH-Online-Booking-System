@@ -33,6 +33,10 @@ export function createMockUser ({ corpId, system }) {
   return {
     id: 1,
     name: corpId,
+    firstName: corpId,
+    lastName: '',
+    employeeNo: '',
+    rank: '',
     // 模拟角色：admin 与 booking 用户区分 AppHeader；后续由后端权限覆盖
     role: system === 'admin' ? 'admin' : 'user',
     system
@@ -55,6 +59,22 @@ function normalizeEmployeeRaw (u) {
   const annualQuotaVenue = u.annualQuotaVenue ?? u.annualQuota ?? 0
   const usedQuotaVenue = u.usedQuotaVenue ?? u.usedQuota ?? 0
   return { ...u, role, annualQuotaEV, usedQuotaEV, annualQuotaVenue, usedQuotaVenue }
+}
+
+/** 从合并 name 拆出 first/last，并补齐 employeeNo / rank（兼容旧 mock） */
+function withUserNameFields (u, idx = 0) {
+  const parts = String(u.name || '').trim().split(/\s+/).filter(Boolean)
+  const firstName = u.firstName ?? parts[0] ?? ''
+  const lastName = u.lastName ?? parts.slice(1).join(' ') ?? ''
+  const name = u.name || [firstName, lastName].filter(Boolean).join(' ')
+  return {
+    ...u,
+    firstName,
+    lastName,
+    name,
+    employeeNo: u.employeeNo ?? String(100000 + Number(u.id ?? idx + 1)),
+    rank: u.rank ?? ''
+  }
 }
 
 export function getMockEmployeeListRaw () {
@@ -88,7 +108,7 @@ export function getMockEmployeeListRaw () {
     { id: 25, corpId: 'E025', name: 'Ethan Lim', department: 'ENT', role: 'Admin', email: 'ethan.lim@tkoh.com', contact: '91000024', annualQuotaEV: -1, usedQuotaEV: 40, annualQuotaVenue: -1, usedQuotaVenue: 35, status: 'expired' }
   ]
   _employeeListRaw = baseList.map((u, idx) => ({
-    ...u,
+    ...withUserNameFields(u, idx),
     // 统一提供最近登录时间，供 UserManagement 表格展示
     lastLoginTime: u.lastLoginTime ?? `2026-03-${String((idx % 27) + 1).padStart(2, '0')} ${String(8 + (idx % 10)).padStart(2, '0')}:${String((idx * 7) % 60).padStart(2, '0')}`
   }))
@@ -115,6 +135,10 @@ export function getMockPendingListRaw () {
       id: 101,
       corpId: 'E003',
       name: 'Bob Wilson',
+      firstName: 'Bob',
+      lastName: 'Wilson',
+      employeeNo: '100101',
+      rank: 'Officer',
       department: 'D&T',
       /** 关联 getMockDepartmentList 的 id，便于按部门筛选/统计 */
       departmentId: 3,
@@ -563,7 +587,7 @@ export function getMockPromptList () {
     {
       id: 14,
       key: 'user_application_reject_template',
-      name: 'Department Information Missing',
+      name: 'Department / Unit Information Missing',
       content: 'Your user application is rejected because department information is missing or incorrect. Please update and submit again.',
       category: 'reject_template',
       canAdd: true,

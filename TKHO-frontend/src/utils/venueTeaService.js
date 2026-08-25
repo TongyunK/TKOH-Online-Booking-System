@@ -22,7 +22,7 @@ export function formatTeaServiceDisplay (teaService, fallbackAttendees, options 
     else option = '1'
   }
 
-  if (option === 'none') return `不用茶 / ${attendees}`
+  if (option === 'none') return '不用茶'
 
   let base = ''
   if (option === '1') {
@@ -84,8 +84,11 @@ export function buildTeaServiceApiPayload (form) {
     payload.teaServiceWaterPots = Number(form.teaServiceWaterPots)
   }
 
-  if (form.teaServiceOption4) {
-    payload.teaServiceSpecialRequest = String(form.teaServiceSpecialRequest || '').trim()
+  const specialRequest = String(form.teaServiceSpecialRequest || '').trim()
+  // Option 4 为追加项；二次组装 payload 时可能只有 specialRequest、没有 teaServiceOption4
+  if (form.teaServiceOption4 || specialRequest) {
+    payload.teaServiceOption4 = true
+    payload.teaServiceSpecialRequest = specialRequest
   }
 
   return payload

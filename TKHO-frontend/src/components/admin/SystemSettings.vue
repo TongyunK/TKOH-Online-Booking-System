@@ -17,7 +17,7 @@
     </div>
 
     <div v-loading="loading" class="page-content">
-
+      <div class="settings-panel">
       <div class="settings-grid">
         <section class="setting-card">
           <div class="setting-card-header">
@@ -25,10 +25,7 @@
               <div class="setting-icon setting-icon--user">
                 <font-awesome-icon :icon="['fas', 'user-clock']" />
               </div>
-              <div class="setting-card-titles">
-                <h3 class="setting-title">User Inactivity</h3>
-                <p class="setting-subtitle">Automatic status change policy</p>
-              </div>
+              <h3 class="setting-title">User Inactivity</h3>
             </div>
             <span class="value-pill value-pill--green">
               <span class="value-pill-label">Current</span>
@@ -47,10 +44,7 @@
               controls-position="right"
               class="field-control"
             />
-            <p class="field-hint">
-              Active users with no login (or account created) for this many months are automatically set to Inactive.
-              The Admin account is excluded.
-            </p>
+            <p class="field-hint">Auto-set Inactive after no login. Admin excluded.</p>
           </div>
         </section>
 
@@ -60,14 +54,11 @@
               <div class="setting-icon setting-icon--calendar">
                 <font-awesome-icon :icon="['fas', 'calendar-days']" />
               </div>
-              <div class="setting-card-titles">
-                <h3 class="setting-title">Hong Kong Public Holidays</h3>
-                <p class="setting-subtitle">External reference link</p>
-              </div>
+              <h3 class="setting-title">Hong Kong Public Holidays</h3>
             </div>
-            <span class="header-action-spacer value-pill value-pill--green" aria-hidden="true">
+            <span v-if="form.hkPublicHolidaysUrl" class="value-pill value-pill--green">
               <span class="value-pill-label">Current</span>
-              <span class="value-pill-text">{{ form.userInactiveAfterMonths }} month{{ form.userInactiveAfterMonths === 1 ? '' : 's' }}</span>
+              <span class="value-pill-text value-pill-text--truncate" :title="form.hkPublicHolidaysUrl">Link set</span>
             </span>
           </div>
 
@@ -80,9 +71,7 @@
               clearable
               class="field-control field-control--full"
             />
-            <p class="field-hint">
-              Reference link for Hong Kong public holidays.
-            </p>
+            <p class="field-hint">Reference link for Hong Kong public holidays.</p>
             <a
               v-if="form.hkPublicHolidaysUrl"
               :href="form.hkPublicHolidaysUrl"
@@ -102,45 +91,39 @@
               <div class="setting-icon setting-icon--ev">
                 <font-awesome-icon :icon="['fas', 'car']" />
               </div>
-              <div class="setting-card-titles">
-                <h3 class="setting-title">EV Booking Calendar</h3>
-                <p class="setting-subtitle">Daily date roll-forward time</p>
-              </div>
+              <h3 class="setting-title">EV Booking Calendar</h3>
             </div>
             <span class="value-pill value-pill--green">
               <span class="value-pill-label">Current</span>
-              <span class="value-pill-text">{{ form.evDateUpdateTime }}</span>
+              <span class="value-pill-text">{{ form.evDateUpdateTime }} · {{ form.evWeeklyBookingLimit }}/wk</span>
             </span>
           </div>
 
           <div class="setting-card-body">
-            <label class="field-label" for="ev-date-update-time">EV date update time (HH:mm)</label>
-            <el-input
-              id="ev-date-update-time"
-              v-model.trim="form.evDateUpdateTime"
-              placeholder="13:00"
-              maxlength="5"
-              class="field-control field-control--time"
-            />
-            <p class="field-hint">
-              Hong Kong time when the EV calendar releases the next day quota.
-              Before this time, users see the next 14 days starting tomorrow; after this time, the window rolls forward by one day.
-            </p>
-
-            <label class="field-label field-label--spaced" for="ev-weekly-booking-limit">Weekly booking limit per user</label>
-            <el-input-number
-              id="ev-weekly-booking-limit"
-              v-model="form.evWeeklyBookingLimit"
-              :min="1"
-              :max="7"
-              :step="1"
-              controls-position="right"
-              class="field-control"
-            />
-            <p class="field-hint">
-              Maximum active EV bookings per non-admin user per week (Monday to Sunday).
-              Cancelled bookings do not count. Administrators booking on behalf of others are not limited by this rule.
-            </p>
+            <div class="field-group">
+              <label class="field-label" for="ev-date-update-time">Date update time (HH:mm)</label>
+              <el-input
+                id="ev-date-update-time"
+                v-model.trim="form.evDateUpdateTime"
+                placeholder="13:00"
+                maxlength="5"
+                class="field-control field-control--time"
+              />
+              <p class="field-hint">HKT. Daily calendar roll-forward time.</p>
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="ev-weekly-booking-limit">Weekly limit per user</label>
+              <el-input-number
+                id="ev-weekly-booking-limit"
+                v-model="form.evWeeklyBookingLimit"
+                :min="1"
+                :max="7"
+                :step="1"
+                controls-position="right"
+                class="field-control"
+              />
+              <p class="field-hint">Max active bookings per user per week.</p>
+            </div>
           </div>
         </section>
 
@@ -150,10 +133,7 @@
               <div class="setting-icon setting-icon--venue">
                 <font-awesome-icon :icon="['fas', 'door-open']" />
               </div>
-              <div class="setting-card-titles">
-                <h3 class="setting-title">Venue Booking Gap</h3>
-                <p class="setting-subtitle">Minimum turnaround between bookings</p>
-              </div>
+              <h3 class="setting-title">Venue Booking Gap</h3>
             </div>
             <span class="value-pill value-pill--green">
               <span class="value-pill-label">Current</span>
@@ -172,11 +152,93 @@
               controls-position="right"
               class="field-control"
             />
-            <p class="field-hint">
-              Required buffer between consecutive bookings of the same venue (e.g. for cleaning).
-              Example: with 15 minutes, after 09:00–11:00 the next booking can start from 11:15.
-              Set to 0 to allow back-to-back bookings.
-            </p>
+            <p class="field-hint">Buffer between same-venue bookings. 0 = back-to-back.</p>
+          </div>
+        </section>
+
+        <section class="setting-card">
+          <div class="setting-card-header">
+            <div class="setting-card-title-row">
+              <div class="setting-icon setting-icon--backup">
+                <font-awesome-icon :icon="['fas', 'database']" />
+              </div>
+              <h3 class="setting-title">Data Backup</h3>
+            </div>
+            <span class="value-pill value-pill--green">
+              <span class="value-pill-label">Current</span>
+              <span class="value-pill-text">{{ formatBackupIntervalLabel(form.dataBackupEmailInterval) }} · {{ form.dataBackupEmailSendTime }}</span>
+            </span>
+          </div>
+
+          <div class="setting-card-body">
+            <label class="field-label" for="data-backup-receiving-email">Receiving email</label>
+            <el-input
+              id="data-backup-receiving-email"
+              v-model.trim="form.dataBackupReceivingEmail"
+              type="email"
+              placeholder="backup-recipient@example.com"
+              clearable
+              class="field-control field-control--full"
+            />
+            <p class="field-hint">Recipient for scheduled backup reports.</p>
+
+            <div class="field-row">
+              <div class="field-group">
+                <label class="field-label" for="data-backup-time-span">Time span (days)</label>
+                <el-input-number
+                  id="data-backup-time-span"
+                  v-model="form.dataBackupTimeSpan"
+                  :min="1"
+                  :max="365"
+                  :step="1"
+                  controls-position="right"
+                  class="field-control"
+                />
+                <p class="field-hint">Future days included.</p>
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="data-backup-email-interval">Send interval</label>
+                <el-select
+                  id="data-backup-email-interval"
+                  v-model="form.dataBackupEmailInterval"
+                  class="field-control field-control--select"
+                  :teleported="false"
+                >
+                  <el-option
+                    v-for="option in backupEmailIntervalOptions"
+                    :key="option.value"
+                    :label="option.label"
+                    :value="option.value"
+                  />
+                </el-select>
+                <p class="field-hint">Default daily.</p>
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="data-backup-email-send-time">Send time (HH:mm)</label>
+                <el-input
+                  id="data-backup-email-send-time"
+                  v-model.trim="form.dataBackupEmailSendTime"
+                  placeholder="09:00"
+                  maxlength="5"
+                  class="field-control field-control--time"
+                />
+                <p class="field-hint">HKT. Default 09:00.</p>
+              </div>
+            </div>
+
+            <div class="backup-actions">
+              <el-button
+                type="default"
+                class="submit-btn"
+                :loading="sendingBackup"
+                :disabled="loading || saving || sendingBackup"
+                @click="handleSendBackupNow"
+              >
+                <font-awesome-icon :icon="['fas', 'paper-plane']" class="btn-icon" />
+                Send backup now
+              </el-button>
+              <p class="field-hint">Saves backup settings above, then emails the Excel report immediately.</p>
+            </div>
           </div>
         </section>
       </div>
@@ -187,27 +249,60 @@
           Last updated {{ formatUpdatedAt(updatedAt) }}
         </span>
       </footer>
+      </div>
     </div>
+
+    <BookingStyleModal v-model="showNoticeDialog" :title="noticeTitle" max-width="420px">
+      <p class="notice-message">{{ noticeMessage }}</p>
+      <template #footer>
+        <el-button type="default" class="submit-btn" @click="showNoticeDialog = false">OK</el-button>
+      </template>
+    </BookingStyleModal>
   </div>
 </template>
 
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
-import { getSystemSettings, saveSystemSettings } from '@/api/systemSettings'
+import BookingStyleModal from '@/components/BookingStyleModal.vue'
+import { getSystemSettings, saveSystemSettings, sendDataBackupNow } from '@/api/systemSettings'
 import { APP_TIMEZONE } from '@/utils/appTimezone'
 
 const loading = ref(false)
 const saving = ref(false)
+const sendingBackup = ref(false)
 const updatedAt = ref(null)
+const showNoticeDialog = ref(false)
+const noticeTitle = ref('Notice')
+const noticeMessage = ref('')
+
+function showNotice (message, title = 'Notice') {
+  noticeTitle.value = title
+  noticeMessage.value = message
+  showNoticeDialog.value = true
+}
 
 const form = reactive({
   userInactiveAfterMonths: 6,
   hkPublicHolidaysUrl: '',
   evDateUpdateTime: '13:00',
   evWeeklyBookingLimit: 1,
-  venueBookingMinGapMinutes: 15
+  venueBookingMinGapMinutes: 15,
+  dataBackupReceivingEmail: '',
+  dataBackupTimeSpan: 14,
+  dataBackupEmailInterval: 'daily',
+  dataBackupEmailSendTime: '09:00'
 })
+
+const backupEmailIntervalOptions = [
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' }
+]
+
+function formatBackupIntervalLabel (value) {
+  const option = backupEmailIntervalOptions.find((item) => item.value === value)
+  return option?.label || 'Daily'
+}
 
 function formatUpdatedAt (value) {
   if (!value) return ''
@@ -233,6 +328,10 @@ function applySettings (data) {
     data?.venueBookingMinGapMinutes == null
       ? 15
       : Number(data.venueBookingMinGapMinutes)
+  form.dataBackupReceivingEmail = String(data?.dataBackupReceivingEmail ?? '')
+  form.dataBackupTimeSpan = Number(data?.dataBackupTimeSpan) || 14
+  form.dataBackupEmailInterval = String(data?.dataBackupEmailInterval ?? 'daily')
+  form.dataBackupEmailSendTime = String(data?.dataBackupEmailSendTime ?? '09:00')
   updatedAt.value = data?.updatedAt ?? null
 }
 
@@ -242,7 +341,10 @@ async function loadSettings () {
     const data = await getSystemSettings()
     applySettings(data)
   } catch (err) {
-    ElMessage.error(err?.response?.data?.message || err?.message || 'Failed to load system settings')
+    showNotice(
+      err?.response?.data?.message || err?.message || 'Failed to load system settings',
+      'Error'
+    )
   } finally {
     loading.value = false
   }
@@ -250,17 +352,17 @@ async function loadSettings () {
 
 async function handleSave () {
   if (!form.hkPublicHolidaysUrl) {
-    ElMessage.warning('Hong Kong public holidays URL is required')
+    showNotice('Hong Kong public holidays URL is required', 'Warning')
     return
   }
 
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(form.evDateUpdateTime)) {
-    ElMessage.warning('EV date update time must be HH:mm in 24-hour format')
+    showNotice('EV date update time must be HH:mm in 24-hour format', 'Warning')
     return
   }
 
   if (!Number.isInteger(form.evWeeklyBookingLimit) || form.evWeeklyBookingLimit < 1 || form.evWeeklyBookingLimit > 7) {
-    ElMessage.warning('Weekly EV booking limit must be between 1 and 7')
+    showNotice('Weekly EV booking limit must be between 1 and 7', 'Warning')
     return
   }
   if (
@@ -268,7 +370,32 @@ async function handleSave () {
     form.venueBookingMinGapMinutes < 0 ||
     form.venueBookingMinGapMinutes > 120
   ) {
-    ElMessage.warning('Venue booking minimum gap must be an integer between 0 and 120')
+    showNotice('Venue booking minimum gap must be an integer between 0 and 120', 'Warning')
+    return
+  }
+
+  const receivingEmail = String(form.dataBackupReceivingEmail || '').trim()
+  if (receivingEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(receivingEmail)) {
+    showNotice('Data backup receiving email must be a valid email address', 'Warning')
+    return
+  }
+
+  if (
+    !Number.isInteger(form.dataBackupTimeSpan) ||
+    form.dataBackupTimeSpan < 1 ||
+    form.dataBackupTimeSpan > 365
+  ) {
+    showNotice('Data backup time span must be an integer between 1 and 365', 'Warning')
+    return
+  }
+
+  if (!['daily', 'weekly', 'monthly'].includes(form.dataBackupEmailInterval)) {
+    showNotice('Email send interval must be Daily, Weekly, or Monthly', 'Warning')
+    return
+  }
+
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(form.dataBackupEmailSendTime)) {
+    showNotice('Email send time must be HH:mm in 24-hour format', 'Warning')
     return
   }
 
@@ -279,19 +406,90 @@ async function handleSave () {
       hkPublicHolidaysUrl: form.hkPublicHolidaysUrl,
       evDateUpdateTime: form.evDateUpdateTime,
       evWeeklyBookingLimit: form.evWeeklyBookingLimit,
-      venueBookingMinGapMinutes: form.venueBookingMinGapMinutes
+      venueBookingMinGapMinutes: form.venueBookingMinGapMinutes,
+      dataBackupReceivingEmail: receivingEmail,
+      dataBackupTimeSpan: form.dataBackupTimeSpan,
+      dataBackupEmailInterval: form.dataBackupEmailInterval,
+      dataBackupEmailSendTime: form.dataBackupEmailSendTime
     })
     applySettings(data)
-    ElMessage.success('System settings saved')
+    showNotice('System settings saved', 'Success')
   } catch (err) {
     const msg = err?.response?.data?.message
-    if (Array.isArray(msg)) {
-      ElMessage.error(msg.join('; '))
-    } else {
-      ElMessage.error(msg || err?.message || 'Failed to save system settings')
-    }
+    const errorText = Array.isArray(msg)
+      ? msg.join('; ')
+      : (msg || err?.message || 'Failed to save system settings')
+    showNotice(errorText, 'Error')
   } finally {
     saving.value = false
+  }
+}
+
+function validateBackupFields () {
+  const receivingEmail = String(form.dataBackupReceivingEmail || '').trim()
+  if (!receivingEmail) {
+    showNotice('Please enter a receiving email before sending backup.', 'Warning')
+    return null
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(receivingEmail)) {
+    showNotice('Data backup receiving email must be a valid email address', 'Warning')
+    return null
+  }
+  if (
+    !Number.isInteger(form.dataBackupTimeSpan) ||
+    form.dataBackupTimeSpan < 1 ||
+    form.dataBackupTimeSpan > 365
+  ) {
+    showNotice('Data backup time span must be an integer between 1 and 365', 'Warning')
+    return null
+  }
+  if (!['daily', 'weekly', 'monthly'].includes(form.dataBackupEmailInterval)) {
+    showNotice('Email send interval must be Daily, Weekly, or Monthly', 'Warning')
+    return null
+  }
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(form.dataBackupEmailSendTime)) {
+    showNotice('Email send time must be HH:mm in 24-hour format', 'Warning')
+    return null
+  }
+  return receivingEmail
+}
+
+function formatBackupSuccessMessage (result) {
+  const summary = result?.summary || {}
+  const range = result?.dateRange || {}
+  const parts = [
+    `Backup email sent to ${result?.receivingEmail || 'recipient'}.`,
+    `File: ${result?.fileName || 'TKOH_Data_Backup.xlsx'}.`,
+    `Date range: ${range.startYmd || ''} to ${range.endYmd || ''}.`,
+    `Venue ${summary.venueBookings ?? 0}, EV ${summary.evBookings ?? 0}, Users ${summary.users ?? 0}.`
+  ]
+  return parts.join(' ')
+}
+
+async function handleSendBackupNow () {
+  const receivingEmail = validateBackupFields()
+  if (!receivingEmail) return
+
+  sendingBackup.value = true
+  try {
+    const data = await saveSystemSettings({
+      dataBackupReceivingEmail: receivingEmail,
+      dataBackupTimeSpan: form.dataBackupTimeSpan,
+      dataBackupEmailInterval: form.dataBackupEmailInterval,
+      dataBackupEmailSendTime: form.dataBackupEmailSendTime
+    })
+    applySettings(data)
+
+    const result = await sendDataBackupNow()
+    showNotice(formatBackupSuccessMessage(result), 'Success')
+  } catch (err) {
+    const msg = err?.response?.data?.message
+    const errorText = Array.isArray(msg)
+      ? msg.join('; ')
+      : (msg || err?.message || 'Failed to send data backup email')
+    showNotice(errorText, 'Error')
+  } finally {
+    sendingBackup.value = false
   }
 }
 
@@ -304,6 +502,8 @@ onMounted(() => {
 .page-container {
   height: 100%;
   min-height: 100%;
+  min-width: 0;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
   animation: fadeInUp 0.4s ease;
@@ -356,34 +556,42 @@ onMounted(() => {
 .page-content {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
   padding: 0.25rem 0.6rem 0.6rem;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
 }
 
-.page-intro {
-  margin: 0;
-  font-size: 0.8125rem;
-  line-height: 1.55;
-  color: #6b7280;
+.settings-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  padding: 0.55rem 0.65rem 0.65rem;
+  overflow: auto;
 }
 
 .settings-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   align-items: stretch;
 }
 
 .setting-card {
+  flex: 0 0 calc((100% - 1rem) / 3);
+  max-width: calc((100% - 1rem) / 3);
+  box-sizing: border-box;
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 0.5rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   overflow: hidden;
-  height: 100%;
   display: flex;
   flex-direction: column;
 }
@@ -392,30 +600,29 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 0.85rem;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0.65rem;
   background: linear-gradient(180deg, #f9fafb 0%, #ffffff 100%);
   border-bottom: 1px solid #e5e7eb;
-  min-height: 4.25rem;
-  box-sizing: border-box;
 }
 
 .setting-card-title-row {
   display: flex;
-  align-items: flex-start;
-  gap: 0.65rem;
+  align-items: center;
+  gap: 0.5rem;
   min-width: 0;
 }
 
 .setting-icon {
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: 0.5rem;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 0.375rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
 }
 
 .setting-icon--user {
@@ -442,33 +649,28 @@ onMounted(() => {
   border: 1px solid #a5b4fc;
 }
 
-.setting-card-titles {
-  min-width: 0;
+.setting-icon--backup {
+  background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
+  color: #be185d;
+  border: 1px solid #f9a8d4;
 }
 
 .setting-title {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.875rem;
   font-weight: 700;
   color: #111827;
-  line-height: 1.3;
-}
-
-.setting-subtitle {
-  margin: 0.2rem 0 0;
-  font-size: 0.75rem;
-  color: #6b7280;
-  line-height: 1.35;
+  line-height: 1.25;
 }
 
 .value-pill {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
+  gap: 6px;
+  padding: 4px 10px;
   border-radius: 999px;
   flex-shrink: 0;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 
 .value-pill--green {
@@ -480,45 +682,55 @@ onMounted(() => {
   background: #166534;
   color: #ffffff;
   border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 0.6875rem;
+  padding: 1px 7px;
+  font-size: 0.625rem;
   font-weight: 700;
   letter-spacing: 0.2px;
 }
 
 .value-pill-text {
   color: #14532d;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 700;
   white-space: nowrap;
 }
 
-.header-action-spacer {
-  visibility: hidden;
-  pointer-events: none;
+.value-pill-text--truncate {
+  max-width: 5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .setting-card-body {
-  flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 0.85rem;
+  gap: 0.65rem;
+  padding: 0.55rem 0.65rem 0.65rem;
+}
+
+.field-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .field-label {
   display: block;
-  margin-bottom: 0.45rem;
-  font-size: 0.8125rem;
+  margin-bottom: 0.3rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #374151;
 }
 
-.field-label--spaced {
-  margin-top: 1rem;
-}
-
 .field-control {
-  width: 180px;
+  width: 140px;
 }
 
 .field-control--full {
@@ -529,20 +741,30 @@ onMounted(() => {
   width: 120px;
 }
 
+.field-control--select {
+  width: 150px;
+}
+
 .field-hint {
-  margin: 0.55rem 0 0;
-  font-size: 0.75rem;
-  line-height: 1.55;
-  color: #6b7280;
-  flex: 1;
+  margin: 0.25rem 0 0;
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  color: #9ca3af;
+}
+
+.backup-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  padding-top: 0.15rem;
 }
 
 .url-preview {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  margin-top: auto;
-  padding-top: 0.55rem;
+  margin-top: 0.15rem;
   font-size: 0.8125rem;
   font-weight: 600;
   color: #2563eb;
@@ -561,11 +783,19 @@ onMounted(() => {
 
 .settings-footer {
   margin-top: auto;
+  flex-shrink: 0;
   padding: 0.55rem 0.85rem;
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 0.5rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.notice-message {
+  margin: 0;
+  font-size: 15px;
+  color: #374151;
+  line-height: 1.6;
 }
 
 .footer-meta {
@@ -582,7 +812,12 @@ onMounted(() => {
 }
 
 .setting-card-body :deep(.el-input-number) {
-  width: 180px;
+  width: 140px;
+}
+
+.setting-card-body :deep(.el-input-number .el-input__wrapper) {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
 }
 
 .setting-card-body :deep(.el-input__wrapper) {
@@ -598,13 +833,19 @@ onMounted(() => {
   box-shadow: 0 0 0 1px #00723a inset;
 }
 
-@media (max-width: 1100px) {
-  .settings-grid {
-    grid-template-columns: 1fr;
+@media (max-width: 1280px) {
+  .setting-card {
+    flex: 0 0 calc((100% - 0.5rem) / 2);
+    max-width: calc((100% - 0.5rem) / 2);
   }
 }
 
 @media (max-width: 767px) {
+  .setting-card {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+
   .page-header {
     flex-direction: column;
     align-items: flex-start;
@@ -620,18 +861,25 @@ onMounted(() => {
   }
 
   .setting-card-header {
-    flex-direction: column;
-    align-items: stretch;
     min-height: 0;
   }
 
-  .header-action-spacer,
-  .value-pill {
-    align-self: flex-start;
+  .field-row {
+    flex-direction: column;
+    gap: 0.65rem;
   }
 
   .field-control,
   .setting-card-body :deep(.el-input-number) {
+    width: 100%;
+    max-width: none;
+  }
+
+  .field-control--time {
+    max-width: 120px;
+  }
+
+  .field-control--select {
     width: 100%;
   }
 }

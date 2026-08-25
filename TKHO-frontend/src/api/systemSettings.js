@@ -7,3 +7,7 @@ export function getSystemSettings () {
 export function saveSystemSettings (payload) {
   return request.put('/system-settings', payload)
 }
+
+export function sendDataBackupNow () {
+  return request.post('/data-backup/send-now', {}, { timeout: 120000 })
+}

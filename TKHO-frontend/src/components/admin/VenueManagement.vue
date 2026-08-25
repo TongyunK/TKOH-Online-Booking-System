@@ -487,7 +487,7 @@
     >
       <p class="notice-message">{{ noticeMessage }}</p>
       <template #footer>
-        <el-button type="default" class="submit-btn" @click="showNoticeDialog = false">OK</el-button>
+        <el-button type="default" class="submit-btn" @click="closeNoticeDialog">OK</el-button>
       </template>
     </BookingStyleModal>
   </div>
@@ -685,6 +685,11 @@ const showNotice = (message, title = 'Notice') => {
   showNoticeDialog.value = true
 }
 
+const closeNoticeDialog = () => {
+  showNoticeDialog.value = false
+  showDeleteDialog.value = false
+}
+
 const getErrorMessage = (error, fallback = 'Operation failed') => {
   const message = error?.response?.data?.message
   if (Array.isArray(message)) return message[0] || fallback
@@ -769,6 +774,10 @@ const getSortIndicator = (key) => {
   const arrow = sortState.value[idx].order === 'asc' ? '↑' : '↓'
   return `${arrow}${idx + 1}`
 }
+
+const tabFromVenueType = (type) => (
+  type === 'conference' || type === 'discussion' ? 'conference_discussion' : 'other_venues'
+)
 
 const getTypeLabel = (type) => {
   if (type === 'conference') return 'Conference'
@@ -1090,8 +1099,9 @@ const handleSave = async () => {
     }
   }
 
+  const venueTab = tabFromVenueType(formData.value.type)
   const normalizedFormData = {
-    tab: activeCategory.value,
+    tab: venueTab,
     name: formData.value.name,
     nameZh: formData.value.nameZh,
     type: formData.value.type,
@@ -1135,6 +1145,10 @@ const handleSave = async () => {
     }
 
     showForm.value = false
+    if (venueTab !== activeCategory.value) {
+      activeCategory.value = venueTab
+      currentPage.value = 1
+    }
     showNotice(formMode.value === 'add' ? 'Venue added successfully' : 'Venue updated successfully', 'Success')
   } catch (error) {
     // 保存失败：只提示错误，编辑弹窗保持打开，允许用户继续修改

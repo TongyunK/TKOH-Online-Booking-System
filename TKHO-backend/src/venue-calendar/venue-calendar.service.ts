@@ -22,11 +22,21 @@ import {
   hasVenueDailyBookingWindow,
   isWithinVenueDailyBookingWindow,
 } from '../common/venue-daily-booking-window';
+import {
+  formatUserDisplayName,
+  userDisplayNameSelect,
+} from '../common/user-display-name';
 
 const bookingInclude = {
   venue: { select: { id: true, name: true, color: true, tab: true, venueType: true } },
   reservedBy: {
-    select: { id: true, name: true, contact: true, email: true },
+    select: {
+      id: true,
+      ...userDisplayNameSelect,
+      contact: true,
+      email: true,
+      department: { select: { department_name: true } },
+    },
   },
   venueTeaService: { select: { teaService: true } },
 } satisfies Prisma.VenueBookingsInclude;
@@ -257,9 +267,10 @@ export class VenueCalendarService {
       attendees: row.attendees ?? null,
       topic: row.meetingTitle ?? '',
       notes: row.notes?.trim() ?? '',
-      reservedBy: row.reservedBy?.name ?? '',
+      reservedBy: formatUserDisplayName(row.reservedBy),
       contact: row.reservedBy?.contact ?? '',
       email: row.reservedBy?.email ?? '',
+      department: row.reservedBy?.department?.department_name ?? '',
       color: row.venue?.color ?? '#3b82f6',
       status: row.status ?? 'upcoming',
       approvalStatus: String(row.approvalStatus ?? '').toLowerCase() || null,
@@ -923,7 +934,10 @@ export class VenueCalendarService {
 
       await tx.venueBookings.update({
         where: { id: bookingId },
-        data: { status: 'cancelled' },
+        data: {
+          status: 'cancelled',
+          cancelledAt: new Date(),
+        },
       });
     });
 

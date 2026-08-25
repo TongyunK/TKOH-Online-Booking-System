@@ -1206,13 +1206,13 @@ async function loadCalendarData () {
     roomFilterRestoredFromStorage.value = false
     const filterState = loadVenueCalendarRoomFilterState()
     if (filterState?.bookNowRoomType) {
-      // ?? Book Now ???? Book Now ????????????? selectedIds
+      // 在 Book Now 页面上 Book Now 按钮被点击时，存储的 roomType 值
       roomType.value = filterState.bookNowRoomType
       applyRoomTypeRouteFilter()
       saveVenueCalendarRoomFilter(allRooms.value)
       roomFilterRestoredFromStorage.value = true
     } else if (filterState?.selectedIds) {
-      // ?? / ?????????????????      applyVenueCalendarRoomFilter(allRooms.value, filterState.selectedIds)
+      applyVenueCalendarRoomFilter(allRooms.value, filterState.selectedIds)
       roomFilterRestoredFromStorage.value = true
     } else if (route.query.roomType === 'conference' || route.query.roomType === 'other') {
       applyRoomTypeRouteFilter()

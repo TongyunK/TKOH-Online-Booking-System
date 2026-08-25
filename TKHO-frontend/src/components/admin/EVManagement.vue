@@ -243,7 +243,7 @@
     <BookingStyleModal v-model="showNoticeDialog" :title="noticeTitle" max-width="420px">
       <p class="notice-message">{{ noticeMessage }}</p>
       <template #footer>
-        <el-button type="default" class="submit-btn" @click="showNoticeDialog = false">OK</el-button>
+        <el-button type="default" class="submit-btn" @click="closeNoticeDialog">OK</el-button>
       </template>
     </BookingStyleModal>
   </div>
@@ -406,6 +406,11 @@ const showNotice = (message, title = 'Notice') => {
   noticeTitle.value = title
   noticeMessage.value = message
   showNoticeDialog.value = true
+}
+
+const closeNoticeDialog = () => {
+  showNoticeDialog.value = false
+  showDeleteDialog.value = false
 }
 
 const getErrorMessage = (error, fallback = 'Operation failed') => {

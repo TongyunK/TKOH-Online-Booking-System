@@ -8,6 +8,10 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateLicensePlateDto } from './dto/create-license-plate.dto';
 import { UpdateLicensePlateDto } from './dto/update-license-plate.dto';
+import {
+  formatUserDisplayName,
+  userDisplayNameSelect,
+} from '../common/user-display-name';
 
 const plateSelect = {
   id: true,
@@ -19,6 +23,14 @@ const plateSelect = {
 } satisfies Prisma.license_platesSelect;
 
 type PlateRow = Prisma.license_platesGetPayload<{ select: typeof plateSelect }>;
+
+type OwnerUser = {
+  id: bigint;
+  corpId: string;
+  firstName: string;
+  lastName: string;
+  status?: string;
+};
 
 @Injectable()
 export class LicensePlateManagementService {
@@ -50,22 +62,34 @@ export class LicensePlateManagementService {
     if (corp) {
       const byCorp = await this.prisma.user.findFirst({
         where: { corpId: corp },
-        select: { id: true, corpId: true, name: true, status: true },
+        select: { id: true, corpId: true, ...userDisplayNameSelect, status: true },
       });
       if (byCorp) return byCorp;
     }
 
     const name = ownerName?.trim();
     if (name) {
-      const matches = await this.prisma.user.findMany({
-        where: { name },
-        select: { id: true, corpId: true, name: true, status: true },
-        take: 2,
+      const parts = name.split(/\s+/).filter(Boolean);
+      const where: Prisma.UserWhereInput =
+        parts.length >= 2
+          ? {
+              firstName: parts[0],
+              lastName: parts.slice(1).join(' '),
+            }
+          : {
+              OR: [{ firstName: name }, { lastName: name }],
+            };
+
+      const candidates = await this.prisma.user.findMany({
+        where,
+        select: { id: true, corpId: true, ...userDisplayNameSelect, status: true },
+        take: 20,
       });
+      const matches = candidates.filter((u) => formatUserDisplayName(u) === name);
       if (matches.length === 1) return matches[0];
       if (matches.length > 1) {
         throw new BadRequestException(
-          'Multiple users share this name; please select owner by corp ID',
+          'Multiple users share this name; please select owner by CORP User ID',
         );
       }
     }
@@ -77,12 +101,12 @@ export class LicensePlateManagementService {
     if (!ids.length) return new Map<string, { corpId: string; name: string }>();
     const users = await this.prisma.user.findMany({
       where: { id: { in: ids } },
-      select: { id: true, corpId: true, name: true },
+      select: { id: true, corpId: true, ...userDisplayNameSelect },
     });
     return new Map(
       users.map((u) => [
         u.id.toString(),
-        { corpId: u.corpId, name: u.name },
+        { corpId: u.corpId, name: formatUserDisplayName(u) },
       ]),
     );
   }
@@ -100,6 +124,13 @@ export class LicensePlateManagementService {
       status: row.status,
       isDefault: Boolean(row.is_default),
       createdAt: row.created_at,
+    };
+  }
+
+  private ownerDisplay(owner: OwnerUser) {
+    return {
+      corpId: owner.corpId,
+      name: formatUserDisplayName(owner),
     };
   }
 
@@ -168,10 +199,7 @@ export class LicensePlateManagementService {
         },
         select: plateSelect,
       });
-      return this.mapPlate(created, {
-        corpId: owner.corpId,
-        name: owner.name,
-      });
+      return this.mapPlate(created, this.ownerDisplay(owner));
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
         throw new ConflictException('License plate already exists');

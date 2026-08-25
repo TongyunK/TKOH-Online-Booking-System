@@ -13,7 +13,7 @@ export function updateEvParkingSlot(id, payload) {
 }
 
 export function deleteEvParkingSlot(id) {
-  return request.delete(`/ev-management/parking/${id}`)
+  return request.delete(`/ev-management/parking/${id}`, { silentError: true })
 }
 
 export function getEvTimePeriods(config = {}) {
@@ -29,7 +29,7 @@ export function updateEvTimePeriod(id, payload) {
 }
 
 export function deleteEvTimePeriod(id) {
-  return request.delete(`/ev-management/time-periods/${id}`)
+  return request.delete(`/ev-management/time-periods/${id}`, { silentError: true })
 }
 
 export function getEvBookingWindow(config = {}) {

@@ -21,6 +21,7 @@ import { UpdateEvTimePeriodDto } from './dto/update-ev-time-period.dto';
 import { PublishEvWindowDto } from './dto/publish-ev-window.dto';
 import { UpdateEvManageBookingDto } from './dto/update-ev-manage-booking.dto';
 import { HkPublicHolidaysService } from '../system-settings/hk-public-holidays.service';
+import { formatUserDisplayName, userDisplayNameSelect } from '../common/user-display-name';
 
 const EV_RESOURCE = 'ev';
 const ACTIVE_BOOKING_STATUSES = ['pending', 'confirmed'] as const;
@@ -167,9 +168,22 @@ export class EvManagementService {
     const slotId = BigInt(id);
     const exists = await this.prisma.evParkingSlots.findUnique({ where: { id: slotId } });
     if (!exists) throw new NotFoundException('EV space not found');
-    const cnt = await this.prisma.evBookings.count({ where: { slotId } });
-    if (cnt > 0) {
-      throw new BadRequestException('Cannot delete EV space with existing bookings');
+    const upcomingCnt = await this.prisma.evBookings.count({
+      where: {
+        slotId,
+        status: { notIn: ['cancelled', 'canceled', 'past'] },
+      },
+    });
+    if (upcomingCnt > 0) {
+      throw new BadRequestException(
+        'Cannot delete this EV space because it has upcoming bookings. Please cancel those bookings first.',
+      );
+    }
+    const historyCnt = await this.prisma.evBookings.count({ where: { slotId } });
+    if (historyCnt > 0) {
+      throw new BadRequestException(
+        'Cannot delete this EV space because it has booking history. Historical booking records cannot be removed.',
+      );
     }
     await this.prisma.evParkingSlots.delete({ where: { id: slotId } });
     return { ok: true };
@@ -252,9 +266,22 @@ export class EvManagementService {
     const periodId = BigInt(id);
     const exists = await this.prisma.evTimePeriods.findUnique({ where: { id: periodId } });
     if (!exists) throw new NotFoundException('Time period not found');
-    const cnt = await this.prisma.evBookings.count({ where: { periodId } });
-    if (cnt > 0) {
-      throw new BadRequestException('Cannot delete time period with existing bookings');
+    const upcomingCnt = await this.prisma.evBookings.count({
+      where: {
+        periodId,
+        status: { notIn: ['cancelled', 'canceled', 'past'] },
+      },
+    });
+    if (upcomingCnt > 0) {
+      throw new BadRequestException(
+        'Cannot delete this time period because it has upcoming bookings. Please cancel those bookings first.',
+      );
+    }
+    const historyCnt = await this.prisma.evBookings.count({ where: { periodId } });
+    if (historyCnt > 0) {
+      throw new BadRequestException(
+        'Cannot delete this time period because it has booking history. Historical booking records cannot be removed.',
+      );
     }
     await this.prisma.evTimePeriods.delete({ where: { id: periodId } });
     return { ok: true };
@@ -533,7 +560,13 @@ export class EvManagementService {
       }
     }
     if (!userIds.size && !corpIds.size) {
-      return { byId: new Map<bigint, { id: bigint; corpId: string; name: string; email: string | null }>(), byCorp: new Map() };
+      return {
+        byId: new Map<
+          bigint,
+          { id: bigint; corpId: string; firstName: string; lastName: string; email: string | null }
+        >(),
+        byCorp: new Map(),
+      };
     }
 
     const users = await this.prisma.user.findMany({
@@ -543,7 +576,7 @@ export class EvManagementService {
           corpIds.size ? { corpId: { in: [...corpIds] } } : undefined,
         ].filter(Boolean) as Prisma.UserWhereInput[],
       },
-      select: { id: true, corpId: true, name: true, email: true },
+      select: { id: true, corpId: true, ...userDisplayNameSelect, email: true },
     });
 
     const byId = new Map<bigint, (typeof users)[0]>();
@@ -572,8 +605,14 @@ export class EvManagementService {
       period: { period: string; startTime: Date; endTime: Date } | null;
     },
     owners: {
-      byId: Map<bigint, { id: bigint; corpId: string; name: string; email: string | null }>;
-      byCorp: Map<string, { id: bigint; corpId: string; name: string; email: string | null }>;
+      byId: Map<
+        bigint,
+        { id: bigint; corpId: string; firstName: string; lastName: string; email: string | null }
+      >;
+      byCorp: Map<
+        string,
+        { id: bigint; corpId: string; firstName: string; lastName: string; email: string | null }
+      >;
     },
   ) {
     const plateUserId = row.licensePlate?.user_id ?? null;
@@ -602,9 +641,9 @@ export class EvManagementService {
       dbStatus: row.status,
       employeeId: owner ? owner.id.toString() : undefined,
       corpId: row.userCorpId ?? owner?.corpId,
-      submitter: submitter?.name ?? undefined,
+      submitter: submitter ? formatUserDisplayName(submitter) : undefined,
       submitterUserId: submitter ? submitter.id.toString() : undefined,
-      reservedBy: owner?.name ?? undefined,
+      reservedBy: owner ? formatUserDisplayName(owner) : undefined,
       reservedByUserId: owner ? owner.id.toString() : undefined,
       licensePlateId: row.licensePlateId.toString(),
       slotId: row.slotId.toString(),
@@ -825,7 +864,7 @@ export class EvManagementService {
     }
     const userCorpId = String(reservedUser.corpId ?? '').trim();
     if (!userCorpId) {
-      throw new BadRequestException('Reserved-by user is missing corp id');
+      throw new BadRequestException('Reserved-by user is missing CORP User ID');
     }
 
     const licensePlateId = BigInt(dto.licensePlateId);

@@ -5,9 +5,21 @@ export class CreateUserDto {
   @MinLength(1)
   corpId!: string;
 
+  @IsOptional()
+  @IsString()
+  firstName?: string;
+
   @IsString()
   @MinLength(1)
-  name!: string;
+  lastName!: string;
+
+  @IsOptional()
+  @IsString()
+  employeeNo?: string;
+
+  @IsOptional()
+  @IsString()
+  rank?: string;
 
   /** Department display name; created in `departments` when not found. */
   @IsOptional()
@@ -48,4 +60,9 @@ export class CreateUserDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  /** Optional; when provided, creates/links license plate after user create */
+  @IsOptional()
+  @IsString()
+  carPlateNo?: string;
 }

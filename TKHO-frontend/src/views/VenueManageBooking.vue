@@ -59,39 +59,6 @@
             </div>
           </div>
 
-          <!-- Approval Filter (Admin All Bookings only) -->
-          <div v-if="isAdminAllBookingsView" class="status-filter-wrapper" data-filter="approval-status">
-            <button class="status-filter-btn" @click="toggleApprovalFilter">
-              {{ approvalFilterLabel }}
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="arrow-icon">
-                <polyline points="6 9 12 15 18 9"></polyline>
-              </svg>
-            </button>
-            <div v-if="showApprovalFilter" class="status-filter-dropdown" @click.stop>
-              <div class="status-filter-header">
-                <span class="filter-title">Show approval:</span>
-              </div>
-              <div class="status-filter-body">
-                <label class="status-checkbox">
-                  <input type="checkbox" v-model="approvalFilters.pending" />
-                  <span>Pending</span>
-                </label>
-                <label class="status-checkbox">
-                  <input type="checkbox" v-model="approvalFilters.approved" />
-                  <span>Approved</span>
-                </label>
-                <label class="status-checkbox">
-                  <input type="checkbox" v-model="approvalFilters.rejected" />
-                  <span>Rejected</span>
-                </label>
-                <label class="status-checkbox select-all-option">
-                  <input type="checkbox" v-model="allApprovalsSelected" />
-                  <span>Select All</span>
-                </label>
-              </div>
-            </div>
-          </div>
-
           <!-- Date Range Filter -->
           <div class="date-filter-wrapper">
             <button class="date-filter-btn" @click="toggleDateFilter">
@@ -315,12 +282,6 @@
                       <div class="booking-popover-row"><span class="popover-label">Tea Special Requests</span><span class="popover-value">{{ formatTeaSpecialRequest(booking) }}</span></div>
                       <div class="booking-popover-row"><span class="popover-label">Display on Homepage</span><span class="popover-value">{{ formatDisplayOnHomepage(booking) }}</span></div>
                       <template v-if="isAdminAllBookingsView">
-                        <div class="booking-popover-row">
-                          <span class="popover-label">Approval</span>
-                          <span :class="['status-badge', 'badge-approval-' + (booking.approvalStatus || 'pending')]">
-                            {{ formatStatus(booking.approvalStatus || 'pending') }}
-                          </span>
-                        </div>
                         <div v-if="String(booking.approvalStatus || '').toLowerCase() === 'rejected'" class="booking-popover-row">
                           <span class="popover-label">Reason</span>
                           <span class="popover-value">{{ booking.reason || booking.rejectReason || '-' }}</span>
@@ -358,7 +319,17 @@
                       popper-class="booking-card-tea-popover"
                     >
                       <template #reference>
-                        <span class="tea-service-card-short tea-service-card-short--yes">{{ formatTeaServiceCardLabel(booking) }}</span>
+                        <span
+                          :class="[
+                            'status-badge',
+                            'tea-service-badge',
+                            'card-tea-service-badge',
+                            'badge-tea-service-yes',
+                            'tea-service-badge--interactive'
+                          ]"
+                        >
+                          {{ formatTeaServiceCardLabel(booking) }}
+                        </span>
                       </template>
                       <div class="tea-service-popover-detail">
                         <div v-if="getTeaServiceSummaryText(booking)" class="tea-service-popover-line">
@@ -373,13 +344,24 @@
                         </div>
                       </div>
                     </el-popover>
-                    <span v-else class="tea-service-card-short">{{ formatTeaServiceCardLabel(booking) }}</span>
+                    <span
+                      v-else
+                      :class="[
+                        'status-badge',
+                        'tea-service-badge',
+                        'card-tea-service-badge',
+                        'badge-tea-service-no'
+                      ]"
+                    >
+                      {{ formatTeaServiceCardLabel(booking) }}
+                    </span>
                   </span>
                 </div>
                 <div class="card-row">
                   <span class="card-label">Display on Homepage</span>
                   <span class="card-value">
                     <span
+                      v-if="isBookingDisplayOnHomepageSupported(booking)"
                       :class="[
                         'status-badge',
                         'card-display-homepage-badge',
@@ -388,21 +370,20 @@
                     >
                       {{ formatDisplayOnHomepage(booking) }}
                     </span>
+                    <span v-else>-</span>
                   </span>
                 </div>
                 <div class="card-row">
                   <span class="card-label application-date-label">Application Date</span>
                   <span class="card-value">{{ formatApplicationDateForCard(booking.bookedOn) }}</span>
                 </div>
-                <div v-if="isAdminAllBookingsView" class="card-row">
-                  <span class="card-label">Approval</span>
-                  <span :class="['status-badge', 'card-approval-badge', 'badge-approval-' + (booking.approvalStatus || 'pending')]">
-                    {{ formatStatus(booking.approvalStatus || 'pending') }}
-                  </span>
-                </div>
                 <div v-if="isBookingCanceledStatus(booking.status)" class="card-row">
                   <span class="card-label">Cancelled by</span>
                   <span class="card-value">{{ formatCancelledBy(booking) }}</span>
+                </div>
+                <div v-if="isBookingCanceledStatus(booking.status)" class="card-row">
+                  <span class="card-label">Cancelled At</span>
+                  <span class="card-value">{{ formatCancelledAt(booking) }}</span>
                 </div>
               </div>
               <div class="card-footer">
@@ -444,7 +425,15 @@
 
         <!-- Table View -->
         <div v-else class="table-view flex-1 overflow-hidden">
-          <div class="table-wrapper">
+          <div
+            ref="tableWrapperRef"
+            class="table-wrapper"
+            :class="{
+              'is-scrolled-left': tableScrolledLeft,
+              'is-scrolled-right': tableScrolledRight
+            }"
+            @scroll="updateTableScrollShadows"
+          >
             <table class="bookings-table">
               <thead>
                 <tr>
@@ -474,7 +463,7 @@
                       <span class="sort-indicator">{{ getSortIndicator('topic') }}</span>
                     </button>
                   </th>
-                  <th v-if="availableColumns[3].visible">
+                  <th v-if="isReservedByTableColumnVisible">
                     <SortableFilterHeader
                       label="Reserved By"
                       :sort-indicator="getSortIndicator('reservedBy')"
@@ -487,13 +476,13 @@
                       @update:model-value="(v) => updateFilter('reservedBy', v)"
                     />
                   </th>
-                  <th v-if="availableColumns[4].visible">
+                  <th v-if="isContactTableColumnVisible">
                     <button type="button" class="th-sort-btn" @click="toggleSort('contact')">
                       Contact No.
                       <span class="sort-indicator">{{ getSortIndicator('contact') }}</span>
                     </button>
                   </th>
-                  <th v-if="availableColumns[5].visible">
+                  <th v-if="isEmailTableColumnVisible">
                     <button type="button" class="th-sort-btn" @click="toggleSort('email')">
                       Email
                       <span class="sort-indicator">{{ getSortIndicator('email') }}</span>
@@ -512,18 +501,17 @@
                       @update:model-value="(v) => updateFilter('status', v)"
                     />
                   </th>
-                  <th v-if="isApprovalTableColumnVisible">
-                    <SortableFilterHeader
-                      label="Approval"
-                      :sort-indicator="getSortIndicator('approvalStatus')"
-                      :filter-active="columnFilterState.approvalStatus.length > 0"
-                      :options="getFilterOptions('approvalStatus')"
-                      :model-value="columnFilterState.approvalStatus"
-                      @sort-asc="setSortByMenu('approvalStatus', 'asc')"
-                      @sort-desc="setSortByMenu('approvalStatus', 'desc')"
-                      @clear-sort="clearSortByMenu('approvalStatus')"
-                      @update:model-value="(v) => updateFilter('approvalStatus', v)"
-                    />
+                  <th v-if="isTeaServiceTableColumnVisible" class="col-tea-service">
+                    <button type="button" class="th-sort-btn" @click="toggleSort('teaService')">
+                      Tea Service
+                      <span class="sort-indicator">{{ getSortIndicator('teaService') }}</span>
+                    </button>
+                  </th>
+                  <th v-if="isDisplayOnHomepageTableColumnVisible" class="col-display-homepage">
+                    <button type="button" class="th-sort-btn th-sort-btn--stacked" @click="toggleSort('displayOnHomepage')">
+                      <span class="display-homepage-header">Display on<br>Homepage</span>
+                      <span class="sort-indicator">{{ getSortIndicator('displayOnHomepage') }}</span>
+                    </button>
                   </th>
                   <th v-if="isAdminAllBookingsView">
                     <SortableFilterHeader
@@ -544,12 +532,6 @@
                       <span class="sort-indicator">{{ getSortIndicator('bookedOn') }}</span>
                     </button>
                   </th>
-                  <th v-if="isDisplayOnHomepageTableColumnVisible" class="col-display-homepage">
-                    <button type="button" class="th-sort-btn" @click="toggleSort('displayOnHomepage')">
-                      Display on Homepage
-                      <span class="sort-indicator">{{ getSortIndicator('displayOnHomepage') }}</span>
-                    </button>
-                  </th>
                   <th v-if="isMyNoteTableColumnVisible" class="col-mynote">My Note</th>
                   <th v-if="isCancelledByTableColumnVisible">
                     <button type="button" class="th-sort-btn" @click="toggleSort('cancelledBy')">
@@ -557,7 +539,13 @@
                       <span class="sort-indicator">{{ getSortIndicator('cancelledBy') }}</span>
                     </button>
                   </th>
-                  <th class="col-actions" :class="{ 'col-actions--compact': !isAdminAllBookingsView }">Actions</th>
+                  <th v-if="isCancelledAtTableColumnVisible">
+                    <button type="button" class="th-sort-btn" @click="toggleSort('cancelledAt')">
+                      Cancelled At
+                      <span class="sort-indicator">{{ getSortIndicator('cancelledAt') }}</span>
+                    </button>
+                  </th>
+                  <th v-if="isActionsTableColumnVisible" class="col-actions" :class="{ 'col-actions--compact': !isAdminAllBookingsView }">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -569,23 +557,64 @@
                   </td>
                   <td v-if="availableColumns[1].visible" class="col-venue">{{ booking.room }}</td>
                   <td v-if="availableColumns[2].visible" class="col-topic">{{ booking.topic }}</td>
-                  <td v-if="availableColumns[3].visible">{{ booking.reservedBy }}</td>
-                  <td v-if="availableColumns[4].visible">{{ booking.contact }}</td>
-                  <td v-if="availableColumns[5].visible">{{ booking.email }}</td>
+                  <td v-if="isReservedByTableColumnVisible">{{ booking.reservedBy }}</td>
+                  <td v-if="isContactTableColumnVisible">{{ booking.contact }}</td>
+                  <td v-if="isEmailTableColumnVisible">{{ booking.email }}</td>
                   <td v-if="availableColumns[6].visible">
                     <span :class="['status-badge', 'badge-' + booking.status]">
                       {{ formatStatus(booking.status) }}
                     </span>
                   </td>
-                  <td v-if="isApprovalTableColumnVisible">
-                    <span :class="['status-badge', 'badge-approval-' + (booking.approvalStatus || 'pending')]">
-                      {{ formatStatus(booking.approvalStatus || 'pending') }}
+                  <td v-if="isTeaServiceTableColumnVisible" class="col-tea-service">
+                    <el-popover
+                      v-if="isBookingTeaServiceYes(booking)"
+                      placement="top"
+                      :width="300"
+                      trigger="hover"
+                      :teleported="cardPopoverTeleported"
+                      popper-class="booking-card-tea-popover"
+                    >
+                      <template #reference>
+                        <span
+                          :class="[
+                            'status-badge',
+                            'tea-service-badge',
+                            'table-tea-service-badge',
+                            'badge-tea-service-yes',
+                            'tea-service-badge--interactive'
+                          ]"
+                        >
+                          {{ formatTeaServiceCardLabel(booking) }}
+                        </span>
+                      </template>
+                      <div class="tea-service-popover-detail">
+                        <div v-if="getTeaServiceSummaryText(booking)" class="tea-service-popover-line">
+                          {{ getTeaServiceSummaryText(booking) }}
+                        </div>
+                        <div
+                          v-if="formatTeaSpecialRequest(booking) !== '-'"
+                          class="tea-service-popover-line tea-service-popover-special"
+                        >
+                          <span class="tea-service-popover-label">Special requests</span>
+                          <span class="tea-service-popover-text">{{ formatTeaSpecialRequest(booking) }}</span>
+                        </div>
+                      </div>
+                    </el-popover>
+                    <span
+                      v-else
+                      :class="[
+                        'status-badge',
+                        'tea-service-badge',
+                        'table-tea-service-badge',
+                        'badge-tea-service-no'
+                      ]"
+                    >
+                      {{ formatTeaServiceCardLabel(booking) }}
                     </span>
                   </td>
-                  <td v-if="isAdminAllBookingsView">{{ booking.submitter || '-' }}</td>
-                  <td v-if="availableColumns[8].visible">{{ booking.bookedOn }}</td>
                   <td v-if="isDisplayOnHomepageTableColumnVisible" class="col-display-homepage">
                     <span
+                      v-if="isBookingDisplayOnHomepageSupported(booking)"
                       :class="[
                         'status-badge',
                         'display-homepage-badge',
@@ -594,12 +623,16 @@
                     >
                       {{ formatDisplayOnHomepage(booking) }}
                     </span>
+                    <span v-else>-</span>
                   </td>
+                  <td v-if="isAdminAllBookingsView">{{ booking.submitter || '-' }}</td>
+                  <td v-if="availableColumns[8].visible">{{ booking.bookedOn }}</td>
                   <td v-if="isMyNoteTableColumnVisible" class="col-mynote">
                     <span class="col-mynote-text">{{ booking.myNote || '-' }}</span>
                   </td>
                   <td v-if="isCancelledByTableColumnVisible">{{ formatCancelledBy(booking) }}</td>
-                  <td class="actions-td" :class="{ 'actions-td--compact': !isAdminAllBookingsView }">
+                  <td v-if="isCancelledAtTableColumnVisible">{{ formatCancelledAt(booking) }}</td>
+                  <td v-if="isActionsTableColumnVisible" class="actions-td" :class="{ 'actions-td--compact': !isAdminAllBookingsView }">
                     <div class="actions-cell">
                       <template v-if="isAdminAllBookingsView">
                         <button
@@ -1026,7 +1059,7 @@
           <el-form-item label="Name" label-width="154px">
             <el-input v-model="handleForm.userName" disabled />
           </el-form-item>
-          <el-form-item label="Department" label-width="154px">
+          <el-form-item label="Department / Unit" label-width="154px">
             <el-input v-model="handleForm.departmentUnit" disabled />
           </el-form-item>
           <el-form-item label="Contact No." label-width="154px">
@@ -1211,26 +1244,43 @@ const isAdminAllBookingsView = computed(
   () => isAdmin.value && bookingView.value === 'all'
 )
 
-/** All Bookings ??????My Note?????My Bookings???? Approval?????Cancelled ???? Cancelled by */
+/** All Bookings 不含 My Note / Approval；My Bookings 不含 Approval / 联系人相关列；Cancelled 未勾选时不含 Cancelled by / Cancelled At */
 const columnsForTablePicker = computed(() => {
   let cols = isAdminAllBookingsView.value
-    ? availableColumns.value.filter((col) => col.key !== 'myNote')
-    : availableColumns.value.filter((col) => col.key !== 'approvalStatus')
+    ? availableColumns.value.filter((col) => !['myNote', 'approvalStatus'].includes(col.key))
+    : availableColumns.value.filter(
+      (col) => !['approvalStatus', 'reservedBy', 'contact', 'email'].includes(col.key)
+    )
   if (!statusFilters.value.cancelled) {
-    cols = cols.filter((col) => col.key !== 'cancelledBy')
+    cols = cols.filter((col) => col.key !== 'cancelledBy' && col.key !== 'cancelledAt')
   }
   return cols
+})
+
+const isReservedByTableColumnVisible = computed(() => {
+  if (!isAdminAllBookingsView.value) return false
+  return Boolean(availableColumns.value.find((c) => c.key === 'reservedBy')?.visible)
+})
+
+const isContactTableColumnVisible = computed(() => {
+  if (!isAdminAllBookingsView.value) return false
+  return Boolean(availableColumns.value.find((c) => c.key === 'contact')?.visible)
+})
+
+const isEmailTableColumnVisible = computed(() => {
+  if (!isAdminAllBookingsView.value) return false
+  return Boolean(availableColumns.value.find((c) => c.key === 'email')?.visible)
+})
+
+/** My Bookings：状态筛选未勾选 upcoming 时隐藏 Actions；All Bookings 始终显示 */
+const isActionsTableColumnVisible = computed(() => {
+  if (isAdminAllBookingsView.value) return true
+  return Boolean(statusFilters.value.upcoming)
 })
 
 const isMyNoteTableColumnVisible = computed(() => {
   if (isAdminAllBookingsView.value) return false
   const col = availableColumns.value.find((c) => c.key === 'myNote')
-  return Boolean(col?.visible)
-})
-
-const isApprovalTableColumnVisible = computed(() => {
-  if (!isAdminAllBookingsView.value) return false
-  const col = availableColumns.value.find((c) => c.key === 'approvalStatus')
   return Boolean(col?.visible)
 })
 
@@ -1240,22 +1290,27 @@ const isCancelledByTableColumnVisible = computed(() => {
   return Boolean(col?.visible)
 })
 
+const isCancelledAtTableColumnVisible = computed(() => {
+  if (!statusFilters.value.cancelled) return false
+  const col = availableColumns.value.find((c) => c.key === 'cancelledAt')
+  return Boolean(col?.visible)
+})
+
 const isDisplayOnHomepageTableColumnVisible = computed(() => {
   const col = availableColumns.value.find((c) => c.key === 'displayOnHomepage')
+  return Boolean(col?.visible)
+})
+
+const isTeaServiceTableColumnVisible = computed(() => {
+  const col = availableColumns.value.find((c) => c.key === 'teaService')
   return Boolean(col?.visible)
 })
 const searchQuery = ref('')
 const showColumnsFilter = ref(false)
 const showStatusFilter = ref(false)
-const showApprovalFilter = ref(false)
 const showDateFilter = ref(false)
 const showExportMenu = ref(false)
 const exportingExcel = ref(false)
-const approvalFilters = ref({
-  pending: true,
-  approved: true,
-  rejected: true
-})
 const currentPage = ref(1)
 const pageSize = ref(20)
 const sortState = ref([
@@ -1416,10 +1471,11 @@ async function confirmAdminBookingDialog (bookingData) {
       teaServiceTeaPots: teaPayload.teaServiceTeaPots,
       teaServiceWaterPots: teaPayload.teaServiceWaterPots,
       teaServiceParticipants: Number(bookingData.attendeeCount) || 1,
-      teaServiceSpecialRequest: teaPayload.teaServiceSpecialRequest || '',
+      teaServiceSpecialRequest: String(
+        teaPayload.teaServiceSpecialRequest ?? bookingData.teaServiceSpecialRequest ?? ''
+      ).trim(),
       displayOnHomepage: bookingData.displayOnHomepage !== false,
       reservedByUserId: bookingData.reservedByUserId || undefined
-      // ?????? My Note????myNote ??????????
     })
     await loadBookings()
     closeAdminBookingDialog()
@@ -1940,9 +1996,11 @@ const availableColumns = ref([
   { key: 'status', label: 'Status', visible: true, required: false },
   { key: 'approvalStatus', label: 'Approval', visible: true, required: false },
   { key: 'bookedOn', label: 'Application Date', visible: true, required: false },
+  { key: 'teaService', label: 'Tea Service', visible: true, required: false },
   { key: 'displayOnHomepage', label: 'Display on Homepage', visible: true, required: false },
   { key: 'myNote', label: 'My Note', visible: true, required: false },
-  { key: 'cancelledBy', label: 'Cancelled by', visible: true, required: false }
+  { key: 'cancelledBy', label: 'Cancelled by', visible: true, required: false },
+  { key: 'cancelledAt', label: 'Cancelled At', visible: true, required: false }
 ])
 
 const bookings = ref([])
@@ -2003,15 +2061,6 @@ const buildFilteredBookings = (options = {}) => {
   const activeStatuses = Object.keys(statusFilters.value).filter(key => statusFilters.value[key])
   if (activeStatuses.length > 0 && activeStatuses.length < 3) {
     result = result.filter(b => activeStatuses.includes(b.status))
-  }
-
-  if (isAdminAllBookingsView.value) {
-    const activeApprovals = Object.keys(approvalFilters.value).filter((key) => approvalFilters.value[key])
-    if (activeApprovals.length > 0 && activeApprovals.length < 3) {
-      result = result.filter((b) =>
-        activeApprovals.includes(String(b.approvalStatus || 'pending').toLowerCase())
-      )
-    }
   }
 
   const rangeToApply = dateRangeOption === undefined ? dateRange.value : dateRangeOption
@@ -2111,10 +2160,21 @@ const getSortValue = (booking, key) => {
       return booking.submitter || ''
     case 'bookedOn':
       return parseBookedOnDateTime(booking.bookedOn).getTime()
-    case 'displayOnHomepage':
+    case 'teaService': {
+      if (!isBookingTeaServiceYes(booking)) return 0
+      const count = Number(
+        booking.teaServiceParticipants ?? booking.attendeeCount ?? booking.participants
+      )
+      return Number.isFinite(count) ? 1 + count : 1
+    }
+    case 'displayOnHomepage': {
+      if (!isBookingDisplayOnHomepageSupported(booking)) return -1
       return booking.displayOnHomepage !== false ? 1 : 0
+    }
     case 'cancelledBy':
       return booking.cancelledBy || ''
+    case 'cancelledAt':
+      return booking.cancelledAt || ''
     default:
       return ''
   }
@@ -2211,31 +2271,6 @@ const statusFilterLabel = computed(() => {
   }
 })
 
-const approvalFilterLabel = computed(() => {
-  const activeApprovals = Object.keys(approvalFilters.value).filter((key) => approvalFilters.value[key])
-  if (activeApprovals.length === 3) {
-    return 'All Approval'
-  }
-  if (activeApprovals.length === 0) {
-    return 'No approval selected'
-  }
-  if (activeApprovals.length === 1) {
-    return formatStatus(activeApprovals[0])
-  }
-  return `${activeApprovals.length} approvals`
-})
-
-const allApprovalsSelected = computed({
-  get: () => Object.values(approvalFilters.value).every(Boolean),
-  set: (checked) => {
-    approvalFilters.value = {
-      pending: checked,
-      approved: checked,
-      rejected: checked
-    }
-  }
-})
-
 const allStatusesSelected = computed({
   get: () => Object.values(statusFilters.value).every(Boolean),
   set: (checked) => {
@@ -2313,11 +2348,11 @@ const exportOptionCounts = computed(() => {
 })
 
 const currentExportDescription = computed(() => {
-  const parts = [dateFilterLabel.value, statusFilterLabel.value, approvalFilterLabel.value]
+  const parts = [dateFilterLabel.value, statusFilterLabel.value]
   if (searchQuery.value.trim()) {
     parts.push(`Search: "${searchQuery.value.trim()}"`)
   }
-  return parts.join(' ? ')
+  return parts.join(' · ')
 })
 
 const closeExportMenu = () => {
@@ -2331,11 +2366,9 @@ const toggleExportMenu = (event) => {
 
   showExportMenu.value = !showExportMenu.value
   showStatusFilter.value = false
-  showApprovalFilter.value = false
   showDateFilter.value = false
   showColumnsFilter.value = false
   document.removeEventListener('click', handleStatusFilterClickOutside)
-  document.removeEventListener('click', handleApprovalFilterClickOutside)
   document.removeEventListener('mousedown', handleDateFilterClickOutside, true)
   document.removeEventListener('click', handleColumnsFilterClickOutside)
 
@@ -2407,18 +2440,19 @@ const handleExportExcel = async (mode = 'current', quickValue) => {
       'Venue': booking.room || '',
       'Meeting / Event': booking.topic || '',
       'Reserved By': booking.reservedBy || '',
-      'Department': getExportDepartment(booking),
+      'Department / Unit': getExportDepartment(booking),
       'No. of participants': getExportParticipantCount(booking),
       'Contact No.': booking.contact || '',
       'Email': booking.email || '',
       'Status': formatStatus(booking.status || ''),
       'Approval': formatStatus(booking.approvalStatus || 'pending'),
-      'Submitted By': booking.submitter || '',
-      'Application Date': booking.bookedOn || '',
-      'Display on Homepage': formatDisplayOnHomepage(booking),
-      'Cancelled by': formatCancelledBy(booking),
       'Tea Service': formatTeaServiceStatus(booking),
       'Tea Special Requests': formatTeaSpecialRequest(booking),
+      'Display on Homepage': formatDisplayOnHomepage(booking),
+      'Submitted By': booking.submitter || '',
+      'Application Date': booking.bookedOn || '',
+      'Cancelled by': formatCancelledBy(booking),
+      'Cancelled At': formatCancelledAt(booking),
       'Reject Reason': booking.reason || booking.rejectReason || '',
     }))
 
@@ -2462,7 +2496,7 @@ const visiblePages = computed(() => {
 })
 
 // Watch for filter changes and reset to page 1
-watch([statusFilters, approvalFilters, searchQuery, dateRange, columnFilterState], () => {
+watch([statusFilters, searchQuery, dateRange, columnFilterState], () => {
   currentPage.value = 1
 }, { deep: true })
 
@@ -2623,7 +2657,24 @@ const formatCancelledBy = (booking) => {
   return name || '-'
 }
 
+const formatCancelledAt = (booking) => {
+  if (!isBookingCanceledStatus(booking?.status)) return '-'
+  const text = String(booking?.cancelledAt || '').trim()
+  return text || '-'
+}
+
+const isBookingDisplayOnHomepageSupported = (booking) => {
+  if (booking?.userDefinedUploadEventTitle === false) return false
+  const room = String(booking?.room || booking?.roomName || '').trim()
+  if (room) {
+    const venueMeta = editableVenueMeta.value.find((v) => v.name === room)
+    if (venueMeta?.userDefinedUploadEventTitle === false) return false
+  }
+  return booking?.userDefinedUploadEventTitle !== false
+}
+
 const formatDisplayOnHomepage = (booking) => {
+  if (!isBookingDisplayOnHomepageSupported(booking)) return '-'
   return booking?.displayOnHomepage !== false ? 'Yes' : 'No'
 }
 
@@ -2631,8 +2682,6 @@ const formatDisplayOnHomepage = (booking) => {
 const toggleStatusFilter = (event) => {
   event.stopPropagation()
   closeExportMenu()
-  showApprovalFilter.value = false
-  document.removeEventListener('click', handleApprovalFilterClickOutside)
   showStatusFilter.value = !showStatusFilter.value
 
   if (showStatusFilter.value) {
@@ -2650,29 +2699,6 @@ const handleStatusFilterClickOutside = (event) => {
   if (!wrapper?.contains(event.target)) {
     showStatusFilter.value = false
     document.removeEventListener('click', handleStatusFilterClickOutside)
-  }
-}
-
-const toggleApprovalFilter = (event) => {
-  event.stopPropagation()
-  closeExportMenu()
-  showStatusFilter.value = false
-  document.removeEventListener('click', handleStatusFilterClickOutside)
-  showApprovalFilter.value = !showApprovalFilter.value
-  if (showApprovalFilter.value) {
-    setTimeout(() => {
-      document.addEventListener('click', handleApprovalFilterClickOutside, { once: false })
-    }, 0)
-  } else {
-    document.removeEventListener('click', handleApprovalFilterClickOutside)
-  }
-}
-
-const handleApprovalFilterClickOutside = (event) => {
-  const wrapper = document.querySelector('[data-filter="approval-status"]')
-  if (!wrapper?.contains(event.target)) {
-    showApprovalFilter.value = false
-    document.removeEventListener('click', handleApprovalFilterClickOutside)
   }
 }
 
@@ -3197,6 +3223,32 @@ watch(bookingView, () => {
   }
 })
 
+const tableWrapperRef = ref(null)
+const tableScrolledLeft = ref(false)
+const tableScrolledRight = ref(false)
+
+const updateTableScrollShadows = () => {
+  const el = tableWrapperRef.value
+  if (!el) {
+    tableScrolledLeft.value = false
+    tableScrolledRight.value = false
+    return
+  }
+  const maxScrollLeft = el.scrollWidth - el.clientWidth
+  tableScrolledLeft.value = el.scrollLeft > 1
+  tableScrolledRight.value = maxScrollLeft > 1 && el.scrollLeft < maxScrollLeft - 1
+}
+
+watch(
+  [currentView, availableColumns, isActionsTableColumnVisible, isAdminAllBookingsView, paginatedBookings],
+  async () => {
+    if (currentView.value !== 'table') return
+    await nextTick()
+    updateTableScrollShadows()
+  },
+  { deep: true }
+)
+
 onMounted(() => {
   updateHandleBookingModalMaxHeight()
   updateRejectBookingSelectTeleported()
@@ -3207,12 +3259,14 @@ onMounted(() => {
   rejectBookingSelectMq.addEventListener('change', updateRejectBookingSelectTeleported)
   cardPopoverTeleportedMq = window.matchMedia(HTML_ZOOM_BREAKPOINT_MQ)
   cardPopoverTeleportedMq.addEventListener('change', updateCardPopoverTeleported)
+  window.addEventListener('resize', updateTableScrollShadows, { passive: true })
   void loadBookings()
   void loadRejectPrompts()
   void loadSystemFixedPrompts()
   void loadEditableVenues()
   void loadVenueBookingWindow()
   void loadHolidays()
+  nextTick(() => updateTableScrollShadows())
 })
 
 onUnmounted(() => {
@@ -3225,8 +3279,8 @@ onUnmounted(() => {
   if (cardPopoverTeleportedMq) {
     cardPopoverTeleportedMq.removeEventListener('change', updateCardPopoverTeleported)
   }
+  window.removeEventListener('resize', updateTableScrollShadows)
   document.removeEventListener('mousedown', handleDateFilterClickOutside, true)
-  document.removeEventListener('click', handleApprovalFilterClickOutside)
   document.removeEventListener('click', handleExportMenuClickOutside)
 })
 </script>
@@ -3918,6 +3972,37 @@ onUnmounted(() => {
   color: #6b7280;
 }
 
+.badge-tea-service-yes {
+  background-color: #ccfbf1;
+  color: #0f766e;
+}
+
+.badge-tea-service-no {
+  background-color: #f3f4f6;
+  color: #6b7280;
+}
+
+.tea-service-badge,
+.table-tea-service-badge,
+.card-tea-service-badge {
+  width: auto;
+  min-width: 0;
+  padding: 0.125rem 0.4375rem;
+  text-align: center;
+}
+
+.card-tea-service-badge {
+  font-size: 0.625rem;
+}
+
+.tea-service-badge--interactive {
+  cursor: help;
+}
+
+.tea-service-badge--interactive:hover {
+  filter: brightness(0.97);
+}
+
 .display-homepage-badge,
 .card-display-homepage-badge {
   width: auto;
@@ -3965,15 +4050,6 @@ onUnmounted(() => {
 
 .tea-service-value {
   margin-left: 0.5rem;
-}
-
-.tea-service-card-short {
-  white-space: nowrap;
-}
-
-.tea-service-card-short--yes {
-  cursor: help;
-  border-bottom: 1px dotted #9ca3af;
 }
 
 .tea-service-popover-detail {
@@ -4491,9 +4567,9 @@ onUnmounted(() => {
 
 .bookings-table th.col-topic,
 .bookings-table td.col-topic {
-  width: 300px;
-  min-width: 240px;
-  max-width: 340px;
+  width: 400px;
+  min-width: 400px;
+  max-width: 400px;
   box-sizing: border-box;
 }
 
@@ -4511,13 +4587,42 @@ onUnmounted(() => {
   box-sizing: border-box;
 }
 
+.bookings-table th.col-tea-service,
+.bookings-table td.col-tea-service {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.bookings-table th.col-tea-service .th-sort-btn {
+  justify-content: center;
+}
+
 .bookings-table th.col-display-homepage,
 .bookings-table td.col-display-homepage {
   text-align: center;
+  width: 90px;
+  min-width: 90px;
+  max-width: 90px;
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+  white-space: normal;
 }
 
 .bookings-table th.col-display-homepage .th-sort-btn {
   justify-content: center;
+}
+
+.bookings-table th.col-display-homepage .th-sort-btn--stacked {
+  align-items: center;
+  gap: 0.28rem;
+  white-space: normal;
+}
+
+.bookings-table th.col-display-homepage .display-homepage-header {
+  display: inline-block;
+  line-height: 1.25;
+  font-size: 0.75rem;
+  text-align: center;
 }
 
 .bookings-table td.col-mynote {
@@ -4542,12 +4647,23 @@ onUnmounted(() => {
   width: 50px;
   min-width: 50px;
   text-align: center;
+  position: sticky;
+  left: 0;
+  top: 0;
+  z-index: 15;
+  background-color: #f3f4f6;
+  box-shadow: none;
+}
+
+.table-wrapper.is-scrolled-left .bookings-table th.col-no,
+.table-wrapper.is-scrolled-left .bookings-table .no-cell {
+  box-shadow: 6px 0 8px -4px rgba(15, 23, 42, 0.12);
 }
 
 .bookings-table th.col-actions {
-  width: 210px;
-  min-width: 210px;
-  max-width: 210px;
+  width: 155px;
+  min-width: 155px;
+  max-width: 155px;
   text-align: center;
   position: sticky;
   top: 0;
@@ -4555,6 +4671,11 @@ onUnmounted(() => {
   background-color: #f3f4f6;
   z-index: 14;
   box-sizing: border-box;
+  box-shadow: none;
+}
+
+.table-wrapper.is-scrolled-right .bookings-table th.col-actions,
+.table-wrapper.is-scrolled-right .bookings-table td.actions-td {
   box-shadow: -6px 0 8px -4px rgba(15, 23, 42, 0.12);
 }
 
@@ -4574,12 +4695,12 @@ onUnmounted(() => {
   right: 0;
   background-color: white;
   text-align: center;
-  width: 210px;
-  min-width: 210px;
-  max-width: 210px;
+  width: 155px;
+  min-width: 155px;
+  max-width: 155px;
   box-sizing: border-box;
   z-index: 9;
-  box-shadow: -6px 0 8px -4px rgba(15, 23, 42, 0.12);
+  box-shadow: none;
 }
 
 .bookings-table td.actions-td--compact {
@@ -4600,6 +4721,15 @@ onUnmounted(() => {
   text-align: center;
   color: #6b7280;
   font-weight: 500;
+  position: sticky;
+  left: 0;
+  z-index: 8;
+  background-color: #ffffff;
+  box-shadow: none;
+}
+
+.bookings-table tbody tr:hover .no-cell {
+  background-color: #f9fafb;
 }
 
 .datetime-cell {

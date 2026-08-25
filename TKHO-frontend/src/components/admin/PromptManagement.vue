@@ -23,10 +23,6 @@
         <el-tab-pane label="Prompts and Templates" name="system" />
         <el-tab-pane label="Reject Template" name="reject" />
       </el-tabs>
-      <el-tabs v-if="activeTab === 'reject'" v-model="rejectSubTab" class="sub-tabs">
-        <el-tab-pane label="Meeting Approval" name="meeting_approval" />
-        <el-tab-pane label="User Application" name="user_application" />
-      </el-tabs>
       <div class="table-card">
       <el-table :data="paginatedData" height="100%" border stripe table-layout="fixed" style="width: 100%">
         <el-table-column
@@ -106,7 +102,7 @@
 
     <BookingStyleModal
       v-model="showForm"
-      :title="formMode === 'add' ? `Add ${activeTabLabel}` : `Edit ${activeTabLabel}`"
+      :title="formModalTitle"
       :max-width="activeTab === 'system' ? '1240px' : '700px'"
       :max-height="formModalMaxHeight"
       :custom-class="formModalCustomClass"
@@ -114,21 +110,6 @@
       <el-form :model="formData" label-width="120px">
         <el-form-item v-if="activeTab === 'reject' && formMode === 'edit'" label="Type">
           <el-input v-model="formData.key" :disabled="activeTab === 'system' || formMode === 'edit'" placeholder="e.g., reject_template_01" />
-        </el-form-item>
-        <el-form-item v-if="activeTab === 'reject' && formMode === 'add'" label="Template Type">
-          <el-select
-            v-model="formData.templateType"
-            style="width: 100%"
-            :teleported="false"
-            @change="handleRejectTemplateTypeChange"
-          >
-            <el-option
-              v-for="option in rejectTemplateTypeOptions"
-              :key="option.value"
-              :label="option.label"
-              :value="option.value"
-            />
-          </el-select>
         </el-form-item>
         <el-form-item label="Name">
           <el-input v-model="formData.name" :disabled="activeTab === 'system'" placeholder="Display name" />
@@ -206,16 +187,7 @@ import '@/styles/rich-content.css'
 import '@wangeditor/editor/dist/css/style.css'
 
 const promptList = ref([])
-const rejectTemplateTypeOptions = [
-  { value: 'meeting_approval', label: 'Meeting Approval Reject Template' },
-  { value: 'user_application', label: 'User Application Reject Template' }
-]
 const rejectTemplateDefaults = {
-  meeting_approval: {
-    key: 'meeting_approval_reject_template',
-    name: 'Meeting Approval Reject Template',
-    content: 'Your meeting booking request is rejected. Reason: {reason}'
-  },
   user_application: {
     key: 'user_application_reject_template',
     name: 'User Application Reject Template',
@@ -223,13 +195,20 @@ const rejectTemplateDefaults = {
   }
 }
 const activeTab = ref('system')
-const rejectSubTab = ref('meeting_approval')
+const rejectSubTab = ref('user_application')
 const searchState = ref({
   system: '',
-  meeting_approval: '',
   user_application: ''
 })
 const activeTabLabel = computed(() => (activeTab.value === 'system' ? 'System Prompt' : 'Reject Template'))
+const formModalTitle = computed(() => {
+  if (formMode.value === 'add') {
+    return activeTab.value === 'reject'
+      ? 'Add Approval User Reject Template'
+      : `Add ${activeTabLabel.value}`
+  }
+  return `Edit ${activeTabLabel.value}`
+})
 const currentSearchKey = computed(() => (activeTab.value === 'system' ? 'system' : rejectSubTab.value))
 const currentSearch = computed({
   get: () => searchState.value[currentSearchKey.value] || '',
@@ -301,7 +280,7 @@ const formData = ref({
   content: '',
   category: 'reject_template',
   canAdd: true,
-  templateType: 'meeting_approval'
+  templateType: 'user_application'
 })
 const showDeleteDialog = ref(false)
 const currentRow = ref(null)
@@ -445,7 +424,7 @@ const handleExport = () => {
 
 const handleAdd = () => {
   if (activeTab.value === 'system') return
-  const defaultType = rejectSubTab.value === 'user_application' ? 'user_application' : 'meeting_approval'
+  const defaultType = 'user_application'
   const defaultPreset = rejectTemplateDefaults[defaultType]
   formMode.value = 'add'
   formData.value = {
@@ -457,14 +436,6 @@ const handleAdd = () => {
     templateType: defaultType
   }
   showForm.value = true
-}
-
-const handleRejectTemplateTypeChange = (templateType) => {
-  const preset = rejectTemplateDefaults[templateType]
-  if (!preset) return
-  formData.value.key = preset.key
-  formData.value.name = preset.name
-  formData.value.content = preset.content
 }
 
 const handleEdit = (row) => {

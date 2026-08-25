@@ -542,7 +542,7 @@ export class ParkingService {
     }
     const userCorpId = String(reservedUser.corpId ?? '').trim();
     if (!userCorpId) {
-      throw new BadRequestException('Reserved-by user is missing corp id');
+      throw new BadRequestException('Reserved-by user is missing CORP User ID');
     }
 
     const licensePlateId = BigInt(dto.licensePlateId);

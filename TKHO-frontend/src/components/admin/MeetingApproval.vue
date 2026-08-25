@@ -3,22 +3,19 @@
     <div class="page-header">
       <h2 class="page-title">Meeting Approval</h2>
       <div class="header-actions">
-        <el-input
-          v-model="currentSearch"
-          placeholder="Search current table data"
-          clearable
-          class="toolbar-search"
-        />
+        <el-input v-model="currentSearch" placeholder="Search current table data" clearable class="toolbar-search" />
         <div class="date-filter-wrapper">
           <button class="date-filter-btn" @click="toggleDateFilter">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="calendar-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" class="calendar-icon">
               <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
               <line x1="16" y1="2" x2="16" y2="6"></line>
               <line x1="8" y1="2" x2="8" y2="6"></line>
               <line x1="3" y1="10" x2="21" y2="10"></line>
             </svg>
             <span>{{ dateFilterLabel }}</span>
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="arrow-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" class="arrow-icon">
               <polyline points="6 9 12 15 18 9"></polyline>
             </svg>
           </button>
@@ -27,39 +24,27 @@
             <div class="date-filter-header">
               <span class="filter-title">Select date range:</span>
               <button v-if="dateRange" class="clear-all-btn" @click="clearDateFilter" title="Clear filter">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2">
                   <line x1="18" y1="6" x2="6" y2="18"></line>
                   <line x1="6" y1="6" x2="18" y2="18"></line>
                 </svg>
               </button>
             </div>
+
             <div class="date-filter-body">
               <div class="quick-date-options">
-                <button
-                  v-for="option in quickDateOptions"
-                  :key="option.label"
-                  class="quick-date-btn"
-                  :class="{ active: isQuickDateActive(option) }"
-                  @click="selectQuickDate(option)"
-                >
+                <button v-for="option in quickDateOptions" :key="option.label" class="quick-date-btn"
+                  :class="{ active: isQuickDateActive(option) }" @click="selectQuickDate(option)">
                   {{ option.label }}
                 </button>
               </div>
+
               <div class="custom-date-section">
                 <div class="custom-date-label">Custom Range:</div>
-                <el-date-picker
-                  v-model="dateRange"
-                  type="daterange"
-                  :teleported="false"
-                  range-separator="to"
-                  start-placeholder="Start date"
-                  end-placeholder="End date"
-                  format="DD/MM/YYYY"
-                  value-format="YYYY-MM-DD"
-                  class="date-range-picker"
-                  size="default"
-                  :clearable="true"
-                />
+                <el-date-picker v-model="dateRange" type="daterange" :teleported="false" range-separator="to"
+                  start-placeholder="Start date" end-placeholder="End date" format="DD/MM/YYYY"
+                  value-format="YYYY-MM-DD" class="date-range-picker" size="default" :clearable="true" />
               </div>
             </div>
           </div>
@@ -77,132 +62,172 @@
           <template #label>
             <span>
               Pending Approval
-              <el-badge
-                :value="pendingBookingsCount"
-                :max="99"
-                :show-zero="false"
-                class="badge-item"
-              />
+              <el-badge :value="pendingBookingsCount" :max="99" :show-zero="false" class="badge-item" />
             </span>
           </template>
 
           <div class="table-card">
-          <div class="table-view">
-            <div class="table-wrapper">
-          <el-table
-            :data="paginatedPendingData"
-            class="meeting-approval-table"
-            height="100%"
-            border
-            stripe
-            table-layout="auto"
-            style="width: max-content; min-width: 100%"
-          >
-            <el-table-column
-              type="index"
-              label="#"
-              width="70"
-              align="center"
-              header-align="center"
-              fixed="left"
-              class-name="table-nowrap-col"
-              label-class-name="table-nowrap-col"
-              :index="getPendingRowIndex"
-            />
-            <el-table-column prop="venueName" min-width="200" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
-              <template #header>
-                <SortableFilterHeader
-                  label="Room / Venue"
-                  :sort-indicator="getPendingSortIndicator('venueName')"
-                  :filter-active="columnFilterState.pending.venueName.length > 0"
-                  :options="pendingVenueOptions"
-                  :model-value="columnFilterState.pending.venueName"
-                  @sort-asc="setSortByMenu('pending', 'venueName', 'asc')"
-                  @sort-desc="setSortByMenu('pending', 'venueName', 'desc')"
-                  @clear-sort="clearSortByMenu('pending', 'venueName')"
-                  @update:model-value="(v) => updateFilter('pending', 'venueName', v)"
-                />
-              </template>
-            </el-table-column>
-            <el-table-column label="Reserved By" min-width="240" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
-              <template #header>
-                <SortableFilterHeader
-                  label="Reserved By"
-                  :sort-indicator="getPendingSortIndicator('reservedBy')"
-                  :filter-active="columnFilterState.pending.reservedBy.length > 0"
-                  :options="pendingReservedByOptions"
-                  :model-value="columnFilterState.pending.reservedBy"
-                  @sort-asc="setSortByMenu('pending', 'reservedBy', 'asc')"
-                  @sort-desc="setSortByMenu('pending', 'reservedBy', 'desc')"
-                  @clear-sort="clearSortByMenu('pending', 'reservedBy')"
-                  @update:model-value="(v) => updateFilter('pending', 'reservedBy', v)"
-                />
-              </template>
-              <template #default="{ row }">
-                {{ formatReservedBy(row) }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="meetingTitle" label="Meeting / Event Title" width="520" class-name="table-meeting-title-col" label-class-name="table-meeting-title-col" />
-            <el-table-column prop="date" min-width="130" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
-              <template #header>
-                <button type="button" class="th-sort-btn" @click="togglePendingSort('date')">
-                  Date
-                  <span class="sort-indicator">{{ getPendingSortIndicator('date') }}</span>
+            <div class="table-view">
+              <div class="table-wrapper">
+                <el-table :data="paginatedPendingData" class="meeting-approval-table" height="100%" border stripe
+                  table-layout="auto" style="width: max-content; min-width: 100%">
+                  <el-table-column type="index" label="#" width="70" align="center" header-align="center" fixed="left"
+                    class-name="table-nowrap-col" label-class-name="table-nowrap-col" :index="getPendingRowIndex" />
+                  <el-table-column prop="venueName" min-width="200" class-name="table-nowrap-col"
+                    label-class-name="table-nowrap-col">
+                    <template #header>
+                      <SortableFilterHeader label="Room / Venue" :sort-indicator="getPendingSortIndicator('venueName')"
+                        :filter-active="columnFilterState.pending.venueName.length > 0" :options="pendingVenueOptions"
+                        :model-value="columnFilterState.pending.venueName"
+                        @sort-asc="setSortByMenu('pending', 'venueName', 'asc')"
+                        @sort-desc="setSortByMenu('pending', 'venueName', 'desc')"
+                        @clear-sort="clearSortByMenu('pending', 'venueName')"
+                        @update:model-value="(v) => updateFilter('pending', 'venueName', v)" />
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="Reserved By" min-width="240" class-name="table-nowrap-col"
+                    label-class-name="table-nowrap-col">
+                    <template #header>
+                      <SortableFilterHeader label="Reserved By" :sort-indicator="getPendingSortIndicator('reservedBy')"
+                        :filter-active="columnFilterState.pending.reservedBy.length > 0"
+                        :options="pendingReservedByOptions" :model-value="columnFilterState.pending.reservedBy"
+                        @sort-asc="setSortByMenu('pending', 'reservedBy', 'asc')"
+                        @sort-desc="setSortByMenu('pending', 'reservedBy', 'desc')"
+                        @clear-sort="clearSortByMenu('pending', 'reservedBy')"
+                        @update:model-value="(v) => updateFilter('pending', 'reservedBy', v)" />
+                    </template>
+                    <template #default="{ row }">
+                      {{ formatReservedBy(row) }}
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="meetingTitle" label="Meeting / Event Title" width="400"
+                    class-name="table-meeting-title-col" label-class-name="table-meeting-title-col" />
+                  <el-table-column prop="date" min-width="130" class-name="table-nowrap-col"
+                    label-class-name="table-nowrap-col">
+                    <template #header>
+                      <button type="button" class="th-sort-btn" @click="togglePendingSort('date')">
+                        Date
+                        <span class="sort-indicator">{{ getPendingSortIndicator('date') }}</span>
+                      </button>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="time" min-width="150" class-name="table-nowrap-col"
+                    label-class-name="table-nowrap-col">
+                    <template #header>
+                      <button type="button" class="th-sort-btn" @click="togglePendingSort('time')">
+                        Time
+                        <span class="sort-indicator">{{ getPendingSortIndicator('time') }}</span>
+                      </button>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="Tea Service" min-width="120" align="center" header-align="center"
+                    class-name="table-nowrap-col" label-class-name="table-nowrap-col">
+                    <template #default="{ row }">
+                      <el-popover
+                        v-if="isBookingTeaServiceYes(row)"
+                        placement="top"
+                        :width="300"
+                        trigger="hover"
+                        popper-class="meeting-approval-tea-popover"
+                      >
+                        <template #reference>
+                          <span
+                            :class="[
+                              'status-badge',
+                              'tea-service-badge',
+                              'badge-tea-service-yes',
+                              'tea-service-badge--interactive'
+                            ]"
+                          >
+                            {{ formatTeaServiceCardLabel(row) }}
+                          </span>
+                        </template>
+                        <div class="tea-service-popover-detail">
+                          <div v-if="getTeaServiceSummaryText(row)" class="tea-service-popover-line">
+                            {{ getTeaServiceSummaryText(row) }}
+                          </div>
+                          <div
+                            v-if="formatTeaSpecialRequest(row) !== '-'"
+                            class="tea-service-popover-line tea-service-popover-special"
+                          >
+                            <span class="tea-service-popover-label">Special requests</span>
+                            <span class="tea-service-popover-text">{{ formatTeaSpecialRequest(row) }}</span>
+                          </div>
+                        </div>
+                      </el-popover>
+                      <span
+                        v-else
+                        :class="['status-badge', 'tea-service-badge', 'badge-tea-service-no']"
+                      >
+                        {{ formatTeaServiceCardLabel(row) }}
+                      </span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column width="90" align="center" header-align="center"
+                    class-name="table-nowrap-col" label-class-name="col-display-homepage-header">
+                    <template #header>
+                      <span class="display-homepage-header">Display on<br>Homepage</span>
+                    </template>
+                    <template #default="{ row }">
+                      <span
+                        v-if="isBookingDisplayOnHomepageSupported(row)"
+                        :class="[
+                          'status-badge',
+                          'display-homepage-badge',
+                          row.displayOnHomepage !== false ? 'badge-display-homepage-yes' : 'badge-display-homepage-no'
+                        ]"
+                      >
+                        {{ formatDisplayOnHomepage(row) }}
+                      </span>
+                      <span v-else>-</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="submittedAt" min-width="180" class-name="table-nowrap-col"
+                    label-class-name="table-nowrap-col">
+                    <template #header>
+                      <button type="button" class="th-sort-btn" @click="togglePendingSort('submittedAt')">
+                        Submitted
+                        <span class="sort-indicator">{{ getPendingSortIndicator('submittedAt') }}</span>
+                      </button>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="Actions" width="120" fixed="right" class-name="actions-col table-nowrap-col"
+                    label-class-name="table-nowrap-col">
+                    <template #default="{ row }">
+                      <div class="actions-cell">
+                        <el-button size="small" class="action-btn action-edit"
+                          @click="handleOpen(row)">Handle</el-button>
+                      </div>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </div>
+            </div>
+            <div class="pagination-bar">
+              <div class="pagination-info">
+                Showing {{ pendingStartIndex + 1 }}-{{ pendingEndIndex }} of {{ columnFilteredPendingList.length }}
+                records
+              </div>
+              <div class="pagination-controls">
+                <button class="pagination-btn" :disabled="pendingCurrentPage === 1"
+                  @click="pendingCurrentPage--">Previous</button>
+                <button v-for="page in pendingVisiblePages" :key="page"
+                  :class="['pagination-btn', 'page-number', { active: page === pendingCurrentPage }]"
+                  @click="pendingCurrentPage = page">
+                  {{ page }}
                 </button>
-              </template>
-            </el-table-column>
-            <el-table-column prop="time" min-width="150" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
-              <template #header>
-                <button type="button" class="th-sort-btn" @click="togglePendingSort('time')">
-                  Time
-                  <span class="sort-indicator">{{ getPendingSortIndicator('time') }}</span>
-                </button>
-              </template>
-            </el-table-column>
-            <el-table-column prop="submittedAt" min-width="180" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
-              <template #header>
-                <button type="button" class="th-sort-btn" @click="togglePendingSort('submittedAt')">
-                  Submitted
-                  <span class="sort-indicator">{{ getPendingSortIndicator('submittedAt') }}</span>
-                </button>
-              </template>
-            </el-table-column>
-            <el-table-column label="Actions" width="120" fixed="right" class-name="actions-col table-nowrap-col" label-class-name="table-nowrap-col">
-              <template #default="{ row }">
-                <div class="actions-cell">
-                  <el-button size="small" class="action-btn action-edit" @click="handleOpen(row)">Handle</el-button>
-                </div>
-              </template>
-            </el-table-column>
-          </el-table>
+                <button class="pagination-btn" :disabled="pendingCurrentPage === pendingTotalPages"
+                  @click="pendingCurrentPage++">Next</button>
+              </div>
+              <div class="pagination-size">
+                <select v-model.number="pendingPageSize" class="page-size-select" @change="pendingCurrentPage = 1">
+                  <option :value="10">10 / page</option>
+                  <option :value="20">20 / page</option>
+                  <option :value="50">50 / page</option>
+                  <option :value="100">100 / page</option>
+                </select>
+              </div>
             </div>
-          </div>
-
-          <div class="pagination-bar">
-            <div class="pagination-info">
-              Showing {{ pendingStartIndex + 1 }}-{{ pendingEndIndex }} of {{ columnFilteredPendingList.length }} records
-            </div>
-            <div class="pagination-controls">
-              <button class="pagination-btn" :disabled="pendingCurrentPage === 1" @click="pendingCurrentPage--">Previous</button>
-              <button
-                v-for="page in pendingVisiblePages"
-                :key="page"
-                :class="['pagination-btn', 'page-number', { active: page === pendingCurrentPage }]"
-                @click="pendingCurrentPage = page"
-              >
-                {{ page }}
-              </button>
-              <button class="pagination-btn" :disabled="pendingCurrentPage === pendingTotalPages" @click="pendingCurrentPage++">Next</button>
-            </div>
-            <div class="pagination-size">
-              <select v-model.number="pendingPageSize" class="page-size-select" @change="pendingCurrentPage = 1">
-                <option :value="10">10 / page</option>
-                <option :value="20">20 / page</option>
-                <option :value="50">50 / page</option>
-                <option :value="100">100 / page</option>
-              </select>
-            </div>
-          </div>
           </div>
         </el-tab-pane>
 
@@ -210,404 +235,353 @@
           <template #label>
             <span>
               Expired
-              <el-badge
-                :value="expiredBookingsCount"
-                :max="99"
-                :show-zero="false"
-                class="badge-item badge-item--expired"
-              />
+              <el-badge :value="expiredBookingsCount" :max="99" :show-zero="false"
+                class="badge-item badge-item--expired" />
             </span>
           </template>
-
           <div class="table-card">
-          <div class="table-view">
-            <div class="table-wrapper">
-          <el-table
-            :data="paginatedExpiredData"
-            class="meeting-approval-table"
-            height="100%"
-            border
-            stripe
-            table-layout="auto"
-            style="width: max-content; min-width: 100%"
-          >
-            <el-table-column
-              type="index"
-              label="#"
-              width="70"
-              align="center"
-              header-align="center"
-              fixed="left"
-              class-name="table-nowrap-col"
-              label-class-name="table-nowrap-col"
-              :index="getExpiredRowIndex"
-            />
-            <el-table-column prop="venueName" min-width="200" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
-              <template #header>
-                <SortableFilterHeader
-                  label="Room / Venue"
-                  :sort-indicator="getExpiredSortIndicator('venueName')"
-                  :filter-active="columnFilterState.expired.venueName.length > 0"
-                  :options="expiredVenueOptions"
-                  :model-value="columnFilterState.expired.venueName"
-                  @sort-asc="setSortByMenu('expired', 'venueName', 'asc')"
-                  @sort-desc="setSortByMenu('expired', 'venueName', 'desc')"
-                  @clear-sort="clearSortByMenu('expired', 'venueName')"
-                  @update:model-value="(v) => updateFilter('expired', 'venueName', v)"
-                />
-              </template>
-            </el-table-column>
-            <el-table-column label="Reserved By" min-width="240" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
-              <template #header>
-                <SortableFilterHeader
-                  label="Reserved By"
-                  :sort-indicator="getExpiredSortIndicator('reservedBy')"
-                  :filter-active="columnFilterState.expired.reservedBy.length > 0"
-                  :options="expiredReservedByOptions"
-                  :model-value="columnFilterState.expired.reservedBy"
-                  @sort-asc="setSortByMenu('expired', 'reservedBy', 'asc')"
-                  @sort-desc="setSortByMenu('expired', 'reservedBy', 'desc')"
-                  @clear-sort="clearSortByMenu('expired', 'reservedBy')"
-                  @update:model-value="(v) => updateFilter('expired', 'reservedBy', v)"
-                />
-              </template>
-              <template #default="{ row }">
-                {{ formatReservedBy(row) }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="meetingTitle" label="Meeting / Event Title" width="520" class-name="table-meeting-title-col" label-class-name="table-meeting-title-col" />
-            <el-table-column prop="date" min-width="130" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
-              <template #header>
-                <button type="button" class="th-sort-btn" @click="toggleExpiredSort('date')">
-                  Date
-                  <span class="sort-indicator">{{ getExpiredSortIndicator('date') }}</span>
+            <div class="table-view">
+              <div class="table-wrapper">
+                <el-table :data="paginatedExpiredData" class="meeting-approval-table" height="100%" border stripe
+                  table-layout="auto" style="width: max-content; min-width: 100%">
+                  <el-table-column type="index" label="#" width="70" align="center" header-align="center" fixed="left"
+                    class-name="table-nowrap-col" label-class-name="table-nowrap-col" :index="getExpiredRowIndex" />
+                  <el-table-column prop="venueName" min-width="200" class-name="table-nowrap-col"
+                    label-class-name="table-nowrap-col">
+                    <template #header>
+                      <SortableFilterHeader label="Room / Venue" :sort-indicator="getExpiredSortIndicator('venueName')"
+                        :filter-active="columnFilterState.expired.venueName.length > 0" :options="expiredVenueOptions"
+                        :model-value="columnFilterState.expired.venueName"
+                        @sort-asc="setSortByMenu('expired', 'venueName', 'asc')"
+                        @sort-desc="setSortByMenu('expired', 'venueName', 'desc')"
+                        @clear-sort="clearSortByMenu('expired', 'venueName')"
+                        @update:model-value="(v) => updateFilter('expired', 'venueName', v)" />
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="Reserved By" min-width="220" class-name="table-nowrap-col"
+                    label-class-name="table-nowrap-col">
+                    <template #header>
+                      <SortableFilterHeader label="Reserved By" :sort-indicator="getExpiredSortIndicator('reservedBy')"
+                        :filter-active="columnFilterState.expired.reservedBy.length > 0"
+                        :options="expiredReservedByOptions" :model-value="columnFilterState.expired.reservedBy"
+                        @sort-asc="setSortByMenu('expired', 'reservedBy', 'asc')"
+                        @sort-desc="setSortByMenu('expired', 'reservedBy', 'desc')"
+                        @clear-sort="clearSortByMenu('expired', 'reservedBy')"
+                        @update:model-value="(v) => updateFilter('expired', 'reservedBy', v)" />
+                    </template>
+                    <template #default="{ row }">
+                      {{ formatReservedBy(row) }}
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="meetingTitle" label="Meeting / Event Title" width="400"
+                    class-name="table-meeting-title-col" label-class-name="table-meeting-title-col" />
+                  <el-table-column prop="date" min-width="130" class-name="table-nowrap-col"
+                    label-class-name="table-nowrap-col">
+                    <template #header>
+                      <button type="button" class="th-sort-btn" @click="toggleExpiredSort('date')">
+                        Date
+                        <span class="sort-indicator">{{ getExpiredSortIndicator('date') }}</span>
+                      </button>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="time" min-width="150" class-name="table-nowrap-col"
+                    label-class-name="table-nowrap-col">
+                    <template #header>
+                      <button type="button" class="th-sort-btn" @click="toggleExpiredSort('time')">
+                        Time
+                        <span class="sort-indicator">{{ getExpiredSortIndicator('time') }}</span>
+                      </button>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="Tea Service" min-width="120" align="center" header-align="center"
+                    class-name="table-nowrap-col" label-class-name="table-nowrap-col">
+                    <template #default="{ row }">
+                      <el-popover
+                        v-if="isBookingTeaServiceYes(row)"
+                        placement="top"
+                        :width="300"
+                        trigger="hover"
+                        popper-class="meeting-approval-tea-popover"
+                      >
+                        <template #reference>
+                          <span
+                            :class="[
+                              'status-badge',
+                              'tea-service-badge',
+                              'badge-tea-service-yes',
+                              'tea-service-badge--interactive'
+                            ]"
+                          >
+                            {{ formatTeaServiceCardLabel(row) }}
+                          </span>
+                        </template>
+                        <div class="tea-service-popover-detail">
+                          <div v-if="getTeaServiceSummaryText(row)" class="tea-service-popover-line">
+                            {{ getTeaServiceSummaryText(row) }}
+                          </div>
+                          <div
+                            v-if="formatTeaSpecialRequest(row) !== '-'"
+                            class="tea-service-popover-line tea-service-popover-special"
+                          >
+                            <span class="tea-service-popover-label">Special requests</span>
+                            <span class="tea-service-popover-text">{{ formatTeaSpecialRequest(row) }}</span>
+                          </div>
+                        </div>
+                      </el-popover>
+                      <span
+                        v-else
+                        :class="['status-badge', 'tea-service-badge', 'badge-tea-service-no']"
+                      >
+                        {{ formatTeaServiceCardLabel(row) }}
+                      </span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column width="90" align="center" header-align="center"
+                    class-name="table-nowrap-col" label-class-name="col-display-homepage-header">
+                    <template #header>
+                      <span class="display-homepage-header">Display on<br>Homepage</span>
+                    </template>
+                    <template #default="{ row }">
+                      <span
+                        v-if="isBookingDisplayOnHomepageSupported(row)"
+                        :class="[
+                          'status-badge',
+                          'display-homepage-badge',
+                          row.displayOnHomepage !== false ? 'badge-display-homepage-yes' : 'badge-display-homepage-no'
+                        ]"
+                      >
+                        {{ formatDisplayOnHomepage(row) }}
+                      </span>
+                      <span v-else>-</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="submittedAt" min-width="180" class-name="table-nowrap-col"
+                    label-class-name="table-nowrap-col">
+                    <template #header>
+                      <button type="button" class="th-sort-btn" @click="toggleExpiredSort('submittedAt')">
+                        Submitted
+                        <span class="sort-indicator">{{ getExpiredSortIndicator('submittedAt') }}</span>
+                      </button>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="Actions" width="120" fixed="right" class-name="actions-col table-nowrap-col"
+                    label-class-name="table-nowrap-col">
+                    <template #default="{ row }">
+                      <div class="actions-cell">
+                        <el-button size="small" class="action-btn action-edit"
+                          @click="handleOpen(row)">Handle</el-button>
+                      </div>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </div>
+            </div>
+            <div class="pagination-bar">
+              <div class="pagination-info">
+                Showing {{ expiredStartIndex + 1 }}-{{ expiredEndIndex }} of {{ columnFilteredExpiredList.length }}
+                records
+              </div>
+              <div class="pagination-controls">
+                <button class="pagination-btn" :disabled="expiredCurrentPage === 1"
+                  @click="expiredCurrentPage--">Previous</button>
+                <button v-for="page in expiredVisiblePages" :key="page"
+                  :class="['pagination-btn', 'page-number', { active: page === expiredCurrentPage }]"
+                  @click="expiredCurrentPage = page">
+                  {{ page }}
                 </button>
-              </template>
-            </el-table-column>
-            <el-table-column prop="time" min-width="150" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
-              <template #header>
-                <button type="button" class="th-sort-btn" @click="toggleExpiredSort('time')">
-                  Time
-                  <span class="sort-indicator">{{ getExpiredSortIndicator('time') }}</span>
-                </button>
-              </template>
-            </el-table-column>
-            <el-table-column prop="submittedAt" min-width="180" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
-              <template #header>
-                <button type="button" class="th-sort-btn" @click="toggleExpiredSort('submittedAt')">
-                  Submitted
-                  <span class="sort-indicator">{{ getExpiredSortIndicator('submittedAt') }}</span>
-                </button>
-              </template>
-            </el-table-column>
-            <el-table-column label="Actions" width="120" fixed="right" class-name="actions-col table-nowrap-col" label-class-name="table-nowrap-col">
-              <template #default="{ row }">
-                <div class="actions-cell">
-                  <el-button size="small" class="action-btn action-edit" @click="handleOpen(row)">Handle</el-button>
-                </div>
-              </template>
-            </el-table-column>
-          </el-table>
+                <button class="pagination-btn" :disabled="expiredCurrentPage === expiredTotalPages"
+                  @click="expiredCurrentPage++">Next</button>
+              </div>
+              <div class="pagination-size">
+                <select v-model.number="expiredPageSize" class="page-size-select" @change="expiredCurrentPage = 1">
+                  <option :value="10">10 / page</option>
+                  <option :value="20">20 / page</option>
+                  <option :value="50">50 / page</option>
+                  <option :value="100">100 / page</option>
+                </select>
+              </div>
             </div>
-          </div>
-
-          <div class="pagination-bar">
-            <div class="pagination-info">
-              Showing {{ expiredStartIndex + 1 }}-{{ expiredEndIndex }} of {{ columnFilteredExpiredList.length }} records
-            </div>
-            <div class="pagination-controls">
-              <button class="pagination-btn" :disabled="expiredCurrentPage === 1" @click="expiredCurrentPage--">Previous</button>
-              <button
-                v-for="page in expiredVisiblePages"
-                :key="page"
-                :class="['pagination-btn', 'page-number', { active: page === expiredCurrentPage }]"
-                @click="expiredCurrentPage = page"
-              >
-                {{ page }}
-              </button>
-              <button class="pagination-btn" :disabled="expiredCurrentPage === expiredTotalPages" @click="expiredCurrentPage++">Next</button>
-            </div>
-            <div class="pagination-size">
-              <select v-model.number="expiredPageSize" class="page-size-select" @change="expiredCurrentPage = 1">
-                <option :value="10">10 / page</option>
-                <option :value="20">20 / page</option>
-                <option :value="50">50 / page</option>
-                <option :value="100">100 / page</option>
-              </select>
-            </div>
-          </div>
           </div>
         </el-tab-pane>
 
         <el-tab-pane label="Approved" name="approved">
           <div class="table-card">
-          <div class="table-view">
-            <div class="table-wrapper">
-          <el-table
-            :data="paginatedApprovedData"
-            class="meeting-approval-table"
-            height="100%"
-            border
-            stripe
-            table-layout="auto"
-            style="width: max-content; min-width: 100%"
-          >
-            <el-table-column
-              type="index"
-              label="#"
-              width="70"
-              align="center"
-              header-align="center"
-              fixed="left"
-              class-name="table-nowrap-col"
-              label-class-name="table-nowrap-col"
-              :index="getApprovedRowIndex"
-            />
-            <el-table-column prop="venueName" min-width="200" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
-              <template #header>
-                <SortableFilterHeader
-                  label="Room / Venue"
-                  :sort-indicator="getApprovedSortIndicator('venueName')"
-                  :filter-active="columnFilterState.approved.venueName.length > 0"
-                  :options="approvedVenueOptions"
-                  :model-value="columnFilterState.approved.venueName"
-                  @sort-asc="setSortByMenu('approved', 'venueName', 'asc')"
-                  @sort-desc="setSortByMenu('approved', 'venueName', 'desc')"
-                  @clear-sort="clearSortByMenu('approved', 'venueName')"
-                  @update:model-value="(v) => updateFilter('approved', 'venueName', v)"
-                />
-              </template>
-            </el-table-column>
-            <el-table-column label="Reserved By" min-width="240" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
-              <template #header>
-                <SortableFilterHeader
-                  label="Reserved By"
-                  :sort-indicator="getApprovedSortIndicator('reservedBy')"
-                  :filter-active="columnFilterState.approved.reservedBy.length > 0"
-                  :options="approvedReservedByOptions"
-                  :model-value="columnFilterState.approved.reservedBy"
-                  @sort-asc="setSortByMenu('approved', 'reservedBy', 'asc')"
-                  @sort-desc="setSortByMenu('approved', 'reservedBy', 'desc')"
-                  @clear-sort="clearSortByMenu('approved', 'reservedBy')"
-                  @update:model-value="(v) => updateFilter('approved', 'reservedBy', v)"
-                />
-              </template>
-              <template #default="{ row }">
-                {{ formatReservedBy(row) }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="meetingTitle" label="Meeting / Event Title" width="520" class-name="table-meeting-title-col" label-class-name="table-meeting-title-col" />
-            <el-table-column prop="date" min-width="130" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
-              <template #header>
-                <button type="button" class="th-sort-btn" @click="toggleApprovedSort('date')">
-                  Date
-                  <span class="sort-indicator">{{ getApprovedSortIndicator('date') }}</span>
-                </button>
-              </template>
-            </el-table-column>
-            <el-table-column prop="time" min-width="150" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
-              <template #header>
-                <button type="button" class="th-sort-btn" @click="toggleApprovedSort('time')">
-                  Time
-                  <span class="sort-indicator">{{ getApprovedSortIndicator('time') }}</span>
-                </button>
-              </template>
-            </el-table-column>
-            <el-table-column prop="approvedBy" min-width="140" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
-              <template #header>
-                <button type="button" class="th-sort-btn" @click="toggleApprovedSort('approvedBy')">
-                  Approved By
-                  <span class="sort-indicator">{{ getApprovedSortIndicator('approvedBy') }}</span>
-                </button>
-              </template>
-            </el-table-column>
-            <el-table-column prop="approvedAt" min-width="180" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
-              <template #header>
-                <button type="button" class="th-sort-btn" @click="toggleApprovedSort('approvedAt')">
-                  Approved At
-                  <span class="sort-indicator">{{ getApprovedSortIndicator('approvedAt') }}</span>
-                </button>
-              </template>
-            </el-table-column>
-          </el-table>
+            <div class="table-view">
+              <div class="table-wrapper">
+                <el-table :data="paginatedApprovedData" class="meeting-approval-table" height="100%" border stripe
+                  table-layout="auto" style="width: max-content; min-width: 100%">
+                  <el-table-column type="index" label="#" width="70" align="center" header-align="center" fixed="left"
+                    class-name="table-nowrap-col" label-class-name="table-nowrap-col" :index="getApprovedRowIndex" />
+                  <el-table-column prop="venueName" min-width="200" class-name="table-nowrap-col"
+                    label-class-name="table-nowrap-col">
+                    <template #header>
+                      <SortableFilterHeader label="Room / Venue" :sort-indicator="getApprovedSortIndicator('venueName')"
+                        :filter-active="columnFilterState.approved.venueName.length > 0" :options="approvedVenueOptions"
+                        :model-value="columnFilterState.approved.venueName"
+                        @sort-asc="setSortByMenu('approved', 'venueName', 'asc')"
+                        @sort-desc="setSortByMenu('approved', 'venueName', 'desc')"
+                        @clear-sort="clearSortByMenu('approved', 'venueName')"
+                        @update:model-value="(v) => updateFilter('approved', 'venueName', v)" />
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="Reserved By" min-width="220" class-name="table-nowrap-col"
+                    label-class-name="table-nowrap-col">
+                    <template #header>
+                      <SortableFilterHeader label="Reserved By" :sort-indicator="getApprovedSortIndicator('reservedBy')"
+                        :filter-active="columnFilterState.approved.reservedBy.length > 0"
+                        :options="approvedReservedByOptions" :model-value="columnFilterState.approved.reservedBy"
+                        @sort-asc="setSortByMenu('approved', 'reservedBy', 'asc')"
+                        @sort-desc="setSortByMenu('approved', 'reservedBy', 'desc')"
+                        @clear-sort="clearSortByMenu('approved', 'reservedBy')"
+                        @update:model-value="(v) => updateFilter('approved', 'reservedBy', v)" />
+                    </template>
+                    <template #default="{ row }">
+                      {{ formatReservedBy(row) }}
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="meetingTitle" label="Meeting / Event Title" width="400"
+                    class-name="table-meeting-title-col" label-class-name="table-meeting-title-col" />
+                  <el-table-column prop="date" min-width="130" class-name="table-nowrap-col"
+                    label-class-name="table-nowrap-col">
+                    <template #header>
+                      <button type="button" class="th-sort-btn" @click="toggleApprovedSort('date')">
+                        Date
+                        <span class="sort-indicator">{{ getApprovedSortIndicator('date') }}</span>
+                      </button>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="time" min-width="150" class-name="table-nowrap-col"
+                    label-class-name="table-nowrap-col">
+                    <template #header>
+                      <button type="button" class="th-sort-btn" @click="toggleApprovedSort('time')">
+                        Time
+                        <span class="sort-indicator">{{ getApprovedSortIndicator('time') }}</span>
+                      </button>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="Tea Service" min-width="120" align="center" header-align="center"
+                    class-name="table-nowrap-col" label-class-name="table-nowrap-col">
+                    <template #default="{ row }">
+                      <el-popover
+                        v-if="isBookingTeaServiceYes(row)"
+                        placement="top"
+                        :width="300"
+                        trigger="hover"
+                        popper-class="meeting-approval-tea-popover"
+                      >
+                        <template #reference>
+                          <span
+                            :class="[
+                              'status-badge',
+                              'tea-service-badge',
+                              'badge-tea-service-yes',
+                              'tea-service-badge--interactive'
+                            ]"
+                          >
+                            {{ formatTeaServiceCardLabel(row) }}
+                          </span>
+                        </template>
+                        <div class="tea-service-popover-detail">
+                          <div v-if="getTeaServiceSummaryText(row)" class="tea-service-popover-line">
+                            {{ getTeaServiceSummaryText(row) }}
+                          </div>
+                          <div
+                            v-if="formatTeaSpecialRequest(row) !== '-'"
+                            class="tea-service-popover-line tea-service-popover-special"
+                          >
+                            <span class="tea-service-popover-label">Special requests</span>
+                            <span class="tea-service-popover-text">{{ formatTeaSpecialRequest(row) }}</span>
+                          </div>
+                        </div>
+                      </el-popover>
+                      <span
+                        v-else
+                        :class="['status-badge', 'tea-service-badge', 'badge-tea-service-no']"
+                      >
+                        {{ formatTeaServiceCardLabel(row) }}
+                      </span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column width="90" align="center" header-align="center"
+                    class-name="table-nowrap-col" label-class-name="col-display-homepage-header">
+                    <template #header>
+                      <span class="display-homepage-header">Display on<br>Homepage</span>
+                    </template>
+                    <template #default="{ row }">
+                      <span
+                        v-if="isBookingDisplayOnHomepageSupported(row)"
+                        :class="[
+                          'status-badge',
+                          'display-homepage-badge',
+                          row.displayOnHomepage !== false ? 'badge-display-homepage-yes' : 'badge-display-homepage-no'
+                        ]"
+                      >
+                        {{ formatDisplayOnHomepage(row) }}
+                      </span>
+                      <span v-else>-</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="approvedBy" min-width="140" class-name="table-nowrap-col"
+                    label-class-name="table-nowrap-col">
+                    <template #header>
+                      <button type="button" class="th-sort-btn" @click="toggleApprovedSort('approvedBy')">
+                        Approved By
+                        <span class="sort-indicator">{{ getApprovedSortIndicator('approvedBy') }}</span>
+                      </button>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="approvedAt" min-width="180" class-name="table-nowrap-col"
+                    label-class-name="table-nowrap-col">
+                    <template #header>
+                      <button type="button" class="th-sort-btn" @click="toggleApprovedSort('approvedAt')">
+                        Approved At
+                        <span class="sort-indicator">{{ getApprovedSortIndicator('approvedAt') }}</span>
+                      </button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </div>
             </div>
-          </div>
-
-          <div class="pagination-bar">
-            <div class="pagination-info">
-              Showing {{ approvedStartIndex + 1 }}-{{ approvedEndIndex }} of {{ columnFilteredApprovedList.length }} records
+            <div class="pagination-bar">
+              <div class="pagination-info">
+                Showing {{ approvedStartIndex + 1 }}-{{ approvedEndIndex }} of {{ columnFilteredApprovedList.length }}
+                records
+              </div>
+              <div class="pagination-controls">
+                <button class="pagination-btn" :disabled="approvedCurrentPage === 1"
+                  @click="approvedCurrentPage--">Previous</button>
+                <button v-for="page in approvedVisiblePages" :key="page"
+                  :class="['pagination-btn', 'page-number', { active: page === approvedCurrentPage }]"
+                  @click="approvedCurrentPage = page">
+                  {{ page }}
+                </button>
+                <button class="pagination-btn" :disabled="approvedCurrentPage === approvedTotalPages"
+                  @click="approvedCurrentPage++">Next</button>
+              </div>
+              <div class="pagination-size">
+                <select v-model.number="approvedPageSize" class="page-size-select" @change="approvedCurrentPage = 1">
+                  <option :value="10">10 / page</option>
+                  <option :value="20">20 / page</option>
+                  <option :value="50">50 / page</option>
+                  <option :value="100">100 / page</option>
+                </select>
+              </div>
             </div>
-            <div class="pagination-controls">
-              <button class="pagination-btn" :disabled="approvedCurrentPage === 1" @click="approvedCurrentPage--">Previous</button>
-              <button
-                v-for="page in approvedVisiblePages"
-                :key="page"
-                :class="['pagination-btn', 'page-number', { active: page === approvedCurrentPage }]"
-                @click="approvedCurrentPage = page"
-              >
-                {{ page }}
-              </button>
-              <button class="pagination-btn" :disabled="approvedCurrentPage === approvedTotalPages" @click="approvedCurrentPage++">Next</button>
-            </div>
-            <div class="pagination-size">
-              <select v-model.number="approvedPageSize" class="page-size-select" @change="approvedCurrentPage = 1">
-                <option :value="10">10 / page</option>
-                <option :value="20">20 / page</option>
-                <option :value="50">50 / page</option>
-                <option :value="100">100 / page</option>
-              </select>
-            </div>
-          </div>
           </div>
         </el-tab-pane>
 
-        <el-tab-pane label="Rejected" name="rejected">
-          <div class="table-card">
-          <div class="table-view">
-            <div class="table-wrapper">
-          <el-table
-            :data="paginatedRejectedData"
-            class="meeting-approval-table"
-            height="100%"
-            border
-            stripe
-            table-layout="auto"
-            style="width: max-content; min-width: 100%"
-          >
-            <el-table-column
-              type="index"
-              label="#"
-              width="70"
-              align="center"
-              header-align="center"
-              fixed="left"
-              class-name="table-nowrap-col"
-              label-class-name="table-nowrap-col"
-              :index="getRejectedRowIndex"
-            />
-            <el-table-column prop="venueName" min-width="200" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
-              <template #header>
-                <SortableFilterHeader
-                  label="Room / Venue"
-                  :sort-indicator="getRejectedSortIndicator('venueName')"
-                  :filter-active="columnFilterState.rejected.venueName.length > 0"
-                  :options="rejectedVenueOptions"
-                  :model-value="columnFilterState.rejected.venueName"
-                  @sort-asc="setSortByMenu('rejected', 'venueName', 'asc')"
-                  @sort-desc="setSortByMenu('rejected', 'venueName', 'desc')"
-                  @clear-sort="clearSortByMenu('rejected', 'venueName')"
-                  @update:model-value="(v) => updateFilter('rejected', 'venueName', v)"
-                />
-              </template>
-            </el-table-column>
-            <el-table-column label="Reserved By" min-width="240" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
-              <template #header>
-                <SortableFilterHeader
-                  label="Reserved By"
-                  :sort-indicator="getRejectedSortIndicator('reservedBy')"
-                  :filter-active="columnFilterState.rejected.reservedBy.length > 0"
-                  :options="rejectedReservedByOptions"
-                  :model-value="columnFilterState.rejected.reservedBy"
-                  @sort-asc="setSortByMenu('rejected', 'reservedBy', 'asc')"
-                  @sort-desc="setSortByMenu('rejected', 'reservedBy', 'desc')"
-                  @clear-sort="clearSortByMenu('rejected', 'reservedBy')"
-                  @update:model-value="(v) => updateFilter('rejected', 'reservedBy', v)"
-                />
-              </template>
-              <template #default="{ row }">
-                {{ formatReservedBy(row) }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="meetingTitle" label="Meeting / Event Title" width="520" class-name="table-meeting-title-col" label-class-name="table-meeting-title-col" />
-            <el-table-column prop="date" min-width="130" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
-              <template #header>
-                <button type="button" class="th-sort-btn" @click="toggleRejectedSort('date')">
-                  Date
-                  <span class="sort-indicator">{{ getRejectedSortIndicator('date') }}</span>
-                </button>
-              </template>
-            </el-table-column>
-            <el-table-column prop="time" min-width="150" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
-              <template #header>
-                <button type="button" class="th-sort-btn" @click="toggleRejectedSort('time')">
-                  Time
-                  <span class="sort-indicator">{{ getRejectedSortIndicator('time') }}</span>
-                </button>
-              </template>
-            </el-table-column>
-            <el-table-column prop="rejectedBy" min-width="140" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
-              <template #header>
-                <button type="button" class="th-sort-btn" @click="toggleRejectedSort('rejectedBy')">
-                  Rejected By
-                  <span class="sort-indicator">{{ getRejectedSortIndicator('rejectedBy') }}</span>
-                </button>
-              </template>
-            </el-table-column>
-            <el-table-column prop="rejectedAt" min-width="180" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
-              <template #header>
-                <button type="button" class="th-sort-btn" @click="toggleRejectedSort('rejectedAt')">
-                  Rejected At
-                  <span class="sort-indicator">{{ getRejectedSortIndicator('rejectedAt') }}</span>
-                </button>
-              </template>
-            </el-table-column>
-            <el-table-column prop="reason" label="Reason" min-width="440" class-name="table-reason-col" label-class-name="table-reason-col" />
-          </el-table>
-            </div>
-          </div>
-
-          <div class="pagination-bar">
-            <div class="pagination-info">
-              Showing {{ rejectedStartIndex + 1 }}-{{ rejectedEndIndex }} of {{ columnFilteredRejectedList.length }} records
-            </div>
-            <div class="pagination-controls">
-              <button class="pagination-btn" :disabled="rejectedCurrentPage === 1" @click="rejectedCurrentPage--">Previous</button>
-              <button
-                v-for="page in rejectedVisiblePages"
-                :key="page"
-                :class="['pagination-btn', 'page-number', { active: page === rejectedCurrentPage }]"
-                @click="rejectedCurrentPage = page"
-              >
-                {{ page }}
-              </button>
-              <button class="pagination-btn" :disabled="rejectedCurrentPage === rejectedTotalPages" @click="rejectedCurrentPage++">Next</button>
-            </div>
-            <div class="pagination-size">
-              <select v-model.number="rejectedPageSize" class="page-size-select" @change="rejectedCurrentPage = 1">
-                <option :value="10">10 / page</option>
-                <option :value="20">20 / page</option>
-                <option :value="50">50 / page</option>
-                <option :value="100">100 / page</option>
-              </select>
-            </div>
-          </div>
-          </div>
-        </el-tab-pane>
       </el-tabs>
     </div>
 
-    <BookingStyleModal
-      v-model="showHandleDialog"
-      title="Handle Booking"
-      max-width="760px"
-      :max-height="handleBookingModalMaxHeight"
-      custom-class="handle-booking-modal"
-    >
+    <BookingStyleModal v-model="showHandleDialog" title="Handle Booking" max-width="760px"
+      :max-height="handleBookingModalMaxHeight" custom-class="handle-booking-modal">
       <el-form :model="handleForm" label-width="170px" class="handle-booking-form">
         <el-form-item label="Room / Venue">
           <el-input v-model="handleForm.venueName" disabled />
         </el-form-item>
-        
         <el-form-item label="Meeting / Event Title" class="no-wrap-label">
-          <el-input
-            v-model="handleForm.meetingTitle"
-            type="textarea"
-            :autosize="{ minRows: 1, maxRows: 4 }"
-            resize="none"
-            class="meeting-title-textarea"
-            maxlength="80"
-            show-word-limit
-          />
+          <el-input v-model="handleForm.meetingTitle" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }"
+            resize="none" class="meeting-title-textarea" maxlength="80" show-word-limit />
         </el-form-item>
         <el-form-item label="Date">
           <el-input v-model="handleForm.date" disabled />
@@ -621,26 +595,23 @@
         <el-form-item label="Tea Service">
           <el-input v-model="handleForm.teaService" disabled />
         </el-form-item>
-        <el-form-item
-          v-if="showHandleUploadEventTitleOption"
-          class="display-title-public-item"
-          label-width="0"
-        >
-          <div class="display-title-public-row">
-            <span class="display-title-public-label">
-              Upload event title to "Upcoming Events" on TKOH homepage?
-            </span>
-            <el-radio-group v-model="handleForm.displayOnHomepage">
-              <el-radio :label="true">Yes</el-radio>
-              <el-radio :label="false">No</el-radio>
-            </el-radio-group>
-          </div>
+        <el-form-item label="Tea Special Requests" class="no-wrap-label">
+          <el-input
+            v-model="handleForm.teaServiceSpecialRequest"
+            type="textarea"
+            :autosize="{ minRows: 1, maxRows: 6 }"
+            resize="none"
+            disabled
+          />
+        </el-form-item>
+        <el-form-item label="Display on Homepage">
+          <el-input v-model="handleForm.displayOnHomepageText" disabled />
         </el-form-item>
         <div class="contact-info-section">
           <el-form-item label="Name" label-width="154px">
             <el-input v-model="handleForm.userName" disabled />
           </el-form-item>
-          <el-form-item label="Department" label-width="154px">
+          <el-form-item label="Department / Unit" label-width="154px">
             <el-input v-model="handleForm.departmentUnit" disabled />
           </el-form-item>
           <el-form-item label="Contact No." label-width="154px">
@@ -653,56 +624,10 @@
       </el-form>
       <template #footer>
         <el-button type="default" class="cancel-btn" @click="showHandleDialog = false">Cancel</el-button>
-        <el-button type="default" class="action-btn action-delete" @click="openRejectBookingDialog">Reject</el-button>
         <el-button type="default" class="action-btn action-approve" @click="confirmHandleApprove">Approve</el-button>
       </template>
     </BookingStyleModal>
-
-    <BookingStyleModal
-      v-model="showRejectBookingDialog"
-      title="Reject Booking"
-      max-width="720px"
-      custom-class="reject-booking-modal"
-    >
-      <el-form :model="rejectBookingForm" class="reject-booking-form" label-width="132px">
-        <el-form-item label="Reject Template">
-          <el-select
-            v-model="rejectBookingForm.selectedTemplateId"
-            filterable
-            clearable
-            default-first-option
-            style="width: 100%"
-            placeholder="Type template name"
-            :teleported="rejectBookingSelectTeleported"
-            :reserve-keyword="false"
-            :filter-method="handleRejectTemplateFilter"
-            popper-class="reject-booking-template-select-popper"
-            :popper-style="rejectBookingSelectTeleported ? { zIndex: 10100 } : {}"
-            @change="handleRejectTemplateSelectChange"
-          >
-            <el-option
-              v-for="tpl in displayedRejectTemplateOptions"
-              :key="tpl.id"
-              :label="tpl.name"
-              :value="tpl.id"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="Reject Reason">
-          <el-input
-            v-model="rejectBookingForm.reason"
-            type="textarea"
-            :rows="6"
-            placeholder="Reason for rejection"
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button type="default" class="cancel-btn" @click="closeRejectBookingDialog">Cancel</el-button>
-        <el-button type="default" class="action-btn action-delete" @click="confirmRejectBooking">Confirm Reject</el-button>
-      </template>
-    </BookingStyleModal>
-
+    
     <BookingStyleModal v-model="showNoticeDialog" :title="noticeTitle" max-width="420px">
       <p class="notice-message">{{ noticeMessage }}</p>
       <template #footer>
@@ -710,6 +635,7 @@
       </template>
     </BookingStyleModal>
   </div>
+
 </template>
 
 <script setup>
@@ -723,24 +649,21 @@ import {
   getPendingBookings,
   getExpiredBookings,
   getApprovedBookings,
-  getRejectedBookings,
   approveBooking,
-  rejectBooking
 } from '@/api/admin'
-import { getPrompts } from '@/api/promptManagement'
 import { notifyAdminPendingUpdated } from '@/utils/adminPendingSync'
-import { formatTeaServiceDisplay } from '@/utils/venueTeaService'
+import { formatTeaServiceDisplay, stripTeaServiceSpecialSuffix } from '@/utils/venueTeaService'
 
 const adminStore = useAdminStore()
 const { pendingBookingsCount } = storeToRefs(adminStore)
-
 const activeTab = ref('pending')
+
 const searchState = ref({
   pending: '',
   expired: '',
   approved: '',
-  rejected: ''
 })
+
 const currentSearch = computed({
   get: () => searchState.value[activeTab.value] || '',
   set: (value) => {
@@ -748,10 +671,10 @@ const currentSearch = computed({
     resetTablePage(activeTab.value)
   }
 })
+
 const showNoticeDialog = ref(false)
 const noticeTitle = ref('Notice')
 const noticeMessage = ref('')
-
 const showNotice = (message, title = 'Notice') => {
   noticeTitle.value = title
   noticeMessage.value = message
@@ -762,26 +685,19 @@ const pendingList = ref([])
 const expiredList = ref([])
 const approvedList = ref([])
 const rejectedList = ref([])
-const rejectTemplateOptions = ref([])
 const listsLoading = ref(false)
 
-async function loadMeetingApprovalLists () {
+async function loadMeetingApprovalLists() {
   listsLoading.value = true
   try {
-    const [pending, expired, approved, rejected, prompts] = await Promise.all([
+    const [pending, expired, approved] = await Promise.all([
       getPendingBookings(),
       getExpiredBookings(),
-      getApprovedBookings(),
-      getRejectedBookings(),
-      getPrompts({ category: 'reject_template' })
+      getApprovedBookings()
     ])
     pendingList.value = Array.isArray(pending) ? pending : []
     expiredList.value = Array.isArray(expired) ? expired : []
     approvedList.value = Array.isArray(approved) ? approved : []
-    rejectedList.value = Array.isArray(rejected) ? rejected : []
-    rejectTemplateOptions.value = (Array.isArray(prompts) ? prompts : []).filter(
-      item => item.category === 'reject_template' && item.templateType === 'meeting_approval'
-    )
   } catch (error) {
     console.error('Failed to load meeting approval lists:', error)
     showNotice('Failed to load meeting approval data', 'Error')
@@ -789,6 +705,7 @@ async function loadMeetingApprovalLists () {
     listsLoading.value = false
   }
 }
+
 const showDateFilter = ref(false)
 const dateRange = ref(null)
 const quickDateOptions = [
@@ -808,7 +725,6 @@ const approvedCurrentPage = ref(1)
 const approvedPageSize = ref(20)
 const rejectedCurrentPage = ref(1)
 const rejectedPageSize = ref(20)
-
 const dateFilterLabel = computed(() => {
   if (!dateRange.value || dateRange.value.length !== 2) return 'All dates'
   const [start, end] = dateRange.value
@@ -841,13 +757,13 @@ const filteredExpiredList = computed(() => expiredList.value.filter(isDateInRang
 const filteredApprovedList = computed(() => approvedList.value.filter(isDateInRange))
 const filteredRejectedList = computed(() => rejectedList.value.filter(isDateInRange))
 
-function applyKeywordSearch (rows, query) {
+function applyKeywordSearch(rows, query) {
   const keyword = String(query || '').trim().toLowerCase()
   if (!keyword) return rows
   return rows.filter((row) => rowMatchesSearchKeyword(row, keyword))
 }
 
-function rowMatchesSearchKeyword (row, keyword) {
+function rowMatchesSearchKeyword(row, keyword) {
   const haystack = [
     row.bookingId,
     row.venueName,
@@ -872,7 +788,6 @@ const searchedPendingList = computed(() => applyKeywordSearch(filteredPendingLis
 const searchedExpiredList = computed(() => applyKeywordSearch(filteredExpiredList.value, searchState.value.expired))
 const searchedApprovedList = computed(() => applyKeywordSearch(filteredApprovedList.value, searchState.value.approved))
 const searchedRejectedList = computed(() => applyKeywordSearch(filteredRejectedList.value, searchState.value.rejected))
-
 const columnFilterState = ref({
   pending: { venueName: [], reservedBy: [] },
   expired: { venueName: [], reservedBy: [] },
@@ -881,7 +796,6 @@ const columnFilterState = ref({
 })
 
 const getUniqueOptions = (list, mapper) => [...new Set((list || []).map(mapper).filter(v => v != null && `${v}` !== ''))]
-
 const pendingVenueOptions = computed(() => getUniqueOptions(searchedPendingList.value, row => row.venueName || ''))
 const pendingReservedByOptions = computed(() => getUniqueOptions(searchedPendingList.value, row => formatReservedBy(row)))
 const expiredVenueOptions = computed(() => getUniqueOptions(searchedExpiredList.value, row => row.venueName || ''))
@@ -891,14 +805,14 @@ const approvedReservedByOptions = computed(() => getUniqueOptions(searchedApprov
 const rejectedVenueOptions = computed(() => getUniqueOptions(searchedRejectedList.value, row => row.venueName || ''))
 const rejectedReservedByOptions = computed(() => getUniqueOptions(searchedRejectedList.value, row => formatReservedBy(row)))
 
-function getTableSortState (tableKey) {
+function getTableSortState(tableKey) {
   if (tableKey === 'pending') return pendingSortState
   if (tableKey === 'expired') return expiredSortState
   if (tableKey === 'approved') return approvedSortState
   return rejectedSortState
 }
 
-function resetTablePage (tableKey) {
+function resetTablePage(tableKey) {
   if (tableKey === 'pending') pendingCurrentPage.value = 1
   else if (tableKey === 'expired') expiredCurrentPage.value = 1
   else if (tableKey === 'approved') approvedCurrentPage.value = 1
@@ -934,9 +848,7 @@ const columnFilteredPendingList = computed(() => applyColumnFilters(searchedPend
 const columnFilteredExpiredList = computed(() => applyColumnFilters(searchedExpiredList.value, 'expired'))
 const columnFilteredApprovedList = computed(() => applyColumnFilters(searchedApprovedList.value, 'approved'))
 const columnFilteredRejectedList = computed(() => applyColumnFilters(searchedRejectedList.value, 'rejected'))
-
 const expiredBookingsCount = computed(() => columnFilteredExpiredList.value.length)
-
 const pendingSortState = ref([])
 const expiredSortState = ref([])
 const approvedSortState = ref([])
@@ -1044,17 +956,19 @@ const togglePendingSort = (key) => {
   toggleSortState(pendingSortState, key)
   pendingCurrentPage.value = 1
 }
+
 const toggleExpiredSort = (key) => {
   toggleSortState(expiredSortState, key)
   expiredCurrentPage.value = 1
 }
+
 const toggleApprovedSort = (key) => {
   toggleSortState(approvedSortState, key)
   approvedCurrentPage.value = 1
 }
+
 const toggleRejectedSort = (key) => {
   toggleSortState(rejectedSortState, key)
-  rejectedCurrentPage.value = 1
 }
 
 const getPendingSortIndicator = (key) => getSortIndicatorFromState(pendingSortState, key)
@@ -1085,6 +999,7 @@ const paginatedPendingData = computed(() => {
   const end = start + pendingPageSize.value
   return sortedPendingList.value.slice(start, end)
 })
+
 const pendingTotalPages = computed(() => Math.max(1, Math.ceil(sortedPendingList.value.length / pendingPageSize.value)))
 const pendingStartIndex = computed(() => (pendingCurrentPage.value - 1) * pendingPageSize.value)
 const pendingEndIndex = computed(() => Math.min(pendingStartIndex.value + pendingPageSize.value, sortedPendingList.value.length))
@@ -1103,10 +1018,12 @@ const paginatedExpiredData = computed(() => {
   const end = start + expiredPageSize.value
   return sortedExpiredList.value.slice(start, end)
 })
+
 const expiredTotalPages = computed(() => Math.max(1, Math.ceil(sortedExpiredList.value.length / expiredPageSize.value)))
 const expiredStartIndex = computed(() => (expiredCurrentPage.value - 1) * expiredPageSize.value)
 const expiredEndIndex = computed(() => Math.min(expiredStartIndex.value + expiredPageSize.value, sortedExpiredList.value.length))
 const getExpiredRowIndex = (index) => (expiredCurrentPage.value - 1) * expiredPageSize.value + index + 1
+
 const expiredVisiblePages = computed(() => {
   const pages = []
   const maxVisible = 5
@@ -1122,9 +1039,11 @@ const paginatedApprovedData = computed(() => {
   const end = start + approvedPageSize.value
   return sortedApprovedList.value.slice(start, end)
 })
+
 const approvedTotalPages = computed(() => Math.max(1, Math.ceil(sortedApprovedList.value.length / approvedPageSize.value)))
 const approvedStartIndex = computed(() => (approvedCurrentPage.value - 1) * approvedPageSize.value)
 const approvedEndIndex = computed(() => Math.min(approvedStartIndex.value + approvedPageSize.value, sortedApprovedList.value.length))
+
 const approvedVisiblePages = computed(() => {
   const pages = []
   const maxVisible = 5
@@ -1140,9 +1059,11 @@ const paginatedRejectedData = computed(() => {
   const end = start + rejectedPageSize.value
   return sortedRejectedList.value.slice(start, end)
 })
+
 const rejectedTotalPages = computed(() => Math.max(1, Math.ceil(sortedRejectedList.value.length / rejectedPageSize.value)))
 const rejectedStartIndex = computed(() => (rejectedCurrentPage.value - 1) * rejectedPageSize.value)
 const rejectedEndIndex = computed(() => Math.min(rejectedStartIndex.value + rejectedPageSize.value, sortedRejectedList.value.length))
+
 const rejectedVisiblePages = computed(() => {
   const pages = []
   const maxVisible = 5
@@ -1244,80 +1165,20 @@ watch(dateRange, () => {
   pendingCurrentPage.value = 1
   expiredCurrentPage.value = 1
   approvedCurrentPage.value = 1
-  rejectedCurrentPage.value = 1
 })
-
 const showHandleDialog = ref(false)
-const showRejectBookingDialog = ref(false)
 const currentHandleRow = ref(null)
-
-/** 嵌套弹窗内下拉挂�?body，避免被裁切�?4" 视口�?UserManagement 一�?*/
-const REJECT_BOOKING_SELECT_MQ = '(min-width: 1100px) and (max-width: 1599px)'
-const rejectBookingSelectTeleported = ref(true)
-let rejectBookingSelectMq = null
-
-function updateRejectBookingSelectTeleported () {
-  if (typeof window === 'undefined') return
-  rejectBookingSelectTeleported.value = !window.matchMedia(REJECT_BOOKING_SELECT_MQ).matches
-}
-
-const rejectBookingForm = ref({
-  selectedTemplateId: null,
-  reason: ''
-})
-
-const rejectTemplateKeyword = ref('')
-
-const displayedRejectTemplateOptions = computed(() => {
-  const keyword = rejectTemplateKeyword.value.trim().toLowerCase()
-  const source = rejectTemplateOptions.value
-  if (!keyword) return source.slice(0, 12)
-  return source
-    .filter((tpl) =>
-      String(tpl.name || '').toLowerCase().includes(keyword) ||
-      String(tpl.key || '').toLowerCase().includes(keyword) ||
-      String(tpl.id ?? '').includes(keyword)
-    )
-    .slice(0, 30)
-})
-
-function handleRejectTemplateFilter (query) {
-  rejectTemplateKeyword.value = String(query || '')
-}
-
-function handleRejectTemplateSelectChange (templateId) {
-  if (templateId == null || templateId === '') {
-    rejectBookingForm.value.reason = ''
-    return
-  }
-  const selectedTemplate = rejectTemplateOptions.value.find(
-    (item) => String(item.id) === String(templateId)
-  )
-  if (!selectedTemplate) {
-    rejectBookingForm.value.reason = ''
-    return
-  }
-  rejectBookingForm.value.reason = selectedTemplate.content || ''
-}
-
-watch(showRejectBookingDialog, (open) => {
-  if (open) {
-    rejectTemplateKeyword.value = ''
-  }
-})
-
-/** 14" ????100??599??Handle Booking ????????UserManagement ???????*/
+/** 14" 视口（1100–1599）：Handle Booking 弹窗略增高，与 UserManagement 一致 */
 const HANDLE_BOOKING_MODAL_MQ = '(min-width: 1100px) and (max-width: 1599px)'
 const handleBookingModalMaxHeight = ref('94vh')
 
-function updateHandleBookingModalMaxHeight () {
+function updateHandleBookingModalMaxHeight() {
   if (typeof window === 'undefined') return
   handleBookingModalMaxHeight.value = window.matchMedia(HANDLE_BOOKING_MODAL_MQ).matches ? '120vh' : '94vh'
 }
 
 let handleBookingModalMq = null
 
-/** Admin 布局收到同步信号后递增 revision，此处刷新三张审批表 */
 watch(
   () => adminStore.pendingBookingsListRevision,
   () => {
@@ -1327,20 +1188,14 @@ watch(
 
 onMounted(() => {
   updateHandleBookingModalMaxHeight()
-  updateRejectBookingSelectTeleported()
   handleBookingModalMq = window.matchMedia(HANDLE_BOOKING_MODAL_MQ)
   handleBookingModalMq.addEventListener('change', updateHandleBookingModalMaxHeight)
-  rejectBookingSelectMq = window.matchMedia(REJECT_BOOKING_SELECT_MQ)
-  rejectBookingSelectMq.addEventListener('change', updateRejectBookingSelectTeleported)
   loadMeetingApprovalLists()
 })
 
 onUnmounted(() => {
   if (handleBookingModalMq) {
     handleBookingModalMq.removeEventListener('change', updateHandleBookingModalMaxHeight)
-  }
-  if (rejectBookingSelectMq) {
-    rejectBookingSelectMq.removeEventListener('change', updateRejectBookingSelectTeleported)
   }
   document.removeEventListener('click', handleDateFilterClickOutside)
 })
@@ -1356,26 +1211,83 @@ const handleForm = ref({
   time: '',
   participantCount: '-',
   teaService: 'No',
-  displayOnHomepage: true,
-  userDefinedUploadEventTitle: true
+  teaServiceSpecialRequest: '-',
+  displayOnHomepageText: 'Yes'
 })
 
-const showHandleUploadEventTitleOption = computed(() => {
-  return handleForm.value.userDefinedUploadEventTitle !== false
-})
+function isBookingTeaServiceYes(row) {
+  const flag = row?.teaServiceRequired
+  if (flag === true || flag === 1 || flag === 'true' || flag === '1') return true
+  if (flag === false || flag === 0 || flag === 'false' || flag === '0') return false
+
+  const option = String(
+    row?.teaServiceOption ?? row?.teaService?.option ?? ''
+  ).trim()
+  if (option === 'none') return false
+  if (option === '1' || option === '2' || option === '3' || option === '4') return true
+
+  const summary = String(row?.teaServiceSummary || '').trim()
+  if (!summary || summary === '-' || summary.startsWith('无')) return false
+  return true
+}
+
+function formatTeaServiceCardLabel(row) {
+  if (!isBookingTeaServiceYes(row)) return 'No'
+  const count = row?.teaServiceParticipants ?? row?.attendeeCount ?? row?.participants ?? row?.attendees
+  const n = Number(count)
+  return Number.isFinite(n) ? `Yes (${n})` : 'Yes'
+}
+
+function getTeaServiceSummaryText(row) {
+  const count = row?.teaServiceParticipants ?? row?.attendeeCount ?? row?.participants ?? row?.attendees
+  if (row?.teaService && typeof row.teaService === 'object') {
+    const text = formatTeaServiceDisplay(row.teaService, count, { includeSpecialRequest: false })
+    if (text && text !== '-') return text
+  }
+  const summary = stripTeaServiceSpecialSuffix(row?.teaServiceSummary)
+  if (summary && summary !== '-') return summary
+  if (row?.teaServiceRequired === true) return 'Tea service required'
+  return ''
+}
 
 function formatTeaServiceStatus(row) {
-  const count = row?.teaServiceParticipants ?? row?.attendeeCount ?? row?.participants ?? row?.teaService?.attendees
-  if (row?.teaServiceRequired !== true) {
+  const count = row?.teaServiceParticipants ?? row?.attendeeCount ?? row?.participants ?? row?.attendees
+  if (!isBookingTeaServiceYes(row)) {
     return formatTeaServiceDisplay({ option: 'none', attendees: count }, count)
   }
   if (row?.teaService && typeof row.teaService === 'object') {
-    return formatTeaServiceDisplay(row.teaService, count)
+    return formatTeaServiceDisplay(row.teaService, count, { includeSpecialRequest: false })
   }
-  if (row?.teaServiceSummary) {
-    return String(row.teaServiceSummary)
+  const summary = stripTeaServiceSpecialSuffix(row?.teaServiceSummary)
+  if (summary) return summary
+  return formatTeaServiceDisplay(row?.teaService, count, { includeSpecialRequest: false })
+}
+
+function formatTeaSpecialRequest(row) {
+  const direct = String(row?.teaServiceSpecialRequest || '').trim()
+  if (direct) return direct
+  let teaServiceObj = row?.teaService
+  if (typeof teaServiceObj === 'string') {
+    try {
+      teaServiceObj = JSON.parse(teaServiceObj)
+    } catch {
+      teaServiceObj = null
+    }
   }
-  return formatTeaServiceDisplay(row?.teaService, count)
+  const fromTeaService = String(
+    teaServiceObj?.specialRequest || teaServiceObj?.notes || ''
+  ).trim()
+  if (fromTeaService) return fromTeaService
+  return '-'
+}
+
+function isBookingDisplayOnHomepageSupported(row) {
+  return row?.userDefinedUploadEventTitle !== false
+}
+
+function formatDisplayOnHomepage(row) {
+  if (!isBookingDisplayOnHomepageSupported(row)) return '-'
+  return row?.displayOnHomepage !== false ? 'Yes' : 'No'
 }
 
 const getPendingRowIndex = (index) => (pendingCurrentPage.value - 1) * pendingPageSize.value + index + 1
@@ -1383,7 +1295,7 @@ const getApprovedRowIndex = (index) => (approvedCurrentPage.value - 1) * approve
 const getRejectedRowIndex = (index) => (rejectedCurrentPage.value - 1) * rejectedPageSize.value + index + 1
 
 /** 展示姓名 + corpId */
-function formatReservedBy (row) {
+function formatReservedBy(row) {
   const name = row.userName || ''
   const corpFromRow = row.bookerCorpId
   if (corpFromRow) {
@@ -1397,24 +1309,24 @@ const handleExport = () => {
     ...pendingList.value.map(item => ({ ...item, status: 'Pending' })),
     ...expiredList.value.map(item => ({ ...item, status: 'Expired' })),
     ...approvedList.value.map(item => ({ ...item, status: 'Approved' })),
-    ...rejectedList.value.map(item => ({ ...item, status: 'Rejected' }))
   ]
-
   const exportData = allData.map(item => ({
     'Booking ID': item.bookingId,
     'Room / Venue': item.venueName,
     'Reserved By': formatReservedBy(item),
-    'Department': item.department || '',
+    'Department / Unit': item.department || '',
     'Meeting / Event Title': item.meetingTitle,
     'Date': item.date,
     'Time': item.time,
     'Submitted': item.submittedAt || '',
+    'Tea Service': formatTeaServiceStatus(item),
+    'Tea Special Requests': formatTeaSpecialRequest(item),
+    'Display on Homepage': formatDisplayOnHomepage(item),
     'Status': item.status,
     'Processed At': item.approvedAt || item.rejectedAt || '',
     'Processed By': item.approvedBy || item.rejectedBy || '',
     'Reason': item.reason || ''
   }))
-
   const ws = XLSX.utils.json_to_sheet(exportData)
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'Meeting Approvals')
@@ -1439,21 +1351,10 @@ const handleOpen = (row) => {
       ?? row.teaService?.attendees
       ?? '-',
     teaService: formatTeaServiceStatus(row),
-    displayOnHomepage: row.displayOnHomepage !== false,
-    userDefinedUploadEventTitle: row.userDefinedUploadEventTitle !== false
+    teaServiceSpecialRequest: formatTeaSpecialRequest(row),
+    displayOnHomepageText: formatDisplayOnHomepage(row)
   }
   showHandleDialog.value = true
-}
-
-function openRejectBookingDialog () {
-  if (!currentHandleRow.value) return
-  rejectBookingForm.value.selectedTemplateId = null
-  rejectBookingForm.value.reason = ''
-  showRejectBookingDialog.value = true
-}
-
-function closeRejectBookingDialog () {
-  showRejectBookingDialog.value = false
 }
 
 const confirmHandleApprove = async () => {
@@ -1466,8 +1367,7 @@ const confirmHandleApprove = async () => {
   }
   try {
     await approveBooking(row.id, {
-      meetingTitle,
-      displayOnHomepage: handleForm.value.displayOnHomepage !== false
+      meetingTitle
     })
     showHandleDialog.value = false
     currentHandleRow.value = null
@@ -1479,38 +1379,6 @@ const confirmHandleApprove = async () => {
     console.error('Failed to approve booking:', error)
   }
 }
-
-const confirmRejectBooking = async () => {
-  if (!currentHandleRow.value) return
-  if (!rejectBookingForm.value.reason.trim()) {
-    showNotice('Please provide a reason for rejection', 'Warning')
-    return
-  }
-
-  const row = currentHandleRow.value
-  const meetingTitle = handleForm.value.meetingTitle?.trim() || undefined
-  if (meetingTitle && meetingTitle.length > 80) {
-    showNotice('Meeting / Event Title must be at most 80 characters', 'Warning')
-    return
-  }
-  try {
-    await rejectBooking(row.id, {
-      reason: rejectBookingForm.value.reason.trim(),
-      meetingTitle,
-      displayOnHomepage: handleForm.value.displayOnHomepage !== false
-    })
-    showRejectBookingDialog.value = false
-    showHandleDialog.value = false
-    currentHandleRow.value = null
-    await loadMeetingApprovalLists()
-    await adminStore.fetchPendingCounts()
-    notifyAdminPendingUpdated({ source: 'bookings' })
-    showNotice('Booking rejected', 'Success')
-  } catch (error) {
-    console.error('Failed to reject booking:', error)
-  }
-}
-
 </script>
 
 <style scoped>
@@ -1525,7 +1393,6 @@ const confirmRejectBooking = async () => {
   flex-direction: column;
   animation: fadeInUp 0.4s ease;
 }
-
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -1666,7 +1533,7 @@ const confirmRejectBooking = async () => {
 }
 
 .page-content :deep(.table-meeting-title-col .cell) {
-  max-width: 520px;
+  max-width: 400px;
   white-space: normal;
   word-break: break-word;
   overflow-wrap: anywhere;
@@ -1687,6 +1554,21 @@ const confirmRejectBooking = async () => {
   white-space: nowrap;
   overflow: visible;
   text-overflow: clip;
+}
+
+.page-content :deep(.el-table th.col-display-homepage-header),
+.page-content :deep(.el-table th.col-display-homepage-header .cell) {
+  white-space: normal;
+  line-height: 1.25;
+  text-align: center;
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+}
+
+.display-homepage-header {
+  display: inline-block;
+  line-height: 1.25;
+  font-size: 0.75rem;
 }
 
 .th-sort-btn {
@@ -2276,7 +2158,7 @@ const confirmRejectBooking = async () => {
   background-color: #dc2626 !important;
 }
 
-/* ????Handle ??????????*/
+/* Handle Booking Form */
 .contact-info-section {
   background-color: #f3f4f6;
   padding: 0.75rem 0.75rem 0.25rem 1.25rem;
@@ -2309,36 +2191,6 @@ const confirmRejectBooking = async () => {
   resize: none;
 }
 
-.display-title-public-item :deep(.el-form-item__label) {
-  display: none;
-}
-
-.display-title-public-item :deep(.el-form-item__content) {
-  margin-left: 0 !important;
-  justify-content: flex-start !important;
-}
-
-.display-title-public-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 0.75rem 1rem;
-  width: fit-content;
-  max-width: 100%;
-}
-
-.display-title-public-label {
-  flex: 0 1 auto;
-  color: #374151;
-  font-size: 0.875rem;
-  line-height: 1.4;
-}
-
-.display-title-public-item :deep(.el-radio-group) {
-  flex: 0 0 auto;
-}
-
 .notice-message {
   margin: 0;
   font-size: 15px;
@@ -2349,6 +2201,81 @@ const confirmRejectBooking = async () => {
 .reject-booking-form :deep(.el-form-item__label) {
   white-space: nowrap;
   padding-right: 8px;
+}
+
+.status-badge {
+  padding: 0.1875rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  display: inline-block;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.badge-display-homepage-yes {
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+.badge-display-homepage-no {
+  background-color: #f3f4f6;
+  color: #6b7280;
+}
+
+.badge-tea-service-yes {
+  background-color: #ccfbf1;
+  color: #0f766e;
+}
+
+.badge-tea-service-no {
+  background-color: #f3f4f6;
+  color: #6b7280;
+}
+
+.tea-service-badge,
+.display-homepage-badge {
+  width: auto;
+  min-width: 0;
+  padding: 0.125rem 0.4375rem;
+  text-align: center;
+}
+
+.tea-service-badge--interactive {
+  cursor: help;
+}
+
+.tea-service-badge--interactive:hover {
+  filter: brightness(0.97);
+}
+
+.tea-service-popover-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: #111827;
+}
+
+.tea-service-popover-line {
+  margin: 0;
+}
+
+.tea-service-popover-special {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.tea-service-popover-label {
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.tea-service-popover-text {
+  word-break: break-word;
 }
 </style>
 
@@ -2363,5 +2290,9 @@ const confirmRejectBooking = async () => {
 
 .reject-booking-template-select-popper.el-select-dropdown .el-select-dropdown__list {
   padding-bottom: 8px;
+}
+
+.meeting-approval-tea-popover.el-popper {
+  z-index: 3000;
 }
 </style>

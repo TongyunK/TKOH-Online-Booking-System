@@ -1,8 +1,5 @@
 <template>
   <div class="reg-page">
-    <header class="reg-header">
-      <FloatingHelpButton />
-    </header>
     <!-- 与 UserManagement「Pending Approval Details」一致：BookingStyleModal + pending-approval-detail-modal -->
     <BookingStyleModal
       v-model="resultOpen"
@@ -26,39 +23,80 @@
     </BookingStyleModal>
     <div class="reg-card">
       <h2 class="reg-title">User Registration</h2>
-      <p class="reg-subtitle">Please complete the form to submit your account application.</p>
+      <p class="reg-subtitle">Please fill up below form for venue or EV booking. A confirmation email will be sent to you upon successful application. If there is any enquiry, please contact General Office for assistance.</p>
       <el-form
         :model="form"
         class="reg-form"
         :label-position="formLabelPosition"
         :label-width="formLabelWidth"
       >
-        <el-form-item label="Corp ID">
-          <el-input v-model="form.corpId" placeholder="Enter corp ID" />
+        <el-form-item label="CORP User ID" required>
+          <el-input
+            v-model="form.corpId"
+            placeholder="Enter CORP User ID"
+            @input="onCorpIdInput"
+          />
         </el-form-item>
-        <el-form-item label="Name">
-          <el-input v-model="form.name" placeholder="Enter full name" />
+        <el-form-item label="Employee No." required>
+          <el-input
+            v-model="form.employeeNo"
+            placeholder="Enter 6-digit employee no."
+            maxlength="6"
+            inputmode="numeric"
+            @input="onEmployeeNoInput"
+          />
         </el-form-item>
-        <el-form-item label="Email">
-          <el-input v-model="form.email" type="email" placeholder="example@tkoh.local" />
+        <el-form-item label="Last Name" required>
+          <el-input v-model="form.lastName" placeholder="Enter last name" />
         </el-form-item>
-        <el-form-item label="Contact No.">
-          <el-input v-model="form.contactNo" placeholder="Enter contact number" />
+        <el-form-item label="First Name" required>
+          <el-input v-model="form.firstName" placeholder="Enter first name e.g. Peter / T M" />
         </el-form-item>
-        <el-form-item label="Department">
-          <el-select v-model="form.department" style="width: 100%" filterable placeholder="Select department">
+        <el-form-item label="Department / Unit" required>
+          <el-select v-model="form.department" style="width: 100%" filterable placeholder="Select department / unit">
             <el-option v-for="d in departments" :key="d.id" :label="d.departmentName" :value="d.departmentName" />
           </el-select>
         </el-form-item>
-        <el-form-item label="Reason">
-          <el-input v-model="form.reason" type="textarea" :rows="4" placeholder="Optional: brief reason for application" />
+        <el-form-item label="Rank" required>
+          <el-input v-model="form.rank" placeholder="Enter rank" />
+        </el-form-item>
+        <el-form-item label="Email" required>
+          <el-input v-model="form.email" type="email" placeholder="Enter HA email" />
+        </el-form-item>
+        <el-form-item label="Contact No." required>
+          <el-input
+            v-model="form.contactNo"
+            placeholder="Enter 8-digit office telephone no."
+            maxlength="8"
+            inputmode="numeric"
+            @input="onContactNoInput"
+          />
+        </el-form-item>
+        <el-form-item label="Reason" required>
+          <el-select v-model="form.reason" style="width: 100%" placeholder="1) EV booking 2) Venue booking">
+            <el-option
+              v-for="option in reasonOptions"
+              :key="option"
+              :label="option"
+              :value="option"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item v-if="showCarPlate" label="Car Plate No." required class="car-plate-field">
+          <el-input
+            :model-value="form.carPlateNo"
+            placeholder="Enter car plate no."
+            maxlength="8"
+            @input="onCarPlateInput"
+          />
         </el-form-item>
       </el-form>
       <div class="actions">
         <el-button type="default" class="reg-action-btn back-login-btn" @click="goToLogin">Back to Login</el-button>
         <div class="actions-right">
           <el-button type="default" class="reg-action-btn" @click="resetForm">Reset</el-button>
-          <el-button type="primary" class="reg-action-btn" :loading="submitting" @click="submit">Submit Application</el-button>
+          <el-button type="primary" class="reg-action-btn" :loading="submitting" @click="submit">Submit</el-button>
         </div>
       </div>
     </div>
@@ -66,15 +104,22 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Check, Close, WarningFilled } from '@element-plus/icons-vue'
 import BookingStyleModal from '@/components/BookingStyleModal.vue'
-import FloatingHelpButton from '@/components/FloatingHelpButton.vue'
 import { getRegistrationOptions, submitUserRegistration } from '@/api/userManagement'
 import { notifyPendingUsersUpdated } from '@/utils/pendingUsersSync'
 
 const departments = ref([])
+const reasonOptions = ['EV booking', 'Venue booking']
+const PLATE_MAX_LENGTH = 8
+const EMPLOYEE_NO_LENGTH = 6
+const CONTACT_NO_LENGTH = 8
+const CORP_ID_PATTERN = /^[A-Z]+$/
+const EMPLOYEE_NO_PATTERN = new RegExp(`^\\d{${EMPLOYEE_NO_LENGTH}}$`)
+const CONTACT_NO_PATTERN = new RegExp(`^\\d{${CONTACT_NO_LENGTH}}$`)
+const showCarPlate = computed(() => form.value.reason === 'EV booking')
 const submitting = ref(false)
 const router = useRouter()
 
@@ -86,7 +131,7 @@ const pendingSuccessReset = ref(false)
 
 /** 宽屏：标签在左、字段名靠右（label-position=right）；窄屏：置顶 + 16px 输入避免 iOS 聚焦放大 */
 const formLabelPosition = ref('right')
-const formLabelWidth = ref('120px')
+const formLabelWidth = ref('152px')
 let regLayoutMq
 
 function syncRegistrationFormLayout () {
@@ -96,7 +141,7 @@ function syncRegistrationFormLayout () {
     formLabelWidth.value = 'auto'
   } else {
     formLabelPosition.value = 'right'
-    formLabelWidth.value = '120px'
+    formLabelWidth.value = '152px'
   }
 }
 
@@ -122,15 +167,61 @@ watch(resultOpen, (open) => {
 
 const form = ref({
   corpId: '',
-  name: '',
+  firstName: '',
+  lastName: '',
+  employeeNo: '',
+  rank: '',
   department: '',
   email: '',
   contactNo: '',
-  reason: ''
+  reason: '',
+  carPlateNo: ''
 })
 
+function sanitizePlateNumber (raw) {
+  return String(raw ?? '')
+    .replace(/[^A-Za-z0-9]/g, '')
+    .slice(0, PLATE_MAX_LENGTH)
+    .toUpperCase()
+}
+
+function sanitizeCorpId (raw) {
+  return String(raw ?? '').replace(/[^A-Za-z]/g, '').toUpperCase()
+}
+
+function sanitizeDigits (raw, maxLength) {
+  return String(raw ?? '').replace(/\D/g, '').slice(0, maxLength)
+}
+
+function onCorpIdInput (val) {
+  form.value.corpId = sanitizeCorpId(val)
+}
+
+function onEmployeeNoInput (val) {
+  form.value.employeeNo = sanitizeDigits(val, EMPLOYEE_NO_LENGTH)
+}
+
+function onContactNoInput (val) {
+  form.value.contactNo = sanitizeDigits(val, CONTACT_NO_LENGTH)
+}
+
+function onCarPlateInput (val) {
+  form.value.carPlateNo = sanitizePlateNumber(val)
+}
+
 function resetForm () {
-  form.value = { corpId: '', name: '', department: '', email: '', contactNo: '', reason: '' }
+  form.value = {
+    corpId: '',
+    firstName: '',
+    lastName: '',
+    employeeNo: '',
+    rank: '',
+    department: '',
+    email: '',
+    contactNo: '',
+    reason: '',
+    carPlateNo: ''
+  }
 }
 
 function goToLogin () {
@@ -149,17 +240,55 @@ function normalizeSubmitErrorMessage (error) {
 }
 
 async function submit () {
-  if (!form.value.corpId || !form.value.name || !form.value.department || !form.value.email || !form.value.contactNo) {
+  const corpId = String(form.value.corpId ?? '').trim()
+  const employeeNo = String(form.value.employeeNo ?? '').trim()
+  const contactNo = String(form.value.contactNo ?? '').trim()
+  const plate = sanitizePlateNumber(form.value.carPlateNo)
+  if (
+    !corpId ||
+    !form.value.firstName ||
+    !form.value.lastName ||
+    !employeeNo ||
+    !form.value.rank ||
+    !form.value.department ||
+    !form.value.email ||
+    !contactNo ||
+    !form.value.reason ||
+    (showCarPlate.value && !plate)
+  ) {
     showResult(
       'warning',
       'Cannot submit',
-      'Please complete all required fields (Corp ID, Name, Email, Contact No., Department).'
+      'Please complete all required fields.'
     )
+    return
+  }
+  if (!CORP_ID_PATTERN.test(corpId)) {
+    showResult('warning', 'Cannot submit', 'CORP User ID must contain capital letters only.')
+    return
+  }
+  if (!EMPLOYEE_NO_PATTERN.test(employeeNo)) {
+    showResult('warning', 'Cannot submit', 'Employee No. must be exactly 6 digits.')
+    return
+  }
+  if (!CONTACT_NO_PATTERN.test(contactNo)) {
+    showResult('warning', 'Cannot submit', 'Contact No. must be exactly 8 digits.')
     return
   }
   submitting.value = true
   try {
-    await submitUserRegistration(form.value)
+    await submitUserRegistration({
+      corpId,
+      firstName: form.value.firstName.trim(),
+      lastName: form.value.lastName.trim(),
+      employeeNo,
+      rank: form.value.rank.trim(),
+      department: form.value.department,
+      email: form.value.email.trim(),
+      contactNo,
+      reason: form.value.reason,
+      carPlateNo: showCarPlate.value ? plate : undefined
+    })
   } catch (e) {
     console.error(e)
     submitting.value = false
@@ -205,17 +334,6 @@ onUnmounted(() => {
   justify-content: center;
   background: linear-gradient(180deg, #f5f7fa 0%, #edf2f7 100%);
   padding: 24px;
-}
-
-.reg-header {
-  position: fixed;
-  top: 0;
-  right: 0;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding: 12px 24px;
 }
 /* 外壳与 UserManagement 的 notice / pending 弹窗一致；此处仅排布图标与说明文案 */
 .registration-result-body {
@@ -286,6 +404,7 @@ onUnmounted(() => {
 .reg-form :deep(.el-form-item__label) {
   font-weight: 600;
   color: #334155;
+  white-space: nowrap;
 }
 .actions {
   display: flex;
@@ -293,6 +412,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+  margin-top: 32px;
 }
 
 .actions-right {
@@ -329,6 +449,7 @@ onUnmounted(() => {
     margin-bottom: 6px;
   }
   .reg-form :deep(.el-form-item__label) {
+    white-space: normal;
     padding-bottom: 4px;
     line-height: 1.35;
     font-size: 16px;
@@ -347,7 +468,7 @@ onUnmounted(() => {
     align-items: stretch;
     justify-content: stretch;
     gap: 10px;
-    margin-top: 4px;
+    margin-top: 14px;
   }
   .actions-right {
     flex-direction: column;

@@ -69,7 +69,11 @@ export class UserInactivityService implements OnModuleInit {
             },
           ],
         },
-        data: { status: 'Inactive' },
+        data: {
+          status: 'Inactive',
+          inactiveTime: new Date(),
+          inactivedBy: 'by System',
+        },
       });
 
       if (result.count > 0) {

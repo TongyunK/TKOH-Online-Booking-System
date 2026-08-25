@@ -12,7 +12,14 @@ model User {
   corpId           String        @unique @map("corp_id")
   account          String        @unique
   password         String
-  name             String
+  /// 名（First Name）；展示全名时与 last_name 组合为 FirstName LastName。
+  firstName        String        @default("") @map("first_name")
+  /// 姓（Last Name）；由原 name 字段重命名而来。
+  lastName         String        @map("last_name")
+  /// 员工编号（Employee No.）；与登录用 account / corp_id 区分。
+  employeeNo       String?       @map("employee_no")
+  /// 职级 / 职衔（Rank）。
+  rank             String?
   accessRoleId     BigInt?       @map("access_role_id")
   departmentId     BigInt?       @map("department_id")
   email            String?
@@ -24,6 +31,10 @@ model User {
   isSystemHidden   Boolean       @default(false) @map("is_system_hidden")
   status           String        @default("Active")
   lastLoginTime    DateTime?     @map("last_login_time") @db.Timestamptz(6)
+  /// 账号被禁用（Inactive）的时间；管理员手动禁用或系统自动禁用时写入。
+  inactiveTime     DateTime?     @map("inactive_time") @db.Timestamptz(6)
+  /// 禁用操作者：管理员手动禁用时为操作人显示名；系统按未登录月数自动禁用时为 “by System”。
+  inactivedBy      String?       @map("inactived_by")
   createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   access_roles            access_roles?   @relation(fields: [accessRoleId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   department              departments?    @relation(fields: [departmentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -254,6 +265,8 @@ model VenueBookings {
   submitterUserId BigInt?  @map("submitter")
   /// 取消/释放操作人用户 ID，关联 user.id。
   cancelledByUserId BigInt? @map("cancelled_by")
+  /// 取消/释放时间。
+  cancelledAt      DateTime? @map("cancelled_at") @db.Timestamptz(6)
   /// 记录创建时间。
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   /// 记录最后修改时间；业务更新时应同步刷新。
@@ -275,7 +288,10 @@ model VenueBookings {
 model pending_users {
   id               BigInt        @id
   corp_id          String
-  name             String
+  first_name       String        @default("")
+  last_name        String
+  employee_no      String?
+  rank             String?
   department_id    BigInt?
   access_role_id   BigInt?
   approver_user_id BigInt?
@@ -283,6 +299,7 @@ model pending_users {
   email            String?
   contact_no       String?
   reason           String?
+  car_plate_no     String?
   reject_reason    String?
   submitted_at     DateTime?     @db.Timestamptz(6)
   handled_at       DateTime?     @db.Timestamptz(6)

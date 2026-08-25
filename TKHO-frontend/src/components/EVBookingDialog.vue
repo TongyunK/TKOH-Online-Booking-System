@@ -175,6 +175,7 @@ import { createDateAtMidnight, isEvSlotPast } from '@/utils/evSlotPast'
 import { isRestrictedBookingDay } from '@/utils/bookingDateRestriction'
 import { HTML_ZOOM_BREAKPOINT_MQ } from '@/utils/venueCalendarApi'
 import { useUserStore } from '@/stores/user'
+import { formatUserDisplayName } from '@/utils/userDisplayName'
 
 const props = defineProps({
   visible: {
@@ -249,7 +250,9 @@ const defaultReservedByUser = computed(() => {
   if (!u?.id && !u?.sub) return null
   return {
     id: String(u.id ?? u.sub),
-    name: u.name || u.corpId || 'Me',
+    name: formatUserDisplayName(u) || u.corpId || 'Me',
+    firstName: u.firstName,
+    lastName: u.lastName,
     corpId: u.corpId || ''
   }
 })

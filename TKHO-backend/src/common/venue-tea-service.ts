@@ -127,7 +127,7 @@ export function formatVenueTeaServiceDisplay(
   }
 
   if (option === 'none') {
-    return `不用茶 / ${attendees}`;
+    return '不用茶';
   }
 
   let base = '';

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { isSuperAdminAuth } from '../auth/super-admin.util';
+import { formatUserDisplayName } from '../common/user-display-name';
 
 @Injectable()
 export class MetaService {
@@ -13,7 +14,10 @@ export class MetaService {
         id: true,
         corpId: true,
         account: true,
-        name: true,
+        firstName: true,
+        lastName: true,
+        employeeNo: true,
+        rank: true,
         departmentId: true,
         accessRoleId: true,
         email: true,
@@ -38,7 +42,11 @@ export class MetaService {
       id: user.id.toString(),
       corpId: user.corpId,
       account: user.account,
-      name: user.name,
+      name: formatUserDisplayName(user),
+      firstName: user.firstName ?? '',
+      lastName: user.lastName ?? '',
+      employeeNo: user.employeeNo ?? null,
+      rank: user.rank ?? null,
       departmentId: user.departmentId != null ? user.departmentId.toString() : null,
       accessRoleId: user.accessRoleId != null ? user.accessRoleId.toString() : null,
       department: user.department?.department_name ?? null,

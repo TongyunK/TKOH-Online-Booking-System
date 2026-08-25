@@ -1,4 +1,16 @@
-import { IsInt, IsOptional, IsString, IsUrl, Matches, Max, Min } from 'class-validator';
+import {
+  IsEmail,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUrl,
+  Matches,
+  Max,
+  Min,
+  ValidateIf,
+} from 'class-validator';
+import { DATA_BACKUP_EMAIL_INTERVALS } from '../system-setting.keys';
 
 export class UpdateSystemSettingsDto {
   @IsOptional()
@@ -30,4 +42,26 @@ export class UpdateSystemSettingsDto {
   @Min(0)
   @Max(120)
   venueBookingMinGapMinutes?: number;
+
+  @IsOptional()
+  @ValidateIf((_, value) => value != null && String(value).trim() !== '')
+  @IsEmail()
+  dataBackupReceivingEmail?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  dataBackupTimeSpan?: number;
+
+  @IsOptional()
+  @IsIn([...DATA_BACKUP_EMAIL_INTERVALS])
+  dataBackupEmailInterval?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, {
+    message: 'dataBackupEmailSendTime must be HH:mm in 24-hour format',
+  })
+  dataBackupEmailSendTime?: string;
 }

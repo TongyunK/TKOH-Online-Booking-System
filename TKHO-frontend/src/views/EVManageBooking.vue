@@ -278,7 +278,15 @@
 
         <!-- Table View -->
         <div v-else class="table-view flex-1 overflow-hidden">
-          <div class="table-wrapper">
+          <div
+            ref="tableWrapperRef"
+            class="table-wrapper"
+            :class="{
+              'is-scrolled-left': tableScrolledLeft,
+              'is-scrolled-right': tableScrolledRight
+            }"
+            @scroll="updateTableScrollShadows"
+          >
             <table class="bookings-table">
               <thead>
                 <tr>
@@ -499,7 +507,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { storeToRefs } from 'pinia'
 import { cancelEvManageBooking, listEvManageBookings, updateEvManageBooking } from '@/api/evManagement'
@@ -1398,8 +1406,40 @@ const handleEditConfirm = async (bookingData) => {
   }
 }
 
+const tableWrapperRef = ref(null)
+const tableScrolledLeft = ref(false)
+const tableScrolledRight = ref(false)
+
+const updateTableScrollShadows = () => {
+  const el = tableWrapperRef.value
+  if (!el) {
+    tableScrolledLeft.value = false
+    tableScrolledRight.value = false
+    return
+  }
+  const maxScrollLeft = el.scrollWidth - el.clientWidth
+  tableScrolledLeft.value = el.scrollLeft > 1
+  tableScrolledRight.value = maxScrollLeft > 1 && el.scrollLeft < maxScrollLeft - 1
+}
+
+watch(
+  [currentView, paginatedBookings],
+  async () => {
+    if (currentView.value !== 'table') return
+    await nextTick()
+    updateTableScrollShadows()
+  },
+  { deep: true }
+)
+
 onMounted(() => {
+  window.addEventListener('resize', updateTableScrollShadows, { passive: true })
   void loadBookings()
+  nextTick(() => updateTableScrollShadows())
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateTableScrollShadows)
 })
 
 </script>
@@ -2370,6 +2410,17 @@ onMounted(() => {
   width: 50px;
   min-width: 50px;
   text-align: center;
+  position: sticky;
+  left: 0;
+  top: 0;
+  z-index: 12;
+  background-color: #f3f4f6;
+  box-shadow: none;
+}
+
+.table-wrapper.is-scrolled-left .bookings-table th.col-no,
+.table-wrapper.is-scrolled-left .bookings-table .no-cell {
+  box-shadow: 6px 0 8px -4px rgba(15, 23, 42, 0.12);
 }
 
 .bookings-table th.col-actions {
@@ -2380,6 +2431,12 @@ onMounted(() => {
   right: 0;
   background-color: #f3f4f6;
   z-index: 11;
+  box-shadow: none;
+}
+
+.table-wrapper.is-scrolled-right .bookings-table th.col-actions,
+.table-wrapper.is-scrolled-right .bookings-table td.actions-td {
+  box-shadow: -6px 0 8px -4px rgba(15, 23, 42, 0.12);
 }
 
 .bookings-table th.col-application-date,
@@ -2414,6 +2471,15 @@ onMounted(() => {
   text-align: center;
   color: #6b7280;
   font-weight: 500;
+  position: sticky;
+  left: 0;
+  z-index: 8;
+  background-color: #ffffff;
+  box-shadow: none;
+}
+
+.bookings-table tbody tr:hover .no-cell {
+  background-color: #f9fafb;
 }
 
 .license-cell {

@@ -39,19 +39,21 @@
                     fixed="left"
                     :index="getUserRowIndex"
                   />
-                  <el-table-column prop="corpId" min-width="120" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
+                  <el-table-column prop="corpId" min-width="130" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
                     <template #header>
                       <button type="button" class="th-sort-btn" @click="toggleSort('user', 'corpId')">
-                        Corp ID
+                        CORP User ID
                         <span class="sort-indicator">{{ getSortIndicator('user', 'corpId') }}</span>
                       </button>
                     </template>
                   </el-table-column>
-                  <el-table-column prop="name" label="Name" min-width="280" class-name="name-col" />
-                  <el-table-column prop="department" min-width="100">
+                  <el-table-column prop="employeeNo" label="Employee No." min-width="140" class-name="table-nowrap-col" label-class-name="table-nowrap-col" />
+                  <el-table-column prop="lastName" label="Last Name" min-width="130" class-name="table-nowrap-col" label-class-name="table-nowrap-col" />
+                  <el-table-column prop="firstName" label="First Name" min-width="130" class-name="table-nowrap-col" label-class-name="table-nowrap-col" />
+                  <el-table-column prop="department" min-width="140" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
                     <template #header>
                       <SortableFilterHeader
-                        label="Department"
+                        label="Department / Unit"
                         :sort-indicator="getSortIndicator('user', 'department')"
                         :filter-active="columnFilterState.user.department.length > 0"
                         :options="getFilterOptions('user', 'department')"
@@ -63,7 +65,10 @@
                       />
                     </template>
                   </el-table-column>
-                  <el-table-column prop="role" min-width="140">
+                  <el-table-column prop="rank" label="Rank" min-width="110" class-name="table-nowrap-col" label-class-name="table-nowrap-col" />
+                  <el-table-column prop="email" label="Email" min-width="240" class-name="table-nowrap-col" label-class-name="table-nowrap-col" />
+                  <el-table-column prop="contact" label="Contact No." min-width="140" class-name="table-nowrap-col" label-class-name="table-nowrap-col" />
+                  <el-table-column prop="role" min-width="150" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
                     <template #header>
                       <SortableFilterHeader
                         label="Role"
@@ -78,8 +83,6 @@
                       />
                     </template>
                   </el-table-column>
-                  <el-table-column prop="contact" label="Contact No." min-width="140" />
-                  <el-table-column prop="email" label="Email" min-width="220" />
                   <el-table-column width="160" class-name="table-nowrap-col quota-col" label-class-name="table-nowrap-col quota-col">
                     <template #header>
                       <button type="button" class="th-sort-btn" @click="toggleSort('user', 'evQuota')">
@@ -91,7 +94,7 @@
                       {{ formatQuotaDisplay(row.usedQuotaEV, row.annualQuotaEV) }}
                     </template>
                   </el-table-column>
-                  <el-table-column width="160" class-name="table-nowrap-col quota-col" label-class-name="table-nowrap-col quota-col">
+                  <el-table-column width="170" class-name="table-nowrap-col quota-col" label-class-name="table-nowrap-col quota-col">
                     <template #header>
                       <button type="button" class="th-sort-btn" @click="toggleSort('user', 'venueQuota')">
                         Venue Quota
@@ -102,7 +105,7 @@
                       {{ formatQuotaDisplay(row.usedQuotaVenue, row.annualQuotaVenue) }}
                     </template>
                   </el-table-column>
-                  <el-table-column prop="status" min-width="120">
+                  <el-table-column prop="status" min-width="120" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
                     <template #header>
                       <button type="button" class="th-sort-btn" @click="toggleSort('user', 'status')">
                         Status
@@ -115,7 +118,7 @@
                       </span>
                     </template>
                   </el-table-column>
-                  <el-table-column prop="lastLoginTime" min-width="180" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
+                  <el-table-column prop="lastLoginTime" min-width="190" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
                     <template #header>
                       <button type="button" class="th-sort-btn" @click="toggleSort('user', 'lastLoginTime')">
                         Last login time
@@ -126,7 +129,7 @@
                       {{ formatDateTimeDisplay(row.lastLoginTime) }}
                     </template>
                   </el-table-column>
-                  <el-table-column label="Actions" width="230" fixed="right" class-name="actions-col">
+                  <el-table-column label="Actions" width="185" fixed="right" class-name="actions-col">
                     <template #default="{ row }">
                       <div class="actions-cell">
                         <el-button size="small" class="action-btn action-edit" @click="handleEdit(row)">Edit</el-button>
@@ -134,7 +137,6 @@
                         <el-tooltip content="Reset annual quota" placement="top">
                           <el-button size="small" class="action-btn action-reset" @click="handleResetQuota(row)">Reset</el-button>
                         </el-tooltip>
-                        <el-button size="small" class="action-btn action-delete" @click="handleDelete(row)">Delete</el-button>
                         <el-tooltip content="Reset Password" placement="top">
                           <el-button size="small" class="action-btn action-reset-password" @click="handleResetPassword(row)">
                             <font-awesome-icon :icon="['fas', 'key']" />
@@ -205,19 +207,21 @@
                     fixed="left"
                     :index="getExpiredRowIndex"
                   />
-                  <el-table-column prop="corpId" min-width="120" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
+                  <el-table-column prop="corpId" min-width="130" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
                     <template #header>
                       <button type="button" class="th-sort-btn" @click="toggleSort('expired', 'corpId')">
-                        Corp ID
+                        CORP User ID
                         <span class="sort-indicator">{{ getSortIndicator('expired', 'corpId') }}</span>
                       </button>
                     </template>
                   </el-table-column>
-                  <el-table-column prop="name" label="Name" min-width="280" class-name="name-col" />
-                  <el-table-column prop="department" min-width="100">
+                  <el-table-column prop="employeeNo" label="Employee No." min-width="140" class-name="table-nowrap-col" label-class-name="table-nowrap-col" />
+                  <el-table-column prop="lastName" label="Last Name" min-width="130" class-name="table-nowrap-col" label-class-name="table-nowrap-col" />
+                  <el-table-column prop="firstName" label="First Name" min-width="130" class-name="table-nowrap-col" label-class-name="table-nowrap-col" />
+                  <el-table-column prop="department" min-width="140" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
                     <template #header>
                       <SortableFilterHeader
-                        label="Department"
+                        label="Department / Unit"
                         :sort-indicator="getSortIndicator('expired', 'department')"
                         :filter-active="columnFilterState.expired.department.length > 0"
                         :options="getFilterOptions('expired', 'department')"
@@ -229,7 +233,10 @@
                       />
                     </template>
                   </el-table-column>
-                  <el-table-column prop="role" min-width="140">
+                  <el-table-column prop="rank" label="Rank" min-width="110" class-name="table-nowrap-col" label-class-name="table-nowrap-col" />
+                  <el-table-column prop="email" label="Email" min-width="240" class-name="table-nowrap-col" label-class-name="table-nowrap-col" />
+                  <el-table-column prop="contact" label="Contact No." min-width="140" class-name="table-nowrap-col" label-class-name="table-nowrap-col" />
+                  <el-table-column prop="role" min-width="150" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
                     <template #header>
                       <SortableFilterHeader
                         label="Role"
@@ -244,8 +251,6 @@
                       />
                     </template>
                   </el-table-column>
-                  <el-table-column prop="contact" label="Contact No." min-width="140" />
-                  <el-table-column prop="email" label="Email" min-width="220" />
                   <el-table-column width="160" class-name="table-nowrap-col quota-col" label-class-name="table-nowrap-col quota-col">
                     <template #header>
                       <button type="button" class="th-sort-btn" @click="toggleSort('expired', 'evQuota')">
@@ -257,7 +262,7 @@
                       {{ formatQuotaDisplay(row.usedQuotaEV, row.annualQuotaEV) }}
                     </template>
                   </el-table-column>
-                  <el-table-column width="160" class-name="table-nowrap-col quota-col" label-class-name="table-nowrap-col quota-col">
+                  <el-table-column width="170" class-name="table-nowrap-col quota-col" label-class-name="table-nowrap-col quota-col">
                     <template #header>
                       <button type="button" class="th-sort-btn" @click="toggleSort('expired', 'venueQuota')">
                         Venue Quota
@@ -268,7 +273,7 @@
                       {{ formatQuotaDisplay(row.usedQuotaVenue, row.annualQuotaVenue) }}
                     </template>
                   </el-table-column>
-                  <el-table-column prop="status" min-width="120">
+                  <el-table-column prop="status" min-width="120" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
                     <template #header>
                       <button type="button" class="th-sort-btn" @click="toggleSort('expired', 'status')">
                         Status
@@ -281,7 +286,7 @@
                       </span>
                     </template>
                   </el-table-column>
-                  <el-table-column prop="lastLoginTime" min-width="180" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
+                  <el-table-column prop="lastLoginTime" min-width="190" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
                     <template #header>
                       <button type="button" class="th-sort-btn" @click="toggleSort('expired', 'lastLoginTime')">
                         Last login time
@@ -290,6 +295,28 @@
                     </template>
                     <template #default="{ row }">
                       {{ formatDateTimeDisplay(row.lastLoginTime) }}
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="inactivedBy" min-width="160" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
+                    <template #header>
+                      <button type="button" class="th-sort-btn" @click="toggleSort('expired', 'inactivedBy')">
+                        Inactived By
+                        <span class="sort-indicator">{{ getSortIndicator('expired', 'inactivedBy') }}</span>
+                      </button>
+                    </template>
+                    <template #default="{ row }">
+                      {{ formatInactivedBy(row) }}
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="inactiveTime" min-width="190" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
+                    <template #header>
+                      <button type="button" class="th-sort-btn" @click="toggleSort('expired', 'inactiveTime')">
+                        Inactive Time
+                        <span class="sort-indicator">{{ getSortIndicator('expired', 'inactiveTime') }}</span>
+                      </button>
+                    </template>
+                    <template #default="{ row }">
+                      {{ formatDateTimeDisplay(row.inactiveTime) }}
                     </template>
                   </el-table-column>
                   <el-table-column label="Actions" width="130" fixed="right" class-name="actions-col">
@@ -370,19 +397,21 @@
                         fixed="left"
                         :index="getPendingPendingRowIndex"
                       />
-                      <el-table-column prop="corpId" min-width="120">
+                      <el-table-column prop="corpId" min-width="130" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
                         <template #header>
                           <button type="button" class="th-sort-btn" @click="toggleSort('pendingPending', 'corpId')">
-                            Corp ID
+                            CORP User ID
                             <span class="sort-indicator">{{ getSortIndicator('pendingPending', 'corpId') }}</span>
                           </button>
                         </template>
                       </el-table-column>
-                      <el-table-column prop="name" label="Name" min-width="360" class-name="name-col" />
-                      <el-table-column prop="department" min-width="100">
+                      <el-table-column prop="employeeNo" label="Employee No." min-width="140" class-name="table-nowrap-col" label-class-name="table-nowrap-col" />
+                      <el-table-column prop="lastName" label="Last Name" min-width="130" class-name="table-nowrap-col" label-class-name="table-nowrap-col" />
+                      <el-table-column prop="firstName" label="First Name" min-width="130" class-name="table-nowrap-col" label-class-name="table-nowrap-col" />
+                      <el-table-column prop="department" min-width="140" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
                         <template #header>
                           <SortableFilterHeader
-                            label="Department"
+                            label="Department / Unit"
                             :sort-indicator="getSortIndicator('pendingPending', 'department')"
                             :filter-active="columnFilterState.pendingPending.department.length > 0"
                             :options="getFilterOptions('pendingPending', 'department')"
@@ -394,29 +423,15 @@
                           />
                         </template>
                       </el-table-column>
-                      <el-table-column prop="role" min-width="140">
-                        <template #header>
-                          <SortableFilterHeader
-                            label="Role"
-                            :sort-indicator="getSortIndicator('pendingPending', 'role')"
-                            :filter-active="columnFilterState.pendingPending.role.length > 0"
-                            :options="getFilterOptions('pendingPending', 'role')"
-                            :model-value="columnFilterState.pendingPending.role"
-                            @sort-asc="setSortByMenu('pendingPending', 'role', 'asc')"
-                            @sort-desc="setSortByMenu('pendingPending', 'role', 'desc')"
-                            @clear-sort="clearSortByMenu('pendingPending', 'role')"
-                            @update:model-value="(v) => updateFilter('pendingPending', 'role', v)"
-                          />
-                        </template>
-                      </el-table-column>
-                      <el-table-column label="Contact No." min-width="140">
+                      <el-table-column prop="rank" label="Rank" min-width="110" class-name="table-nowrap-col" label-class-name="table-nowrap-col" />
+                      <el-table-column prop="email" label="Email" min-width="240" class-name="table-nowrap-col" label-class-name="table-nowrap-col" />
+                      <el-table-column label="Contact No." min-width="140" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
                         <template #default="{ row }">
                           {{ row.contactNo ?? row.contact ?? '' }}
                         </template>
                       </el-table-column>
-                      <el-table-column prop="email" label="Email" min-width="220" />
-                      <el-table-column prop="reason" label="Application Reason" min-width="240" />
-                      <el-table-column prop="submittedAt" min-width="180" class-name="submitted-at-col">
+                      <el-table-column prop="reason" label="Application Reason" min-width="220" class-name="table-nowrap-col" label-class-name="table-nowrap-col" />
+                      <el-table-column prop="submittedAt" min-width="180" class-name="submitted-at-col table-nowrap-col" label-class-name="table-nowrap-col">
                         <template #header>
                           <button type="button" class="th-sort-btn" @click="toggleSort('pendingPending', 'submittedAt')">
                             Submitted At
@@ -479,19 +494,21 @@
                         fixed="left"
                         :index="getPendingApprovedRowIndex"
                       />
-                      <el-table-column prop="corpId" min-width="120">
+                      <el-table-column prop="corpId" min-width="130" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
                         <template #header>
                           <button type="button" class="th-sort-btn" @click="toggleSort('pendingApproved', 'corpId')">
-                            Corp ID
+                            CORP User ID
                             <span class="sort-indicator">{{ getSortIndicator('pendingApproved', 'corpId') }}</span>
                           </button>
                         </template>
                       </el-table-column>
-                      <el-table-column prop="name" label="Name" min-width="360" class-name="name-col" />
-                      <el-table-column prop="department" min-width="100">
+                      <el-table-column prop="employeeNo" label="Employee No." min-width="140" class-name="table-nowrap-col" label-class-name="table-nowrap-col" />
+                      <el-table-column prop="lastName" label="Last Name" min-width="130" class-name="table-nowrap-col" label-class-name="table-nowrap-col" />
+                      <el-table-column prop="firstName" label="First Name" min-width="130" class-name="table-nowrap-col" label-class-name="table-nowrap-col" />
+                      <el-table-column prop="department" min-width="140" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
                         <template #header>
                           <SortableFilterHeader
-                            label="Department"
+                            label="Department / Unit"
                             :sort-indicator="getSortIndicator('pendingApproved', 'department')"
                             :filter-active="columnFilterState.pendingApproved.department.length > 0"
                             :options="getFilterOptions('pendingApproved', 'department')"
@@ -503,7 +520,14 @@
                           />
                         </template>
                       </el-table-column>
-                      <el-table-column prop="role" min-width="140">
+                      <el-table-column prop="rank" label="Rank" min-width="110" class-name="table-nowrap-col" label-class-name="table-nowrap-col" />
+                      <el-table-column prop="email" label="Email" min-width="240" class-name="table-nowrap-col" label-class-name="table-nowrap-col" />
+                      <el-table-column label="Contact No." min-width="140" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
+                        <template #default="{ row }">
+                          {{ row.contactNo ?? row.contact ?? '' }}
+                        </template>
+                      </el-table-column>
+                      <el-table-column prop="role" min-width="150" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
                         <template #header>
                           <SortableFilterHeader
                             label="Role"
@@ -518,24 +542,7 @@
                           />
                         </template>
                       </el-table-column>
-                      <el-table-column label="Contact No." min-width="140">
-                        <template #default="{ row }">
-                          {{ row.contactNo ?? row.contact ?? '' }}
-                        </template>
-                      </el-table-column>
-                      <el-table-column prop="email" label="Email" min-width="220" />
-                      <el-table-column prop="approvedAt" min-width="180">
-                        <template #header>
-                          <button type="button" class="th-sort-btn" @click="toggleSort('pendingApproved', 'approvedAt')">
-                            Approved At
-                            <span class="sort-indicator">{{ getSortIndicator('pendingApproved', 'approvedAt') }}</span>
-                          </button>
-                        </template>
-                        <template #default="{ row }">
-                          {{ formatDateTimeDisplay(row.approvedAt ?? row.handledAt) }}
-                        </template>
-                      </el-table-column>
-                      <el-table-column prop="approvedBy" min-width="200">
+                      <el-table-column prop="approvedBy" min-width="200" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
                         <template #header>
                           <button type="button" class="th-sort-btn" @click="toggleSort('pendingApproved', 'approvedBy')">
                             Approved By
@@ -544,6 +551,17 @@
                         </template>
                         <template #default="{ row }">
                           {{ row.approvedBy || '-' }}
+                        </template>
+                      </el-table-column>
+                      <el-table-column prop="approvedAt" min-width="180" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
+                        <template #header>
+                          <button type="button" class="th-sort-btn" @click="toggleSort('pendingApproved', 'approvedAt')">
+                            Approved At
+                            <span class="sort-indicator">{{ getSortIndicator('pendingApproved', 'approvedAt') }}</span>
+                          </button>
+                        </template>
+                        <template #default="{ row }">
+                          {{ formatDateTimeDisplay(row.approvedAt ?? row.handledAt) }}
                         </template>
                       </el-table-column>
                     </el-table>
@@ -591,19 +609,21 @@
                         fixed="left"
                         :index="getPendingRejectedRowIndex"
                       />
-                      <el-table-column prop="corpId" min-width="120">
+                      <el-table-column prop="corpId" min-width="130" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
                         <template #header>
                           <button type="button" class="th-sort-btn" @click="toggleSort('pendingRejected', 'corpId')">
-                            Corp ID
+                            CORP User ID
                             <span class="sort-indicator">{{ getSortIndicator('pendingRejected', 'corpId') }}</span>
                           </button>
                         </template>
                       </el-table-column>
-                      <el-table-column prop="name" label="Name" min-width="360" class-name="name-col" />
-                      <el-table-column prop="department" min-width="100">
+                      <el-table-column prop="employeeNo" label="Employee No." min-width="140" class-name="table-nowrap-col" label-class-name="table-nowrap-col" />
+                      <el-table-column prop="lastName" label="Last Name" min-width="130" class-name="table-nowrap-col" label-class-name="table-nowrap-col" />
+                      <el-table-column prop="firstName" label="First Name" min-width="130" class-name="table-nowrap-col" label-class-name="table-nowrap-col" />
+                      <el-table-column prop="department" min-width="140" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
                         <template #header>
                           <SortableFilterHeader
-                            label="Department"
+                            label="Department / Unit"
                             :sort-indicator="getSortIndicator('pendingRejected', 'department')"
                             :filter-active="columnFilterState.pendingRejected.department.length > 0"
                             :options="getFilterOptions('pendingRejected', 'department')"
@@ -615,28 +635,14 @@
                           />
                         </template>
                       </el-table-column>
-                      <el-table-column prop="role" min-width="140">
-                        <template #header>
-                          <SortableFilterHeader
-                            label="Role"
-                            :sort-indicator="getSortIndicator('pendingRejected', 'role')"
-                            :filter-active="columnFilterState.pendingRejected.role.length > 0"
-                            :options="getFilterOptions('pendingRejected', 'role')"
-                            :model-value="columnFilterState.pendingRejected.role"
-                            @sort-asc="setSortByMenu('pendingRejected', 'role', 'asc')"
-                            @sort-desc="setSortByMenu('pendingRejected', 'role', 'desc')"
-                            @clear-sort="clearSortByMenu('pendingRejected', 'role')"
-                            @update:model-value="(v) => updateFilter('pendingRejected', 'role', v)"
-                          />
-                        </template>
-                      </el-table-column>
-                      <el-table-column label="Contact No." min-width="140">
+                      <el-table-column prop="rank" label="Rank" min-width="110" class-name="table-nowrap-col" label-class-name="table-nowrap-col" />
+                      <el-table-column prop="email" label="Email" min-width="240" class-name="table-nowrap-col" label-class-name="table-nowrap-col" />
+                      <el-table-column label="Contact No." min-width="140" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
                         <template #default="{ row }">
                           {{ row.contactNo ?? row.contact ?? '' }}
                         </template>
                       </el-table-column>
-                      <el-table-column prop="email" label="Email" min-width="220" />
-                      <el-table-column prop="rejectedAt" min-width="180" class-name="rejected-at-col">
+                      <el-table-column prop="rejectedAt" min-width="180" class-name="rejected-at-col table-nowrap-col" label-class-name="table-nowrap-col">
                         <template #header>
                           <button type="button" class="th-sort-btn" @click="toggleSort('pendingRejected', 'rejectedAt')">
                             Rejected At
@@ -647,7 +653,7 @@
                           <span class="rejected-at-text">{{ formatDateTimeDisplay(row.rejectedAt ?? row.handledAt) }}</span>
                         </template>
                       </el-table-column>
-                      <el-table-column prop="rejectedBy" min-width="200">
+                      <el-table-column prop="rejectedBy" min-width="200" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
                         <template #header>
                           <button type="button" class="th-sort-btn" @click="toggleSort('pendingRejected', 'rejectedBy')">
                             Rejected By
@@ -658,7 +664,7 @@
                           {{ row.rejectedBy || '-' }}
                         </template>
                       </el-table-column>
-                      <el-table-column prop="rejectReason" min-width="240">
+                      <el-table-column prop="rejectReason" min-width="220" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
                         <template #header>
                           <button type="button" class="th-sort-btn" @click="toggleSort('pendingRejected', 'rejectReason')">
                             Reject Reason
@@ -711,16 +717,22 @@
       :max-height="userModalMaxHeight"
     >
       <el-form :model="formData" label-width="140px">
-        <el-form-item label="Corp ID">
+        <el-form-item label="CORP User ID">
           <el-input v-model="formData.corpId" />
         </el-form-item>
-        <el-form-item label="Name">
-          <el-input v-model="formData.name" />
+        <el-form-item label="Employee No.">
+          <el-input v-model="formData.employeeNo" />
         </el-form-item>
-        <el-form-item label="Department">
+        <el-form-item label="Last Name">
+          <el-input v-model="formData.lastName" />
+        </el-form-item>
+        <el-form-item label="First Name">
+          <el-input v-model="formData.firstName" />
+        </el-form-item>
+        <el-form-item label="Department / Unit">
           <el-select
             v-model="formData.department"
-            placeholder="Select department"
+            placeholder="Select department / unit"
             style="width: 100%"
             :teleported="false"
             filterable
@@ -733,6 +745,15 @@
             <el-option v-for="dept in departmentOptions" :key="dept" :label="dept" :value="dept" />
           </el-select>
         </el-form-item>
+        <el-form-item label="Rank">
+          <el-input v-model="formData.rank" />
+        </el-form-item>
+        <el-form-item label="Email">
+          <el-input v-model="formData.email" type="email" />
+        </el-form-item>
+        <el-form-item label="Contact No.">
+          <el-input v-model="formData.contact" />
+        </el-form-item>
         <el-form-item label="Role">
           <el-select
             v-model="formData.role"
@@ -743,14 +764,16 @@
             <el-option v-for="r in roleOptions" :key="r" :label="r" :value="r" />
           </el-select>
         </el-form-item>
-        <el-form-item label="Contact No.">
-          <el-input v-model="formData.contact" />
-        </el-form-item>
-        <el-form-item label="Email">
-          <el-input v-model="formData.email" type="email" />
-        </el-form-item>
         <el-form-item v-if="formMode === 'add'" label="Initial Password">
           <el-input v-model="formData.password" type="text" autocomplete="new-password" />
+        </el-form-item>
+        <el-form-item v-if="formMode === 'add'" label="Car Plate No.">
+          <el-input
+            :model-value="formData.carPlateNo"
+            placeholder="Enter car plate no. (optional)"
+            maxlength="8"
+            @input="onAddUserCarPlateInput"
+          />
         </el-form-item>
         <el-form-item label="EV Quota">
           <div class="quota-input-row">
@@ -847,13 +870,19 @@
       custom-class="pending-approval-detail-modal"
     >
       <el-form :model="pendingHandleForm" label-width="140px">
-        <el-form-item label="Corp ID">
+        <el-form-item label="CORP User ID">
           <el-input v-model="pendingHandleForm.corpId" />
         </el-form-item>
-        <el-form-item label="Name">
-          <el-input v-model="pendingHandleForm.name" />
+        <el-form-item label="Employee No.">
+          <el-input v-model="pendingHandleForm.employeeNo" />
         </el-form-item>
-        <el-form-item label="Department">
+        <el-form-item label="Last Name">
+          <el-input v-model="pendingHandleForm.lastName" />
+        </el-form-item>
+        <el-form-item label="First Name">
+          <el-input v-model="pendingHandleForm.firstName" />
+        </el-form-item>
+        <el-form-item label="Department / Unit">
           <el-select
             v-model="pendingHandleForm.department"
             filterable
@@ -861,7 +890,7 @@
             allow-create
             default-first-option
             style="width: 100%"
-            placeholder="Type department name"
+            placeholder="Type department / unit name"
             :teleported="pendingApprovalSelectTeleported"
             :reserve-keyword="false"
             :filter-method="handlePendingDepartmentFilter"
@@ -876,6 +905,21 @@
             />
           </el-select>
         </el-form-item>
+        <el-form-item label="Rank">
+          <el-input v-model="pendingHandleForm.rank" />
+        </el-form-item>
+        <el-form-item label="Email">
+          <el-input v-model="pendingHandleForm.email" disabled />
+        </el-form-item>
+        <el-form-item label="Contact No.">
+          <el-input v-model="pendingHandleForm.contact" />
+        </el-form-item>
+        <el-form-item label="Reason">
+          <el-input v-model="pendingHandleForm.reason" disabled />
+        </el-form-item>
+        <el-form-item v-if="pendingHandleForm.reason === 'EV booking'" label="Car Plate No.">
+          <el-input v-model="pendingHandleForm.carPlateNo" disabled />
+        </el-form-item>
         <el-form-item label="Role">
           <el-select
             v-model="pendingHandleForm.role"
@@ -887,12 +931,6 @@
           >
             <el-option v-for="r in roleOptions" :key="r" :label="r" :value="r" />
           </el-select>
-        </el-form-item>
-        <el-form-item label="Contact No.">
-          <el-input v-model="pendingHandleForm.contact" />
-        </el-form-item>
-        <el-form-item label="Email">
-          <el-input v-model="pendingHandleForm.email" disabled />
         </el-form-item>
         <el-form-item label="Initial Password">
           <el-input v-model="pendingHandleForm.password" type="text" autocomplete="new-password" />
@@ -1038,6 +1076,17 @@ function normalizeUserRow (u) {
   }
 }
 
+/** 搜索：匹配合并名、姓名拆分字段、工号、职级 */
+function matchesUserNameSearch (item, keyword) {
+  return (
+    String(item.name || '').toLowerCase().includes(keyword) ||
+    String(item.firstName || '').toLowerCase().includes(keyword) ||
+    String(item.lastName || '').toLowerCase().includes(keyword) ||
+    String(item.employeeNo || '').toLowerCase().includes(keyword) ||
+    String(item.rank || '').toLowerCase().includes(keyword)
+  )
+}
+
 /** 审批人展示：有名字且仍有账号时「姓名 (id)」；账号删除后 FK 为空则仅显示快照姓名 */
 function formatApproverDisplay (row) {
   const name = row.approverName ?? row.approver_name
@@ -1120,6 +1169,17 @@ const pendingApprovedList = ref([])
 const pendingRejectedList = ref([])
 
 const DEFAULT_PASSWORD = '123456'
+const PLATE_MAX_LENGTH = 8
+
+const sanitizePlateNumber = (raw) =>
+  String(raw ?? '')
+    .replace(/[^A-Za-z0-9]/g, '')
+    .slice(0, PLATE_MAX_LENGTH)
+    .toUpperCase()
+
+const onAddUserCarPlateInput = (val) => {
+  formData.value.carPlateNo = sanitizePlateNumber(val)
+}
 
 const resetPasswordForm = ref({
   password: DEFAULT_PASSWORD
@@ -1239,7 +1299,7 @@ const filteredUserList = computed(() => {
   if (!keyword) return base
   return base.filter(item =>
     String(item.corpId).toLowerCase().includes(keyword) ||
-    String(item.name).toLowerCase().includes(keyword) ||
+    matchesUserNameSearch(item, keyword) ||
     String(item.department).toLowerCase().includes(keyword) ||
     String(item.contact || '').toLowerCase().includes(keyword) ||
     String(item.email).toLowerCase().includes(keyword) ||
@@ -1285,6 +1345,11 @@ function formatDateTimeDisplay (value) {
   return `${y}-${m}-${day} ${h}:${min}:${s}`
 }
 
+function formatInactivedBy (row) {
+  const text = String(row?.inactivedBy || '').trim()
+  return text || '-'
+}
+
 const getSortValue = (row, key) => {
   switch (key) {
     case 'corpId':
@@ -1300,6 +1365,11 @@ const getSortValue = (row, key) => {
     case 'venueQuota':
       return Number(row.usedQuotaVenue || 0) * 10000 + Number(row.annualQuotaVenue || 0)
     case 'lastLoginTime':
+      return parseDateTimeForSort(row.lastLoginTime)
+    case 'inactiveTime':
+      return parseDateTimeForSort(row.inactiveTime)
+    case 'inactivedBy':
+      return formatInactivedBy(row)
     case 'submittedAt':
     case 'approvedAt':
       return parseDateTimeForSort(row.approvedAt ?? row.handledAt ?? row.handled_at)
@@ -1428,7 +1498,7 @@ const filteredExpiredList = computed(() => {
   if (!keyword) return base
   return base.filter(item =>
     String(item.corpId).toLowerCase().includes(keyword) ||
-    String(item.name).toLowerCase().includes(keyword) ||
+    matchesUserNameSearch(item, keyword) ||
     String(item.department).toLowerCase().includes(keyword) ||
     String(item.contact || '').toLowerCase().includes(keyword) ||
     String(item.email).toLowerCase().includes(keyword) ||
@@ -1505,7 +1575,7 @@ const filteredPendingList = computed(() => {
   if (!keyword) return pendingList.value
   return pendingList.value.filter(item =>
     String(item.corpId).toLowerCase().includes(keyword) ||
-    String(item.name).toLowerCase().includes(keyword) ||
+    matchesUserNameSearch(item, keyword) ||
     String(item.department).toLowerCase().includes(keyword) ||
     String(item.contactNo ?? item.contact ?? '').toLowerCase().includes(keyword) ||
     String(item.email).toLowerCase().includes(keyword)
@@ -1631,12 +1701,16 @@ const isVenueQuotaUnlimited = ref(false)
 
 const formData = ref({
   corpId: '',
-  name: '',
+  firstName: '',
+  lastName: '',
+  employeeNo: '',
+  rank: '',
   department: '',
   role: '',
   contact: '',
   email: '',
   password: DEFAULT_PASSWORD,
+  carPlateNo: '',
   annualQuotaEV: 0,
   annualQuotaVenue: 0,
   usedQuotaEV: 0,
@@ -1700,11 +1774,16 @@ const isPendingVenueQuotaUnlimited = ref(false)
 const pendingHandleForm = ref({
   id: null,
   corpId: '',
-  name: '',
+  firstName: '',
+  lastName: '',
+  employeeNo: '',
+  rank: '',
   department: '',
   role: '',
   contact: '',
   email: '',
+  reason: '',
+  carPlateNo: '',
   password: DEFAULT_PASSWORD,
   annualQuotaEV: 0,
   annualQuotaVenue: 0,
@@ -1847,18 +1926,23 @@ const formatQuotaDisplay = (used, annual) => {
 
 const handleExport = () => {
   const exportData = employeeList.value.map(item => ({
-    'Corp ID': item.corpId,
-    'Name': item.name,
-    'Department': item.department,
-    'Role': item.role,
-    'Contact No.': item.contact || '',
+    'CORP User ID': item.corpId,
+    'Employee No.': item.employeeNo || '',
+    'First Name': item.firstName || '',
+    'Last Name': item.lastName || '',
+    'Department / Unit': item.department,
+    'Rank': item.rank || '',
     'Email': item.email,
+    'Contact No.': item.contact || '',
+    'Role': item.role,
     'EV Quota': item.annualQuotaEV,
     'Used Quota (EV)': item.usedQuotaEV,
     'Venue Quota': item.annualQuotaVenue,
     'Used Quota (Venue)': item.usedQuotaVenue,
     'Status': item.status === 'active' ? 'Active' : item.status === 'inactive' ? 'Inactive' : 'Expired',
-    'Last login time': formatDateTimeDisplay(item.lastLoginTime)
+    'Last login time': formatDateTimeDisplay(item.lastLoginTime),
+    'Inactive Time': formatDateTimeDisplay(item.inactiveTime),
+    'Inactived By': formatInactivedBy(item)
   }))
 
   const ws = XLSX.utils.json_to_sheet(exportData)
@@ -1874,12 +1958,16 @@ const handleAdd = () => {
   isVenueQuotaUnlimited.value = false
   formData.value = {
     corpId: '',
-    name: '',
+    firstName: '',
+    lastName: '',
+    employeeNo: '',
+    rank: '',
     department: '',
     role: '',
     contact: '',
     email: '',
     password: DEFAULT_PASSWORD,
+    carPlateNo: '',
     annualQuotaEV: 0,
     annualQuotaVenue: 0,
     usedQuotaEV: 0,
@@ -1899,24 +1987,41 @@ const handleEdit = (row) => {
 
 const handleSave = async () => {
   try {
+    if (!String(formData.value.lastName || '').trim()) {
+      showNotice('Last Name is required', 'Warning')
+      return
+    }
     if (formMode.value === 'add') {
+      const carPlateNo = sanitizePlateNumber(formData.value.carPlateNo)
       await createUser({
         corpId: formData.value.corpId.trim(),
-        name: formData.value.name.trim(),
+        firstName: String(formData.value.firstName || '').trim(),
+        lastName: String(formData.value.lastName || '').trim(),
+        employeeNo: String(formData.value.employeeNo || '').trim(),
+        rank: String(formData.value.rank || '').trim(),
         department: formData.value.department || undefined,
         role: formData.value.role || undefined,
         contact: formData.value.contact,
         email: formData.value.email,
         password: formData.value.password,
+        carPlateNo: carPlateNo || undefined,
         annualQuotaEV: isEvQuotaUnlimited.value ? -1 : Number(formData.value.annualQuotaEV ?? 0),
         annualQuotaVenue: isVenueQuotaUnlimited.value ? -1 : Number(formData.value.annualQuotaVenue ?? 0),
         status: formData.value.status
       })
-      showNotice('User added successfully', 'Success')
+      showNotice(
+        carPlateNo
+          ? 'User added and license plate linked successfully'
+          : 'User added successfully',
+        'Success'
+      )
     } else {
       await updateUser(formData.value.id, {
         corpId: formData.value.corpId,
-        name: formData.value.name,
+        firstName: String(formData.value.firstName || '').trim(),
+        lastName: String(formData.value.lastName || '').trim(),
+        employeeNo: String(formData.value.employeeNo || '').trim(),
+        rank: String(formData.value.rank || '').trim(),
         department: formData.value.department || undefined,
         role: formData.value.role || undefined,
         contact: formData.value.contact,
@@ -2022,7 +2127,10 @@ const confirmPendingApprove = async () => {
   try {
     await approvePendingUser(data.id, {
       corpId: String(data.corpId || '').trim(),
-      name: String(data.name || '').trim(),
+      firstName: String(data.firstName || '').trim(),
+      lastName: String(data.lastName || '').trim(),
+      employeeNo: String(data.employeeNo || '').trim(),
+      rank: String(data.rank || '').trim(),
       department: data.department || undefined,
       role: data.role || undefined,
       contact: data.contact ?? '',
@@ -2354,6 +2462,12 @@ const confirmReject = async () => {
 }
 
 .page-content :deep(.el-table th .cell) {
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.page-content :deep(.el-table td .cell) {
   white-space: nowrap;
   overflow: visible;
   text-overflow: clip;

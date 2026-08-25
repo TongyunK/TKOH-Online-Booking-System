@@ -201,7 +201,7 @@ export class AccessRightService {
       return this.mapDepartment(created, 0);
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
-        throw new ConflictException('Department name already exists');
+        throw new ConflictException('Department / Unit name already exists');
       }
       throw e;
     }
@@ -210,7 +210,7 @@ export class AccessRightService {
   async updateDepartment(id: string, dto: UpdateDepartmentDto) {
     const deptId = BigInt(id);
     const exists = await this.prisma.departments.findUnique({ where: { id: deptId } });
-    if (!exists) throw new NotFoundException('Department not found');
+    if (!exists) throw new NotFoundException('Department / Unit not found');
     const oldName = exists.department_name;
     const newName =
       dto.departmentName !== undefined ? dto.departmentName.trim() : oldName;
@@ -254,7 +254,7 @@ export class AccessRightService {
       });
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
-        throw new ConflictException('Department name already exists');
+        throw new ConflictException('Department / Unit name already exists');
       }
       throw e;
     }
@@ -281,7 +281,7 @@ export class AccessRightService {
   async deleteDepartment(id: string) {
     const deptId = BigInt(id);
     const exists = await this.prisma.departments.findUnique({ where: { id: deptId } });
-    if (!exists) throw new NotFoundException('Department not found');
+    if (!exists) throw new NotFoundException('Department / Unit not found');
     const cnt = await this.prisma.user.count({
       where: {
         departmentId: deptId,

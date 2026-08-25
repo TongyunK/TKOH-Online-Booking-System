@@ -7,7 +7,7 @@
           <font-awesome-icon :icon="['fas', 'file-excel']" /> Export Excel
         </el-button>
         <el-button type="default" class="submit-btn" @click="handleAdd">
-          <font-awesome-icon :icon="['fas', 'plus']" /> {{ activeTab === 'role' ? 'Add Role' : 'Add Department' }}
+          <font-awesome-icon :icon="['fas', 'plus']" /> {{ activeTab === 'role' ? 'Add Role' : 'Add Department / Unit' }}
         </el-button>
       </div>
     </div>
@@ -196,7 +196,7 @@
       max-width="500px"
     >
       <el-form :model="formData" label-width="160px">
-        <el-form-item :label="activeTab === 'role' ? 'Role Name' : 'Department Name'">
+        <el-form-item :label="activeTab === 'role' ? 'Role Name' : 'Department / Unit Name'">
           <el-input v-model="formData.name" />
         </el-form-item>
         <el-form-item label="Description">
@@ -224,7 +224,7 @@
     </BookingStyleModal>
 
     <BookingStyleModal v-model="showDeleteDialog" title="Confirm Delete" max-width="450px">
-      <p>Are you sure you want to delete this {{ activeTab === 'role' ? 'role' : 'department' }}?</p>
+      <p>Are you sure you want to delete this {{ activeTab === 'role' ? 'role' : 'department / unit' }}?</p>
       <template #footer>
         <el-button type="default" class="cancel-btn" @click="showDeleteDialog = false">Cancel</el-button>
         <el-button type="default" class="action-btn action-delete" @click="confirmDelete">Delete</el-button>
@@ -448,7 +448,7 @@ const getFormTitle = computed(() => {
   if (activeTab.value === 'role') {
     return formMode.value === 'add' ? 'Add Role' : 'Edit Role'
   } else {
-    return formMode.value === 'add' ? 'Add Department' : 'Edit Department'
+    return formMode.value === 'add' ? 'Add Department / Unit' : 'Edit Department / Unit'
   }
 })
 
@@ -507,7 +507,7 @@ const handleExport = () => {
     XLSX.writeFile(wb, `Role_Management_${new Date().toISOString().split('T')[0]}.xlsx`)
   } else {
     const exportData = departmentList.value.map(item => ({
-      'Department Name': item.departmentName,
+      'Department / Unit Name': item.departmentName,
       'Description': item.description,
       'User Count': item.employeeCount
     }))
@@ -570,15 +570,15 @@ const handleSave = async () => {
         description: String(formData.value.description || '').trim()
       }
       if (!deptPayload.departmentName) {
-        showNotice('Please enter a department name', 'Warning')
+        showNotice('Please enter a department / unit name', 'Warning')
         return
       }
       if (formMode.value === 'add') {
         await createAccessDepartment(deptPayload)
-        showNotice('Department added successfully', 'Success')
+        showNotice('Department / Unit added successfully', 'Success')
       } else {
         await updateAccessDepartment(formData.value.id, deptPayload)
-        showNotice('Department updated successfully', 'Success')
+        showNotice('Department / Unit updated successfully', 'Success')
       }
     }
     showForm.value = false
