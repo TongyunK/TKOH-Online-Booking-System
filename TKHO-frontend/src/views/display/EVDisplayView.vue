@@ -267,26 +267,34 @@ watch(footerTickerDisplayText, () => {
   nextTick(() => syncTickerScrollMode())
 })
 
-onMounted(async () => {
+onMounted(() => {
   document.documentElement.classList.add('ev-display-fullscreen')
-  try {
-    await refreshDisplayData()
-  } catch {
-    footerTickerText.value = ''
-    timePeriods.value = []
-    parkingSpaces.value = []
-    bookings.value = []
-    lastDisplayYmd = todayYmdInAppTimeZone()
-  }
-  startClock()
-  dataPollTimer = setInterval(pollDisplayDataFromServer, DATA_POLL_MS)
-  document.addEventListener('visibilitychange', onDocumentVisibilityChange)
+  // 与 Merge 一致：先立刻等比缩放，再异步拉数（避免云端接口慢时一直停在旧的铺满布局）
   adaptFullscreen()
   window.addEventListener('resize', adaptFullscreen)
   window.visualViewport?.addEventListener('resize', adaptFullscreen)
-  await nextTick()
-  syncTickerScrollMode()
-  setupTickerResizeObserver()
+  void refreshDisplayData()
+    .catch(() => {
+      footerTickerText.value = ''
+      timePeriods.value = []
+      parkingSpaces.value = []
+      bookings.value = []
+      lastDisplayYmd = todayYmdInAppTimeZone()
+    })
+    .finally(() => {
+      nextTick(() => {
+        adaptFullscreen()
+        syncTickerScrollMode()
+      })
+    })
+  startClock()
+  dataPollTimer = setInterval(pollDisplayDataFromServer, DATA_POLL_MS)
+  document.addEventListener('visibilitychange', onDocumentVisibilityChange)
+  nextTick(() => {
+    adaptFullscreen()
+    syncTickerScrollMode()
+    setupTickerResizeObserver()
+  })
   const viewport = document.querySelector('meta[name="viewport"]')
   if (viewport) {
     viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no')

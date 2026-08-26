@@ -10,7 +10,13 @@
       <img :src="tipsIconSrc" alt="" class="tips-icon" />
     </button>
 
-    <BookingStyleModal v-model="dialogVisible" title="Points to Note" max-width="900px">
+    <BookingStyleModal
+      v-model="dialogVisible"
+      title="Points to Note"
+      max-width="1060px"
+      :max-height="pointsToNoteMaxHeight"
+      :overlay-padding="pointsToNoteOverlayPadding"
+    >
       <div class="help-content">
         <p v-if="pointsToNoteLoading" class="empty-note">Loading...</p>
         <div
@@ -25,7 +31,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getMockPromptList } from '@/mocks/mockData'
@@ -44,6 +50,20 @@ const route = useRoute()
 const userStore = useUserStore()
 const dialogVisible = ref(false)
 const tipsIconSrc = `${import.meta.env.BASE_URL}tips.png`
+/** 与 style.css 14" html zoom:0.8 断点一致 */
+const POINTS_TO_NOTE_MQ = '(min-width: 1100px) and (max-width: 1599px)'
+const pointsToNoteMaxHeight = ref('94vh')
+const pointsToNoteOverlayPadding = ref('24px 28px')
+let pointsToNoteMq = null
+
+function updatePointsToNoteModalLayout () {
+  if (typeof window === 'undefined') return
+  const is14Inch = window.matchMedia(POINTS_TO_NOTE_MQ).matches
+  // zoom 0.8 下 CSS vh 视觉偏矮；用更大 vh 折算后接近满屏，并略减遮罩内边距
+  pointsToNoteMaxHeight.value = is14Inch ? '110vh' : '94vh'
+  pointsToNoteOverlayPadding.value = is14Inch ? '8px 20px' : '24px 28px'
+}
+
 const POINTS_TO_NOTE_KEYS = {
   parking: 'ev_booking_points_to_note',
   room: 'venue_booking_points_to_note'
@@ -131,6 +151,16 @@ const currentPointsToNoteContent = computed(() => {
 
 onMounted(() => {
   loadPointsToNote()
+  updatePointsToNoteModalLayout()
+  if (typeof window !== 'undefined') {
+    pointsToNoteMq = window.matchMedia(POINTS_TO_NOTE_MQ)
+    pointsToNoteMq.addEventListener('change', updatePointsToNoteModalLayout)
+  }
+})
+
+onUnmounted(() => {
+  pointsToNoteMq?.removeEventListener('change', updatePointsToNoteModalLayout)
+  pointsToNoteMq = null
 })
 </script>
 

@@ -280,7 +280,7 @@
       </div>
     </div>
 
-    <BookingStyleModal v-model="showNoticeDialog" :title="noticeTitle" max-width="420px">
+    <BookingStyleModal v-model="showNoticeDialog" :title="noticeTitle" max-width="560px">
       <p class="notice-message">{{ noticeMessage }}</p>
       <template #footer>
         <el-button type="default" class="submit-btn" @click="showNoticeDialog = false">OK</el-button>

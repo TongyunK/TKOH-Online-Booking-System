@@ -25,6 +25,7 @@ export function collectVenueImagesByTab (venues, tab) {
     .filter((v) => String(v.image || '').trim())
     .map((v) => ({
       src: v.image,
+      name: v.name || v.nameZh || 'Venue',
       alt: v.name || v.nameZh || 'Venue'
     }))
 }
