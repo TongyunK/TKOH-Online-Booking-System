@@ -179,7 +179,7 @@
             />
             <p class="field-hint">
               Maximum units for Meeting / Event Title on venue bookings.
-              Each Chinese character (汉字) counts as <strong>2</strong> units; other characters count as <strong>1</strong>.
+              Each Chinese character counts as <strong>2</strong> units; other characters count as <strong>1</strong>.
             </p>
           </div>
         </section>
