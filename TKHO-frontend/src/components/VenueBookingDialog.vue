@@ -149,17 +149,12 @@
                 :rules="topicRules"
                 class="topic-item no-wrap-label"
               >
-                <el-input
+                <MeetingEventTitleInput
                   v-model="form.topic"
-                  type="textarea"
-                  :autosize="{ minRows: 1, maxRows: 4 }"
-                  resize="none"
-                  class="meeting-title-textarea"
+                  :max-units="meetingEventTitleMaxLength"
                   placeholder="e.g. Quarterly Performance"
-                  :maxlength="meetingEventTitleMaxLength"
-                  show-word-limit
                   :disabled="isApprovedOnlyNote"
-                ></el-input>
+                />
               </el-form-item>
 
               <el-form-item v-if="showMyNoteField" label="My Note" prop="remark" class="no-wrap-label">
@@ -469,6 +464,7 @@ import { storeToRefs } from 'pinia'
 import BookingStyleModal from '@/components/BookingStyleModal.vue'
 import ReservedByUserField from '@/components/ReservedByUserField.vue'
 import VenueTimePicker from '@/components/VenueTimePicker.vue'
+import MeetingEventTitleInput from '@/components/MeetingEventTitleInput.vue'
 import { InfoFilled } from '@element-plus/icons-vue'
 import { getPrompts } from '@/api/promptManagement'
 import { checkRoomAvailability } from '@/api/calendar'
@@ -488,7 +484,7 @@ import { pickPromptTooltipText } from '@/utils/promptTooltip'
 import {
   DEFAULT_MEETING_EVENT_TITLE_MAX_LENGTH,
   fetchMeetingEventTitleMaxLength,
-  meetingEventTitleTooLongMessage
+  createMeetingEventTitleMaxRule
 } from '@/utils/meetingEventTitleMaxLength'
 
 const props = defineProps({
@@ -818,11 +814,7 @@ onUnmounted(() => {
 const meetingEventTitleMaxLength = ref(DEFAULT_MEETING_EVENT_TITLE_MAX_LENGTH)
 const topicRules = computed(() => [
   { required: true, message: 'Please enter topic' },
-  {
-    max: meetingEventTitleMaxLength.value,
-    message: meetingEventTitleTooLongMessage(meetingEventTitleMaxLength.value),
-    trigger: 'blur'
-  }
+  createMeetingEventTitleMaxRule(() => meetingEventTitleMaxLength.value)
 ])
 
 const form = ref({

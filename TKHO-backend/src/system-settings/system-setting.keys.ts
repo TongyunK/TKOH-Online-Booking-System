@@ -12,6 +12,10 @@ export const SystemSettingKey = {
   dataBackupTimeSpan: 'data_backup_time_span',
   dataBackupEmailInterval: 'data_backup_email_interval',
   dataBackupEmailSendTime: 'data_backup_email_send_time',
+  /** Merge 大屏：场地/会议翻页间隔（毫秒） */
+  mergeDisplayRotateIntervalMs: 'merge_display_rotate_interval_ms',
+  /** Merge 大屏：底部 ticker 一整轮滚动时长（秒） */
+  mergeDisplayTickerDurationSeconds: 'merge_display_ticker_duration_seconds',
 } as const;
 
 export type SystemSettingKeyName =
@@ -22,6 +26,8 @@ export const SYSTEM_SETTING_HIDDEN_KEYS: SystemSettingKeyName[] = [
   SystemSettingKey.dataBackupSendingEmail,
   SystemSettingKey.dataBackupSendingEmailHost,
   SystemSettingKey.dataBackupSendingEmailPassword,
+  SystemSettingKey.mergeDisplayRotateIntervalMs,
+  SystemSettingKey.mergeDisplayTickerDurationSeconds,
 ];
 
 export const SYSTEM_SETTING_DEFAULTS: Record<SystemSettingKeyName, string> = {
@@ -39,6 +45,8 @@ export const SYSTEM_SETTING_DEFAULTS: Record<SystemSettingKeyName, string> = {
   [SystemSettingKey.dataBackupTimeSpan]: '14',
   [SystemSettingKey.dataBackupEmailInterval]: 'daily',
   [SystemSettingKey.dataBackupEmailSendTime]: '09:00',
+  [SystemSettingKey.mergeDisplayRotateIntervalMs]: '8000',
+  [SystemSettingKey.mergeDisplayTickerDurationSeconds]: '40',
 };
 
 export const SYSTEM_SETTING_DESCRIPTIONS: Record<SystemSettingKeyName, string> =
@@ -54,7 +62,7 @@ export const SYSTEM_SETTING_DESCRIPTIONS: Record<SystemSettingKeyName, string> =
     [SystemSettingKey.venueBookingMinGapMinutes]:
       'Minimum gap in minutes between consecutive bookings of the same venue (for cleaning turnaround)',
     [SystemSettingKey.venueMeetingEventTitleMaxLength]:
-      'Maximum characters allowed for Venue Meeting / Event Title',
+      'Maximum units for Venue Meeting / Event Title (each Chinese character counts as 2; other characters count as 1)',
     [SystemSettingKey.dataBackupReceivingEmail]:
       'Email address that receives scheduled data backup reports',
     [SystemSettingKey.dataBackupSendingEmail]:
@@ -69,6 +77,10 @@ export const SYSTEM_SETTING_DESCRIPTIONS: Record<SystemSettingKeyName, string> =
       'How often backup emails are sent (daily, weekly, monthly)',
     [SystemSettingKey.dataBackupEmailSendTime]:
       'Time of day (HH:mm, Hong Kong) to send backup emails',
+    [SystemSettingKey.mergeDisplayRotateIntervalMs]:
+      'Venue Merge display: interval in ms between venue/meeting page rotations (admin UI hidden)',
+    [SystemSettingKey.mergeDisplayTickerDurationSeconds]:
+      'Venue Merge display: footer ticker full-loop duration in seconds (admin UI hidden)',
   };
 
 export const DATA_BACKUP_EMAIL_INTERVALS = ['daily', 'weekly', 'monthly'] as const;

@@ -580,8 +580,10 @@
           <el-input v-model="handleForm.venueName" disabled />
         </el-form-item>
         <el-form-item label="Meeting / Event Title" class="no-wrap-label">
-          <el-input v-model="handleForm.meetingTitle" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }"
-            resize="none" class="meeting-title-textarea" :maxlength="meetingEventTitleMaxLength" show-word-limit />
+          <MeetingEventTitleInput
+            v-model="handleForm.meetingTitle"
+            :max-units="meetingEventTitleMaxLength"
+          />
         </el-form-item>
         <el-form-item label="Date">
           <el-input v-model="handleForm.date" disabled />
@@ -644,6 +646,7 @@ import { storeToRefs } from 'pinia'
 import * as XLSX from 'xlsx'
 import BookingStyleModal from '@/components/BookingStyleModal.vue'
 import SortableFilterHeader from '@/components/admin/SortableFilterHeader.vue'
+import MeetingEventTitleInput from '@/components/MeetingEventTitleInput.vue'
 import { useAdminStore } from '@/stores/admin'
 import {
   getPendingBookings,
@@ -656,7 +659,8 @@ import { formatTeaServiceDisplay, stripTeaServiceSpecialSuffix } from '@/utils/v
 import {
   DEFAULT_MEETING_EVENT_TITLE_MAX_LENGTH,
   fetchMeetingEventTitleMaxLength,
-  meetingEventTitleTooLongMessage
+  meetingEventTitleTooLongMessage,
+  isMeetingEventTitleTooLong
 } from '@/utils/meetingEventTitleMaxLength'
 
 const adminStore = useAdminStore()
@@ -1370,7 +1374,7 @@ const confirmHandleApprove = async () => {
   if (!currentHandleRow.value) return
   const row = currentHandleRow.value
   const meetingTitle = handleForm.value.meetingTitle?.trim() || undefined
-  if (meetingTitle && meetingTitle.length > meetingEventTitleMaxLength.value) {
+  if (meetingTitle && isMeetingEventTitleTooLong(meetingTitle, meetingEventTitleMaxLength.value)) {
     showNotice(meetingEventTitleTooLongMessage(meetingEventTitleMaxLength.value), 'Warning')
     return
   }

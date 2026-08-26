@@ -5,6 +5,7 @@ import {
   encryptSettingSecret,
   isEncryptedSettingSecret,
 } from '../common/settings-secret.crypto';
+import { getMeetingEventTitleUnitLength } from '../common/meeting-event-title-length';
 import { UpdateSystemSettingsDto } from './dto/update-system-settings.dto';
 import {
   SYSTEM_SETTING_DEFAULTS,
@@ -98,6 +99,18 @@ export class SystemSettingsService {
   private parseVenueMeetingEventTitleMaxLength(raw: string): number | null {
     const value = Number.parseInt(String(raw ?? '').trim(), 10);
     if (Number.isFinite(value) && value >= 1 && value <= 500) return value;
+    return null;
+  }
+
+  private parseMergeDisplayRotateIntervalMs(raw: string): number | null {
+    const value = Number.parseInt(String(raw ?? '').trim(), 10);
+    if (Number.isFinite(value) && value >= 1000 && value <= 120_000) return value;
+    return null;
+  }
+
+  private parseMergeDisplayTickerDurationSeconds(raw: string): number | null {
+    const value = Number.parseInt(String(raw ?? '').trim(), 10);
+    if (Number.isFinite(value) && value >= 5 && value <= 300) return value;
     return null;
   }
 
@@ -270,15 +283,47 @@ export class SystemSettingsService {
     );
   }
 
+  async getMergeDisplayRotateIntervalMs(): Promise<number> {
+    const map = await this.ensureDefaultSettings();
+    return (
+      this.parseMergeDisplayRotateIntervalMs(
+        this.getSetting(map, SystemSettingKey.mergeDisplayRotateIntervalMs),
+      ) ??
+      Number.parseInt(
+        SYSTEM_SETTING_DEFAULTS[SystemSettingKey.mergeDisplayRotateIntervalMs],
+        10,
+      )
+    );
+  }
+
+  async getMergeDisplayTickerDurationSeconds(): Promise<number> {
+    const map = await this.ensureDefaultSettings();
+    return (
+      this.parseMergeDisplayTickerDurationSeconds(
+        this.getSetting(
+          map,
+          SystemSettingKey.mergeDisplayTickerDurationSeconds,
+        ),
+      ) ??
+      Number.parseInt(
+        SYSTEM_SETTING_DEFAULTS[
+          SystemSettingKey.mergeDisplayTickerDurationSeconds
+        ],
+        10,
+      )
+    );
+  }
+
   async assertMeetingEventTitleLength(
     title: string | null | undefined,
   ): Promise<void> {
     const value = String(title ?? '').trim();
     if (!value) return;
     const maxLength = await this.getVenueMeetingEventTitleMaxLength();
-    if (value.length > maxLength) {
+    const unitLength = getMeetingEventTitleUnitLength(value);
+    if (unitLength > maxLength) {
       throw new BadRequestException(
-        `Meeting / Event Title must be at most ${maxLength} characters`,
+        `Meeting / Event Title must be at most ${maxLength} units (each Chinese character counts as 2)`,
       );
     }
   }

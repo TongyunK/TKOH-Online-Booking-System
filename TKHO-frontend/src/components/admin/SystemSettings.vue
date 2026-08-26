@@ -162,12 +162,12 @@
             </div>
             <span class="value-pill value-pill--green">
               <span class="value-pill-label">Current</span>
-              <span class="value-pill-text">{{ saved.venueMeetingEventTitleMaxLength }} chars</span>
+              <span class="value-pill-text">{{ saved.venueMeetingEventTitleMaxLength }} units</span>
             </span>
           </div>
 
           <div class="setting-card-body">
-            <label class="field-label" for="venue-meeting-event-title-max">Max length (characters)</label>
+            <label class="field-label" for="venue-meeting-event-title-max">Max length (units)</label>
             <el-input-number
               id="venue-meeting-event-title-max"
               v-model="form.venueMeetingEventTitleMaxLength"
@@ -177,7 +177,10 @@
               controls-position="right"
               class="field-control"
             />
-            <p class="field-hint">Maximum characters for Meeting / Event Title on venue bookings.</p>
+            <p class="field-hint">
+              Maximum units for Meeting / Event Title on venue bookings.
+              Each Chinese character (汉字) counts as <strong>2</strong> units; other characters count as <strong>1</strong>.
+            </p>
           </div>
         </section>
 

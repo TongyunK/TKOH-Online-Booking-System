@@ -1,29 +1,32 @@
 <template>
-  <div ref="displayRoot" class="ev-display-root">
-    <div class="ev-display-stage">
-      <div class="top-date-bar">
-        <span class="top-date-text">{{ currentDateLabel }}</span>
-      </div>
-
-      <div class="main-board">
-        <div class="board-header">
-          <div class="board-title-line">
-            <span class="board-title-en">Today's Reservation</span>
-            <span class="board-title-zh">今日預約車牌</span>
-          </div>
-          <div class="board-subtitle-line">
-            <span class="board-subtitle-en">EV Charging Station</span>
-            <span class="board-subtitle-zh">電動車叉電位</span>
-          </div>
+  <!-- 视口铺满；内部固定 1920×1080 设计稿，整体 transform 等比缩放并居中 -->
+  <div ref="displayViewport" class="ev-display-viewport">
+    <div ref="displayRoot" class="ev-display-root">
+      <div class="ev-display-stage">
+        <div class="top-date-bar">
+          <span class="top-date-text">{{ currentDateLabel }}</span>
         </div>
 
-        <div class="board-content">
-          <div class="left-time-panel">
+        <div class="main-board">
+          <div class="board-header">
+            <div class="board-title-line">
+              <span class="board-title-en">Today's Reservation</span>
+              <span class="board-title-zh">今日預約車牌</span>
+            </div>
+            <div class="board-subtitle-line">
+              <span class="board-subtitle-en">EV Charging Station</span>
+              <span class="board-subtitle-zh">電動車叉電位</span>
+            </div>
+          </div>
+
+          <div class="board-content" :style="boardContentStyle">
             <div class="current-time">{{ currentTimeLabel }}</div>
+
             <div
-              v-for="period in timePeriods"
+              v-for="(period, index) in timePeriods"
               :key="period.period"
               class="period-card"
+              :style="{ gridRow: index + 2 }"
             >
               <div class="period-label-line">
                 <span class="period-name">{{ period.period }}</span>
@@ -31,36 +34,36 @@
               </div>
               <div class="period-range">{{ period.startTime }}-{{ period.endTime }}</div>
             </div>
-          </div>
 
-          <div class="right-grid-panel" :style="spaceGridStyle">
-            <div class="space-header-row">
-              <div v-for="space in spaces" :key="space" class="space-header-cell">
-                <span class="space-name">{{ space }}</span>
-                <img class="space-icon" :src="evDisplayIcon" alt="" aria-hidden="true">
+            <div class="right-grid-panel">
+              <div class="space-header-row">
+                <div v-for="space in spaces" :key="space" class="space-header-cell">
+                  <span class="space-name">{{ space }}</span>
+                  <img class="space-icon" :src="evDisplayIcon" alt="" aria-hidden="true">
+                </div>
               </div>
-            </div>
 
-            <div
-              v-for="period in timePeriods"
-              :key="`row-${period.period}`"
-              class="plate-row"
-            >
               <div
-                v-for="space in spaces"
-                :key="`${period.period}-${space}`"
-                class="plate-cell"
+                v-for="period in timePeriods"
+                :key="`row-${period.period}`"
+                class="plate-row"
               >
-                {{ getPlate(period.period, space) }}
+                <div
+                  v-for="space in spaces"
+                  :key="`${period.period}-${space}`"
+                  class="plate-cell"
+                >
+                  <span class="plate-text">{{ getPlate(period.period, space) }}</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div ref="tickerContainerRef" class="ev-footer-ticker" :class="{ 'ticker-static': !tickerScroll }">
-          <div class="ticker-track" :class="{ 'is-scrolling': tickerScroll }">
-            <span ref="tickerMeasureRef" class="ticker-text">{{ footerTickerDisplayText }}</span>
-            <span v-if="tickerScroll" class="ticker-text" aria-hidden="true">{{ footerTickerDisplayText }}</span>
+          <div ref="tickerContainerRef" class="ev-footer-ticker" :class="{ 'ticker-static': !tickerScroll }">
+            <div class="ticker-track" :class="{ 'is-scrolling': tickerScroll }">
+              <span ref="tickerMeasureRef" class="ticker-text">{{ footerTickerDisplayText }}</span>
+              <span v-if="tickerScroll" class="ticker-text" aria-hidden="true">{{ footerTickerDisplayText }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -96,7 +99,10 @@ const footerTickerDisplayText = computed(() => footerTickerText.value || DEFAULT
 const tickerScroll = ref(false)
 const tickerContainerRef = ref(null)
 const tickerMeasureRef = ref(null)
+const displayViewport = ref(null)
 const displayRoot = ref(null)
+
+/** 固定设计稿；任意分辨率用同一比例整体缩放，保证观感一致 */
 const BASE_WIDTH = 1920
 const BASE_HEIGHT = 1080
 
@@ -106,8 +112,12 @@ const spaces = computed(() =>
     .filter(Boolean)
 )
 
-const spaceGridStyle = computed(() => ({
-  '--space-count': String(Math.max(spaces.value.length, 1))
+const boardRowCount = computed(() => Math.max(timePeriods.value.length, 1) + 1)
+
+const boardContentStyle = computed(() => ({
+  '--space-count': String(Math.max(spaces.value.length, 1)),
+  '--board-rows': String(boardRowCount.value),
+  gridTemplateRows: `repeat(${boardRowCount.value}, minmax(0, 1fr))`
 }))
 
 function normalizeParkingSlots (rows) {
@@ -173,7 +183,6 @@ function setupTickerResizeObserver () {
   tickerResizeObserver.observe(container)
 }
 
-/** 展示数据轮询（标签可见时），预订/配置变更后自动上屏 */
 const DATA_POLL_MS = 20_000
 
 let clockTimer = null
@@ -231,24 +240,26 @@ function getPlate (period, space) {
   return matched?.licensePlate || '-'
 }
 
+/** 设计稿等比缩放并居中；比例不同时留同色边条，不拉伸变形 */
 function adaptFullscreen () {
   const root = displayRoot.value
   if (!root) return
+
   const viewportScale = window.visualViewport?.scale || 1
   const zoomCompensation = viewportScale > 0 ? viewportScale : 1
   const vw = (window.innerWidth || BASE_WIDTH) * zoomCompensation
   const vh = (window.innerHeight || BASE_HEIGHT) * zoomCompensation
-  const widthScale = vw / BASE_WIDTH
-  const heightScale = vh / BASE_HEIGHT
-  const baseScale = Math.min(widthScale, heightScale)
-  const safeScale = baseScale > 0 ? baseScale : 1
-  const ratio = heightScale / Math.max(safeScale, 0.0001)
-  const textCompensation = Math.min(1.4, Math.max(1, Math.pow(ratio, 0.58)))
-  const textBoost = 1.32 * textCompensation
-  const spaceScale = Math.max(0.76, 1 - ((textCompensation - 1) * 0.7))
-  root.style.setProperty('--ui-scale', String(safeScale))
-  root.style.setProperty('--text-scale-boost', String(textBoost))
-  root.style.setProperty('--space-scale', String(spaceScale))
+  const scale = Math.min(vw / BASE_WIDTH, vh / BASE_HEIGHT) || 1
+  const offsetX = (vw - BASE_WIDTH * scale) / 2
+  const offsetY = (vh - BASE_HEIGHT * scale) / 2
+
+  root.style.width = `${BASE_WIDTH}px`
+  root.style.height = `${BASE_HEIGHT}px`
+  root.style.transform = `scale(${scale})`
+  root.style.transformOrigin = 'top left'
+  root.style.left = `${offsetX}px`
+  root.style.top = `${offsetY}px`
+
   syncTickerScrollMode()
 }
 
@@ -257,6 +268,7 @@ watch(footerTickerDisplayText, () => {
 })
 
 onMounted(async () => {
+  document.documentElement.classList.add('ev-display-fullscreen')
   try {
     await refreshDisplayData()
   } catch {
@@ -275,9 +287,14 @@ onMounted(async () => {
   await nextTick()
   syncTickerScrollMode()
   setupTickerResizeObserver()
+  const viewport = document.querySelector('meta[name="viewport"]')
+  if (viewport) {
+    viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no')
+  }
 })
 
 onUnmounted(() => {
+  document.documentElement.classList.remove('ev-display-fullscreen')
   stopClock()
   tickerResizeObserver?.disconnect()
   if (dataPollTimer) clearInterval(dataPollTimer)
@@ -287,30 +304,51 @@ onUnmounted(() => {
 })
 </script>
 
+<style>
+html.ev-display-fullscreen {
+  zoom: 1 !important;
+}
+
+html.ev-display-fullscreen #app {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 100vh !important;
+  max-width: none !important;
+  margin: 0 !important;
+  background-color: transparent !important;
+  overflow: hidden !important;
+}
+</style>
+
 <style scoped>
 :global(html),
 :global(body) {
   margin: 0;
   width: 100%;
   height: 100%;
+  overflow: hidden;
+}
+
+.ev-display-viewport {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #8fce4c;
+  user-select: none;
+  touch-action: none;
 }
 
 .ev-display-root {
-  --ui-scale: 1;
-  --text-scale-boost: 1.32;
-  --space-scale: 1;
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
-  min-width: 100vw;
-  min-height: 100vh;
+  width: 1920px;
+  height: 1080px;
   overflow: hidden;
   background: #8fce4c;
   color: #ffffff;
   font-family: Arial, Helvetica, sans-serif;
-  user-select: none;
+  transform-origin: top left;
 }
 
 .ev-display-stage {
@@ -321,41 +359,48 @@ onUnmounted(() => {
 }
 
 .top-date-bar {
+  /* 与底部提示条等高 */
+  height: 88px;
+  min-height: 88px;
   background: #8fce4c;
-  padding: calc(22px * var(--ui-scale) * var(--space-scale)) calc(22px * var(--ui-scale) * var(--space-scale));
-  min-height: calc(92px * var(--ui-scale));
-  font-size: calc(32px * var(--ui-scale) * var(--text-scale-boost));
-  line-height: 1.3;
+  padding: 0 24px;
+  font-size: 40px;
+  line-height: 1;
   font-weight: 600;
   color: #f3ffe2;
   display: flex;
   align-items: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .top-date-text {
   display: inline-block;
-  letter-spacing: calc(0.6px * var(--ui-scale));
-  transform: scaleY(1.05);
-  transform-origin: left center;
+  letter-spacing: 0.6px;
 }
 
 .main-board {
-  margin: 0 auto;
+  margin: 0;
   width: 100%;
   flex: 1;
+  min-height: 0;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) minmax(0, 4fr) auto;
+  /* 标题区 / 表格 / 底栏；间距用各块 margin 分开控制（红区小、蓝区大） */
+  grid-template-rows: auto minmax(0, 1fr) auto;
   background: #08b145;
-  padding: calc(8px * var(--ui-scale) * var(--space-scale)) calc(14px * var(--ui-scale) * var(--space-scale)) calc(10px * var(--ui-scale) * var(--space-scale));
+  padding: 0 24px;
   box-sizing: border-box;
 }
 
 .board-header {
   min-height: 0;
+  height: 148px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: calc(18px * var(--ui-scale) * var(--space-scale));
+  gap: 8px;
+  padding-block: 8px 4px;
+  box-sizing: border-box;
 }
 
 .board-title-line,
@@ -363,95 +408,85 @@ onUnmounted(() => {
   display: flex;
   align-items: baseline;
   justify-content: center;
-  gap: calc(20px * var(--ui-scale) * var(--space-scale));
+  flex-wrap: wrap;
+  gap: 18px;
   text-align: center;
 }
 
-.board-title-line {
-  margin-bottom: 0;
-}
-
-.board-subtitle-line {
-  margin-bottom: 0;
-}
-
-.board-title-en,
-.board-title-zh {
-  font-weight: 800;
-}
-
 .board-title-en {
-  font-size: calc(56px * var(--ui-scale) * var(--text-scale-boost));
-  line-height: 1.12;
+  font-size: 68px;
+  line-height: 1.05;
   font-weight: 700;
-  letter-spacing: calc(0.6px * var(--ui-scale));
-  display: inline-block;
-  transform: scaleY(1.05);
+  letter-spacing: 0.6px;
 }
 
 .board-title-zh {
-  font-size: calc(54px * var(--ui-scale) * var(--text-scale-boost));
+  font-size: 66px;
   line-height: 1.05;
+  font-weight: 800;
 }
 
 .board-subtitle-en,
 .board-subtitle-zh {
-  font-size: calc(40px * var(--ui-scale) * var(--text-scale-boost));
-  line-height: 1.1;
+  font-size: 46px;
+  line-height: 1.05;
   font-weight: 400;
 }
 
 .board-content {
   display: grid;
-  grid-template-columns: minmax(0, 0.18fr) minmax(0, 0.82fr);
-  gap: calc(2px * var(--ui-scale) * var(--space-scale));
+  grid-template-columns: max-content minmax(0, 1fr);
+  grid-template-rows: repeat(var(--board-rows, 4), minmax(0, 1fr));
+  column-gap: 4px;
   min-height: 0;
-}
-
-
-.left-time-panel {
-  display: grid;
-  grid-template-rows: repeat(4, minmax(0, 1fr));
-  min-height: 0;
-  padding-left: calc(20px * var(--ui-scale) * var(--space-scale));
-  box-sizing: border-box;
+  align-items: stretch;
+  /* 红区：标题与表格更贴 */
+  margin-top: 0;
 }
 
 .current-time {
-  font-size: calc(92px * var(--ui-scale) * var(--text-scale-boost));
+  grid-column: 1;
+  grid-row: 1;
+  font-size: 112px;
   color: #ffd84f;
   font-weight: 700;
-  line-height: 1.08;
-  letter-spacing: calc(1px * var(--ui-scale));
+  line-height: 1;
+  letter-spacing: 1px;
   display: flex;
   align-items: center;
-  transform: scaleY(1.05);
-  transform-origin: left center;
+  padding-left: 4px;
+  padding-right: 8px;
+  box-sizing: border-box;
 }
 
 .period-card {
+  grid-column: 1;
   color: #ffffff;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: calc(12px * var(--ui-scale) * var(--space-scale));
+  gap: 8px;
+  padding-left: 4px;
+  padding-right: 8px;
+  box-sizing: border-box;
+  min-height: 0;
 }
 
 .period-label-line {
   display: flex;
   align-items: baseline;
-  gap: calc(12px * var(--ui-scale) * var(--space-scale));
+  gap: 10px;
   white-space: nowrap;
 }
 
 .period-name {
-  font-size: calc(40px * var(--ui-scale) * var(--text-scale-boost));
+  font-size: 52px;
   line-height: 1;
   font-weight: 600;
 }
 
 .period-name-zh {
-  font-size: calc(40px * var(--ui-scale) * var(--text-scale-boost));
+  font-size: 50px;
   line-height: 0;
   font-weight: 600;
   flex-shrink: 0;
@@ -459,120 +494,130 @@ onUnmounted(() => {
 }
 
 .period-range {
-  font-size: calc(40px * var(--ui-scale) * var(--text-scale-boost));
+  font-size: 52px;
   line-height: 1.1;
   font-weight: 600;
   white-space: nowrap;
 }
 
 .right-grid-panel {
-  margin-left: 0;
-  margin-right: calc(12px * var(--ui-scale) * var(--space-scale));
-  margin-bottom: 0;
-  border: calc(8px * var(--ui-scale)) solid #9ccf62;
-  border-radius: 90px;
-  padding: calc(8px * var(--ui-scale) * var(--space-scale)) calc(12px * var(--ui-scale) * var(--space-scale));
-  min-height: 0;
+  grid-column: 2;
+  grid-row: 1 / -1;
   display: grid;
-  grid-template-rows: repeat(4, minmax(0, 1fr));
-  align-items: stretch;
+  grid-template-rows: subgrid;
+  border: 6px solid #9ccf62;
+  border-radius: 72px;
+  padding: 8px 20px;
+  min-height: 0;
+  box-sizing: border-box;
   container-type: inline-size;
   container-name: ev-plate-grid;
+}
+
+@supports not (grid-template-rows: subgrid) {
+  .right-grid-panel {
+    grid-template-rows: repeat(var(--board-rows, 4), minmax(0, 1fr));
+  }
 }
 
 .space-header-row,
 .plate-row {
   display: grid;
   grid-template-columns: repeat(var(--space-count, 3), minmax(0, 1fr));
-  gap: clamp(8px, calc(12px * var(--ui-scale)), 20px);
+  column-gap: 16px;
   min-height: 0;
+  min-width: 0;
   align-items: center;
+  justify-items: center;
+}
+
+.plate-row {
+  container-type: size;
 }
 
 .space-header-cell {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: calc(10px * var(--ui-scale) * var(--space-scale));
+  gap: 12px;
   text-align: center;
   color: #ffffff;
   font-weight: 800;
   white-space: nowrap;
   min-width: 0;
+  width: 100%;
 }
 
 .space-name {
-  font-size: calc(82px * var(--ui-scale) * var(--text-scale-boost));
-  line-height: 1.08;
+  font-size: 104px;
+  line-height: 1;
   font-weight: 700;
-  display: inline-block;
-  transform: scaleY(1.04);
 }
 
 .space-icon {
-  width: calc(82px * var(--ui-scale) * var(--text-scale-boost));
-  height: calc(82px * var(--ui-scale) * var(--text-scale-boost));
+  width: 96px;
+  height: 96px;
   object-fit: contain;
   flex: 0 0 auto;
 }
 
-.plate-row + .plate-row {
-  margin-top: 0;
-}
-
 .plate-cell {
-  text-align: center;
-  color: #ffff00;
-  /* 列宽按容器均分，按最多 8 位车牌适配字号，避免全屏重叠/溢出 */
-  font-size: min(
-    calc(64px * var(--ui-scale) * var(--text-scale-boost)),
-    calc(
-      (
-        100cqw
-        - clamp(8px, calc(12px * var(--ui-scale)), 20px) * (var(--space-count, 3) - 1)
-        - 24px
-      )
-      / var(--space-count, 3)
-      / 5.35
-    )
-  );
-  font-weight: 800;
-  line-height: 1.04;
-  letter-spacing: 0;
+  width: 100%;
+  height: 100%;
   min-width: 0;
-  max-width: 100%;
-  min-height: calc(72px * var(--ui-scale));
-  padding-inline: calc(4px * var(--ui-scale));
-  box-sizing: border-box;
-  overflow: hidden;
-  white-space: nowrap;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding-inline: 2px;
+  box-sizing: border-box;
+  color: #ffff00;
+  /* 抬高上限，吃掉格子内留白；仍受列宽/行高约束防裁切 */
+  font-size: min(
+    80px,
+    calc(
+      (
+        100cqw
+        - 16px * (var(--space-count, 3) - 1)
+        - 24px
+      )
+      / var(--space-count, 3)
+      / 5.5
+    ),
+    62cqh
+  );
+  font-weight: 800;
+  line-height: 1;
+}
+
+.plate-text {
+  display: block;
+  max-width: 100%;
+  overflow: visible;
+  white-space: nowrap;
+  text-align: center;
+  letter-spacing: 0.02em;
   text-shadow:
-    0 calc(2px * var(--ui-scale)) 0 rgba(106, 120, 22, 0.75),
-    0 0 calc(2px * var(--ui-scale)) rgba(106, 120, 22, 0.45);
-  -webkit-text-stroke: calc(0.6px * var(--ui-scale)) rgba(112, 126, 32, 0.55);
-  transform: scaleY(1.02);
-  transform-origin: center;
+    0 2px 0 rgba(106, 120, 22, 0.65),
+    0 0 2px rgba(106, 120, 22, 0.4);
 }
 
 .ev-footer-ticker {
-  margin-top: calc(30px * var(--ui-scale) * var(--space-scale));
-  margin-right: calc(-14px * var(--ui-scale) * var(--space-scale));
-  margin-bottom: calc(-10px * var(--ui-scale) * var(--space-scale));
-  margin-left: calc(-14px * var(--ui-scale) * var(--space-scale));
+  /* 与顶部日期栏等高；上边距拉开与表格的间距 */
+  height: 88px;
+  min-height: 88px;
+  margin: 28px -24px 0;
   background: #8fce4c;
-  color: black;
-  font-size: calc(32px * var(--ui-scale) * var(--text-scale-boost));
-  line-height: 1.3;
+  color: #111111;
+  font-size: 40px;
+  line-height: 1.2;
   font-weight: 700;
   overflow: hidden;
   white-space: nowrap;
-  padding: calc(22px * var(--ui-scale) * var(--space-scale)) calc(22px * var(--ui-scale) * var(--space-scale));
-  min-height: calc(92px * var(--ui-scale));
+  padding: 0 24px;
   display: flex;
   align-items: center;
+  box-sizing: border-box;
 }
 
 .ev-footer-ticker.ticker-static {
@@ -593,7 +638,7 @@ onUnmounted(() => {
 }
 
 .ticker-track.is-scrolling .ticker-text:first-child {
-  padding-right: calc(48px * var(--ui-scale) * var(--space-scale));
+  padding-right: 48px;
 }
 
 @keyframes evTickerScroll {

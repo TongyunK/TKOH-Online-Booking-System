@@ -4138,7 +4138,7 @@ export class VenueManagementService {
 
 
 
-    const [mergeDisplaySettings, venues, rules, bookingRows] = await Promise.all([
+    const [mergeDisplaySettings, venues, rules, bookingRows, rotateIntervalMs, tickerDurationSeconds] = await Promise.all([
 
 
       this.displayManagementService.getMergeDisplayPublicSettings(),
@@ -4223,6 +4223,12 @@ export class VenueManagementService {
 
 
       }),
+
+
+      this.systemSettingsService.getMergeDisplayRotateIntervalMs(),
+
+
+      this.systemSettingsService.getMergeDisplayTickerDurationSeconds(),
 
 
     ]);
@@ -4363,7 +4369,19 @@ export class VenueManagementService {
       displayDate,
 
 
-      mergeDisplaySettings,
+      mergeDisplaySettings: {
+
+
+        ...mergeDisplaySettings,
+
+
+        rotateIntervalMs,
+
+
+        tickerDurationSeconds,
+
+
+      },
 
 
       scheduleRows,

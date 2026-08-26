@@ -769,15 +769,10 @@
           </el-select>
         </el-form-item>
         <el-form-item label="Meeting / Event" prop="topic">
-          <el-input
+          <MeetingEventTitleInput
             v-model="editForm.topic"
-            type="textarea"
-            :autosize="{ minRows: 1, maxRows: 4 }"
-            resize="none"
-            class="meeting-title-textarea"
+            :max-units="meetingEventTitleMaxLength"
             placeholder="Enter meeting or event name"
-            :maxlength="meetingEventTitleMaxLength"
-            show-word-limit
             :disabled="isEditTopicLocked"
           />
         </el-form-item>
@@ -1018,14 +1013,9 @@
           <el-input v-model="handleForm.room" disabled />
         </el-form-item>
         <el-form-item label="Meeting / Event Title" class="no-wrap-label">
-          <el-input
+          <MeetingEventTitleInput
             v-model="handleForm.topic"
-            type="textarea"
-            :autosize="{ minRows: 1, maxRows: 4 }"
-            resize="none"
-            class="meeting-title-textarea"
-            :maxlength="meetingEventTitleMaxLength"
-            show-word-limit
+            :max-units="meetingEventTitleMaxLength"
           />
         </el-form-item>
         <el-form-item label="Date">
@@ -1139,6 +1129,7 @@ import AppHeader from '../components/AppHeader.vue'
 import BookingStyleModal from '@/components/BookingStyleModal.vue'
 import VenueBookingDialog from '@/components/VenueBookingDialog.vue'
 import VenueTimePicker from '@/components/VenueTimePicker.vue'
+import MeetingEventTitleInput from '@/components/MeetingEventTitleInput.vue'
 import SortableFilterHeader from '@/components/admin/SortableFilterHeader.vue'
 import { InfoFilled } from '@element-plus/icons-vue'
 import {
@@ -1164,7 +1155,9 @@ import { useHkPublicHolidays } from '@/composables/useHkPublicHolidays'
 import {
   DEFAULT_MEETING_EVENT_TITLE_MAX_LENGTH,
   fetchMeetingEventTitleMaxLength,
-  meetingEventTitleTooLongMessage
+  meetingEventTitleTooLongMessage,
+  isMeetingEventTitleTooLong,
+  createMeetingEventTitleMaxRule
 } from '@/utils/meetingEventTitleMaxLength'
 import * as XLSX from 'xlsx'
 
@@ -1609,11 +1602,7 @@ const editFormRules = computed(() => ({
   room: [{ required: true, message: 'Please select room', trigger: 'change' }],
   topic: [
     { required: true, message: 'Please enter topic', trigger: 'blur' },
-    {
-      max: meetingEventTitleMaxLength.value,
-      message: meetingEventTitleTooLongMessage(meetingEventTitleMaxLength.value),
-      trigger: 'blur'
-    }
+    createMeetingEventTitleMaxRule(() => meetingEventTitleMaxLength.value)
   ],
   date: [{ required: true, message: 'Please select date', trigger: 'change' }],
   startTime: [{ required: true, message: 'Please select start time', trigger: 'change' }],
@@ -2971,7 +2960,7 @@ const confirmEditBooking = async () => {
     showNotice('Please enter Meeting / Event', 'Warning')
     return
   }
-  if (editForm.value.topic.trim().length > meetingEventTitleMaxLength.value) {
+  if (isMeetingEventTitleTooLong(editForm.value.topic.trim(), meetingEventTitleMaxLength.value)) {
     showNotice(meetingEventTitleTooLongMessage(meetingEventTitleMaxLength.value), 'Warning')
     return
   }
@@ -3109,7 +3098,7 @@ async function confirmHandleApprove () {
   const id = currentHandleBookingId.value
   if (id == null) return
   const topic = handleForm.value.topic.trim()
-  if (topic.length > meetingEventTitleMaxLength.value) {
+  if (isMeetingEventTitleTooLong(topic, meetingEventTitleMaxLength.value)) {
     showNotice(meetingEventTitleTooLongMessage(meetingEventTitleMaxLength.value), 'Warning')
     return
   }
@@ -3137,7 +3126,7 @@ async function confirmRejectBooking () {
   const id = currentHandleBookingId.value
   if (id == null) return
   const topic = handleForm.value.topic.trim()
-  if (topic.length > meetingEventTitleMaxLength.value) {
+  if (isMeetingEventTitleTooLong(topic, meetingEventTitleMaxLength.value)) {
     showNotice(meetingEventTitleTooLongMessage(meetingEventTitleMaxLength.value), 'Warning')
     return
   }
