@@ -4,6 +4,7 @@ export const SystemSettingKey = {
   evDateUpdateTime: 'EV_date_update_time',
   evWeeklyBookingLimit: 'EV_weekly_booking_limit',
   venueBookingMinGapMinutes: 'venue_booking_min_gap_minutes',
+  venueMeetingEventTitleMaxLength: 'venue_meeting_event_title_max_length',
   dataBackupReceivingEmail: 'data_backup_receiving_email',
   dataBackupSendingEmail: 'data_backup_sending_email',
   dataBackupSendingEmailHost: 'data_backup_sending_email_host',
@@ -30,6 +31,7 @@ export const SYSTEM_SETTING_DEFAULTS: Record<SystemSettingKeyName, string> = {
   [SystemSettingKey.evDateUpdateTime]: '13:00',
   [SystemSettingKey.evWeeklyBookingLimit]: '1',
   [SystemSettingKey.venueBookingMinGapMinutes]: '15',
+  [SystemSettingKey.venueMeetingEventTitleMaxLength]: '80',
   [SystemSettingKey.dataBackupReceivingEmail]: '',
   [SystemSettingKey.dataBackupSendingEmail]: '',
   [SystemSettingKey.dataBackupSendingEmailHost]: 'mail.wisesystemtech.com',
@@ -51,6 +53,8 @@ export const SYSTEM_SETTING_DESCRIPTIONS: Record<SystemSettingKeyName, string> =
       'Maximum active EV bookings per user per week (Monday to Sunday) for non-admin users',
     [SystemSettingKey.venueBookingMinGapMinutes]:
       'Minimum gap in minutes between consecutive bookings of the same venue (for cleaning turnaround)',
+    [SystemSettingKey.venueMeetingEventTitleMaxLength]:
+      'Maximum characters allowed for Venue Meeting / Event Title',
     [SystemSettingKey.dataBackupReceivingEmail]:
       'Email address that receives scheduled data backup reports',
     [SystemSettingKey.dataBackupSendingEmail]:

@@ -265,7 +265,6 @@ function buildFormFromConfig (data) {
       venueName: item.venueName || (item.venueId == null ? 'EV' : ''),
       displayType: item.displayType || 'single',
       status: String(item.status || 'active').toLowerCase() || 'active',
-      mergeGroup: item.mergeGroup ?? '',
       displayName: item.displayName ?? (item.venueId == null ? 'EV' : ''),
       arrowDirection: item.arrowDirection ?? ''
     }))
@@ -388,7 +387,6 @@ const buildSavePayload = () => {
       venueId: item.venueId,
       venueName: item.venueName,
       displayType: item.displayType,
-      mergeGroup: item.mergeGroup ?? '',
       displayName: (item.displayName ?? (item.venueId == null ? 'EV' : '')).trim(),
       arrowDirection: item.arrowDirection ?? ''
     }))

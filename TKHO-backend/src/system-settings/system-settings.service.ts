@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   decryptSettingSecret,
@@ -92,6 +92,12 @@ export class SystemSettingsService {
   private parseVenueBookingMinGapMinutes(raw: string): number | null {
     const value = Number.parseInt(String(raw ?? '').trim(), 10);
     if (Number.isFinite(value) && value >= 0 && value <= 120) return value;
+    return null;
+  }
+
+  private parseVenueMeetingEventTitleMaxLength(raw: string): number | null {
+    const value = Number.parseInt(String(raw ?? '').trim(), 10);
+    if (Number.isFinite(value) && value >= 1 && value <= 500) return value;
     return null;
   }
 
@@ -249,6 +255,34 @@ export class SystemSettingsService {
     );
   }
 
+  async getVenueMeetingEventTitleMaxLength(): Promise<number> {
+    const map = await this.ensureDefaultSettings();
+    return (
+      this.parseVenueMeetingEventTitleMaxLength(
+        this.getSetting(map, SystemSettingKey.venueMeetingEventTitleMaxLength),
+      ) ??
+      Number.parseInt(
+        SYSTEM_SETTING_DEFAULTS[
+          SystemSettingKey.venueMeetingEventTitleMaxLength
+        ],
+        10,
+      )
+    );
+  }
+
+  async assertMeetingEventTitleLength(
+    title: string | null | undefined,
+  ): Promise<void> {
+    const value = String(title ?? '').trim();
+    if (!value) return;
+    const maxLength = await this.getVenueMeetingEventTitleMaxLength();
+    if (value.length > maxLength) {
+      throw new BadRequestException(
+        `Meeting / Event Title must be at most ${maxLength} characters`,
+      );
+    }
+  }
+
   async getUserInactiveAfterMonths(): Promise<number> {
     const map = await this.ensureDefaultSettings();
     const fromDb = this.parseInactiveAfterMonths(
@@ -290,6 +324,19 @@ export class SystemSettingsService {
         SYSTEM_SETTING_DEFAULTS[SystemSettingKey.venueBookingMinGapMinutes],
         10,
       );
+    const venueMeetingEventTitleMaxLength =
+      this.parseVenueMeetingEventTitleMaxLength(
+        this.getSetting(
+          map,
+          SystemSettingKey.venueMeetingEventTitleMaxLength,
+        ),
+      ) ??
+      Number.parseInt(
+        SYSTEM_SETTING_DEFAULTS[
+          SystemSettingKey.venueMeetingEventTitleMaxLength
+        ],
+        10,
+      );
     const dataBackupReceivingEmail = String(
       this.getSetting(map, SystemSettingKey.dataBackupReceivingEmail),
     ).trim();
@@ -328,6 +375,7 @@ export class SystemSettingsService {
       evDateUpdateTime,
       evWeeklyBookingLimit,
       venueBookingMinGapMinutes,
+      venueMeetingEventTitleMaxLength,
       dataBackupReceivingEmail,
       dataBackupTimeSpan,
       dataBackupEmailInterval,
@@ -426,6 +474,28 @@ export class SystemSettingsService {
         },
         update: {
           setting_value: gap,
+          updated_at: now,
+        },
+      });
+    }
+
+    if (dto.venueMeetingEventTitleMaxLength != null) {
+      const maxLength = String(dto.venueMeetingEventTitleMaxLength);
+      await this.prisma.system_settings.upsert({
+        where: {
+          setting_key: SystemSettingKey.venueMeetingEventTitleMaxLength,
+        },
+        create: {
+          setting_key: SystemSettingKey.venueMeetingEventTitleMaxLength,
+          setting_value: maxLength,
+          description:
+            SYSTEM_SETTING_DESCRIPTIONS[
+              SystemSettingKey.venueMeetingEventTitleMaxLength
+            ],
+          updated_at: now,
+        },
+        update: {
+          setting_value: maxLength,
           updated_at: now,
         },
       });

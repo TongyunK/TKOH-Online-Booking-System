@@ -220,7 +220,7 @@ const handleLogin = async () => {
   loading.value = true
   try {
     const res = await loginApi({
-      account: corpId,
+      corpId,
       password,
       system: loginForm.system
     })

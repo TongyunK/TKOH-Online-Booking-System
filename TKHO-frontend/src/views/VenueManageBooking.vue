@@ -776,7 +776,7 @@
             resize="none"
             class="meeting-title-textarea"
             placeholder="Enter meeting or event name"
-            maxlength="80"
+            :maxlength="meetingEventTitleMaxLength"
             show-word-limit
             :disabled="isEditTopicLocked"
           />
@@ -1024,7 +1024,7 @@
             :autosize="{ minRows: 1, maxRows: 4 }"
             resize="none"
             class="meeting-title-textarea"
-            maxlength="80"
+            :maxlength="meetingEventTitleMaxLength"
             show-word-limit
           />
         </el-form-item>
@@ -1161,6 +1161,11 @@ import { pickPromptTooltipText } from '@/utils/promptTooltip'
 import { todayYmdInAppTimeZone } from '@/utils/appTimezone'
 import { isRestrictedBookingDay } from '@/utils/bookingDateRestriction'
 import { useHkPublicHolidays } from '@/composables/useHkPublicHolidays'
+import {
+  DEFAULT_MEETING_EVENT_TITLE_MAX_LENGTH,
+  fetchMeetingEventTitleMaxLength,
+  meetingEventTitleTooLongMessage
+} from '@/utils/meetingEventTitleMaxLength'
 import * as XLSX from 'xlsx'
 
 const userStore = useUserStore()
@@ -1580,6 +1585,7 @@ const rejectBookingForm = ref({
 })
 
 const rejectTemplateKeyword = ref('')
+const meetingEventTitleMaxLength = ref(DEFAULT_MEETING_EVENT_TITLE_MAX_LENGTH)
 
 const editForm = ref({
   room: '',
@@ -1599,16 +1605,20 @@ const editForm = ref({
   teaServiceSpecialRequest: '',
   displayOnHomepage: true
 })
-const editFormRules = {
+const editFormRules = computed(() => ({
   room: [{ required: true, message: 'Please select room', trigger: 'change' }],
   topic: [
     { required: true, message: 'Please enter topic', trigger: 'blur' },
-    { max: 80, message: 'Meeting / Event Title must be at most 80 characters', trigger: 'blur' }
+    {
+      max: meetingEventTitleMaxLength.value,
+      message: meetingEventTitleTooLongMessage(meetingEventTitleMaxLength.value),
+      trigger: 'blur'
+    }
   ],
   date: [{ required: true, message: 'Please select date', trigger: 'change' }],
   startTime: [{ required: true, message: 'Please select start time', trigger: 'change' }],
   endTime: [{ required: true, message: 'Please select end time', trigger: 'change' }]
-}
+}))
 
 function snapshotEditTeaSelection (form) {
   return {
@@ -2961,8 +2971,8 @@ const confirmEditBooking = async () => {
     showNotice('Please enter Meeting / Event', 'Warning')
     return
   }
-  if (editForm.value.topic.trim().length > 80) {
-    showNotice('Meeting / Event Title must be at most 80 characters', 'Warning')
+  if (editForm.value.topic.trim().length > meetingEventTitleMaxLength.value) {
+    showNotice(meetingEventTitleTooLongMessage(meetingEventTitleMaxLength.value), 'Warning')
     return
   }
   const schedule = isEditScheduleLocked.value
@@ -3099,8 +3109,8 @@ async function confirmHandleApprove () {
   const id = currentHandleBookingId.value
   if (id == null) return
   const topic = handleForm.value.topic.trim()
-  if (topic.length > 80) {
-    showNotice('Meeting / Event Title must be at most 80 characters', 'Warning')
+  if (topic.length > meetingEventTitleMaxLength.value) {
+    showNotice(meetingEventTitleTooLongMessage(meetingEventTitleMaxLength.value), 'Warning')
     return
   }
   try {
@@ -3127,8 +3137,8 @@ async function confirmRejectBooking () {
   const id = currentHandleBookingId.value
   if (id == null) return
   const topic = handleForm.value.topic.trim()
-  if (topic.length > 80) {
-    showNotice('Meeting / Event Title must be at most 80 characters', 'Warning')
+  if (topic.length > meetingEventTitleMaxLength.value) {
+    showNotice(meetingEventTitleTooLongMessage(meetingEventTitleMaxLength.value), 'Warning')
     return
   }
   try {
@@ -3260,6 +3270,9 @@ onMounted(() => {
   cardPopoverTeleportedMq = window.matchMedia(HTML_ZOOM_BREAKPOINT_MQ)
   cardPopoverTeleportedMq.addEventListener('change', updateCardPopoverTeleported)
   window.addEventListener('resize', updateTableScrollShadows, { passive: true })
+  void fetchMeetingEventTitleMaxLength().then((maxLength) => {
+    meetingEventTitleMaxLength.value = maxLength
+  })
   void loadBookings()
   void loadRejectPrompts()
   void loadSystemFixedPrompts()

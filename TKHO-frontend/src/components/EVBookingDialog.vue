@@ -25,6 +25,7 @@
               :default-user="defaultReservedByUser"
               variant="bare"
               select-class="form-input form-input-license"
+              :teleported="bookingPopperTeleported"
               @update:model-value="handleReservedByUserChange"
             />
           </div>
@@ -37,7 +38,7 @@
               v-model="form.licensePlateId"
               placeholder="Select license plate"
               class="form-input form-input-license"
-              :teleported="false"
+              :teleported="bookingPopperTeleported"
               :loading="vehiclesLoading"
               :disabled="vehiclesLoading || !vehicles.length"
             >
@@ -84,7 +85,9 @@
               placeholder="Select date"
               class="form-input"
               size="large"
-              :teleported="false"
+              :teleported="bookingPopperTeleported"
+              :placement="bookingPopperTeleported ? 'bottom-start' : 'top-start'"
+              popper-class="ev-booking-date-picker-popper"
               :disabled-date="disabledDate"
               format="DD/MM/YYYY"
               value-format="YYYY-MM-DD"
@@ -285,12 +288,16 @@ const dialogY = ref(0)
 const EV_BOOKING_DIALOG_MODAL_MQ = HTML_ZOOM_BREAKPOINT_MQ
 const EV_BOOKING_DIALOG_14_MAX_HEIGHT = '124vh'
 const evBookingDialogMaxHeight = ref('')
+/** 14" html zoom：下拉/日期勿挂 body，避免坐标偏移；其余视口挂 body 以免被弹窗 overflow 裁切 */
+const bookingPopperTeleported = ref(true)
 
 function updateEvBookingDialogMaxHeight () {
   if (typeof window === 'undefined') return
-  evBookingDialogMaxHeight.value = window.matchMedia(EV_BOOKING_DIALOG_MODAL_MQ).matches
+  const mq = window.matchMedia(EV_BOOKING_DIALOG_MODAL_MQ)
+  evBookingDialogMaxHeight.value = mq.matches
     ? EV_BOOKING_DIALOG_14_MAX_HEIGHT
     : ''
+  bookingPopperTeleported.value = !mq.matches
 }
 
 let evBookingDialogModalMq = null
@@ -879,6 +886,7 @@ function handleSave() {
   justify-content: center;
   z-index: 2000;
   padding: 1rem;
+  overflow-y: auto;
 }
 
 /* 弹窗容器 */
@@ -891,8 +899,10 @@ function handleSave() {
   display: flex;
   flex-direction: column;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  /* 让内部背景被圆角裁切：修复右下/左下角不圆 */
-  overflow: hidden;
+  /* teleported=false（14" zoom）时允许日期/下拉越界；纵向滚动仍由 modal-body 负责 */
+  overflow: visible;
+  position: relative;
+  flex-shrink: 0;
 }
 
 /* 头部 */
@@ -943,8 +953,10 @@ function handleSave() {
 /* 内容区域 */
 .modal-body {
   flex: 1;
+  overflow-x: clip;
   overflow-y: auto;
   padding: clamp(0.75rem, 2.5vh, 1.5rem) clamp(0.875rem, 3vw, 1.5rem);
+  padding-bottom: 1.25rem;
   background: #fafafa;
   min-height: 0;
 }
@@ -1051,6 +1063,10 @@ function handleSave() {
 :deep(.el-input__wrapper.is-focus) {
   box-shadow: 0 0 0 3px rgba(0, 114, 58, 0.1);
   border-color: #00723a;
+}
+
+:deep(.ev-booking-date-picker-popper) {
+  z-index: 100001 !important;
 }
 
 /* 时间段选择组 */

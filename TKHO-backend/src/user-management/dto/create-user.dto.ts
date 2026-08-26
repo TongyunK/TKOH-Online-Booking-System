@@ -31,11 +31,6 @@ export class CreateUserDto {
   @IsString()
   role?: string;
 
-  /** Defaults to `corpId` when omitted. */
-  @IsOptional()
-  @IsString()
-  account?: string;
-
   @IsString()
   @MinLength(1)
   password!: string;

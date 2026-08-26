@@ -11,7 +11,7 @@ export class RejectBookingDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(80)
+  @MaxLength(500)
   meetingTitle?: string;
 
   @IsOptional()

@@ -1,230 +1,211 @@
 # 会话交接文档
 
-> 写给完全没有上下文的新会话。最后更新：2026-08-25
+> 写给完全没有上下文的新会话。最后更新：2026-08-26
 
 ---
 
 ## 1. 我们在做什么
 
-TKOH Online Booking System 的管理端与后端迭代，本阶段核心目标是：
-
-1. **System Settings / Data Backup**：在 `/admin/system-settings` 增加数据备份邮件相关配置，写入 `system_settings` 表；Admin 可编辑可见项，SMTP 敏感项隐藏。
-2. **Admin UI 多项调整**（同一会话早期完成）：Venue Manage Booking、Meeting Approval、User Management、Prompt Management 等页面的列顺序、字段、布局优化。
-3. **用户 inactive 审计**：`users.inactived_by` 字段及前后端展示。
-
-**尚未开始的核心功能**：按计划定时发送数据备份邮件（cron + SMTP 发信 + 报表生成）。
+TKOH Online Booking System 管理端与后端迭代。本会话在上一轮「Data Backup 配置」基础上，已**落地定时/手动备份发信**，并清理若干遗留 schema，打磨备份 Excel 列，以及若干产品配置与 UI 修复。
 
 ---
 
-## 2. 已完成内容
+## 2. 本会话已完成内容
 
-### 2.1 System Settings — Data Backup（前端）
+### 2.1 Data Backup 模块（已实现）
 
-**文件**：`TKHO-frontend/src/components/admin/SystemSettings.vue`
-
-- 新增 **Data Backup** 卡片，Admin 可见字段：
-  - Receiving email
-  - Time span (days)，默认 14
-  - Send interval：Daily / Weekly / Monthly
-  - Send time (HH:mm)，默认 09:00
-- 布局：一行三列 flex 卡片；末行不足 3 张时不拉伸铺满；数字/时间输入框固定窄宽（~140px）；URL/邮箱全宽。
-- 保留 **Current** 绿色 pill、简短 `field-hint`、**Open link in new tab** 链接样式、**Last updated** 底部 footer。
-- 白色 `.settings-panel` 铺满视口高度（与其他 Admin 页一致）。
-- 保存/错误提示使用 **`BookingStyleModal` + `showNotice()`**（与 User Management 等一致），**不要用 `ElMessage` / `ElMessageBox` 挂 `#app`**。
-
-### 2.2 System Settings — Data Backup（后端）
-
-**关键文件**：
+路径：`TKHO-backend/src/data-backup/`
 
 | 文件 | 作用 |
 |------|------|
-| `TKHO-backend/src/system-settings/system-setting.keys.ts` | 所有 key 常量、默认值、隐藏 key 列表 |
-| `TKHO-backend/src/system-settings/system-settings.service.ts` | 读写、隐藏项 getter、密码加解密 |
-| `TKHO-backend/src/system-settings/dto/update-system-settings.dto.ts` | Admin 可提交的字段校验 |
-| `TKHO-backend/src/common/settings-secret.crypto.ts` | AES-256-GCM 加密（`enc:v1:` 前缀） |
-| `TKHO-backend/scripts/encrypt-setting-secret.ts` | 手动生成加密串 |
+| `data-backup-report.service.ts` | 生成多 sheet Excel（xlsx） |
+| `data-backup-mail.service.ts` | nodemailer 发信；默认 **SMTP 465 + secure**；`tls.rejectUnauthorized: false` |
+| `data-backup-scheduler.service.ts` | 每分钟 cron（HKT）；按 interval + send time 触发；`POST /api/data-backup/send-now` |
+| `data-backup.controller.ts` | `send-now`（AdminRoleGuard） |
+| 注册于 `app.module.ts` | |
 
-**`system_settings` 键一览**：
+**日期范围**：预订类 sheet 为「今天起未来 N 天」（`data_backup_time_span`）；主数据为全量快照。
 
-| DB key | Admin 可见 | 默认值 / 说明 |
-|--------|------------|---------------|
-| `data_backup_receiving_email` | 是 | 空 |
-| `data_backup_time_span` | 是 | `14` |
-| `data_backup_email_interval` | 是 | `daily` |
-| `data_backup_email_send_time` | 是 | `09:00` |
-| `data_backup_sending_email` | **否** | 空；env: `DATA_BACKUP_SENDING_EMAIL` |
-| `data_backup_sending_email_host` | **否** | `mail.wisesystemtech.com`；env: `DATA_BACKUP_SENDING_EMAIL_HOST` |
-| `data_backup_sending_email_password` | **否** | AES 加密存储；env: `DATA_BACKUP_SENDING_EMAIL_PASSWORD` |
+**Excel sheets（当前）**：
 
-**隐藏项 getter**（供后续发信用）：
+Summary、Venue Bookings、EV Bookings、Users、Pending Users、Venues、Venue Blocks、License Plates、EV Parking Slots、EV Time Periods、Departments、Access Roles、Booking Windows、Prompts、**System Settings**、**Display Config Settings**
 
-- `getDataBackupSendingEmail()`
-- `getDataBackupSendingEmailHost()`
-- `getDataBackupSendingEmailPassword()` — 读 DB 后解密
+**导出规则摘要**：
 
-**密码加密**：
+- 人名列多为 `Name（CORP ID）` 合并格式
+- Access Roles：**不导出 SuperAdmin**（与系统其它列表一致）
+- Users：排除 `isSystemHidden`
+- System Settings：**不导出 key 含 `password` 的项**（当前即 SMTP 密码）
+- 多数业务 sheet 保留数据库 ID；曾短暂去掉又按用户要求恢复
 
-- 密钥：`SETTINGS_ENCRYPTION_KEY`，未设置则回退 `JWT_SECRET`
-- 启动时若 DB 中为明文密码，会自动加密写回
-- 迁移 `20260825170000` 写入的是用 **`env.production` 里那份 `JWT_SECRET`** 加密后的密文（见踩坑）
+**前端**：`SystemSettings.vue` 有 Data Backup 卡片 + **Send backup now**（先保存 backup 相关设置再调 API，timeout 120s）；提示用 `BookingStyleModal`。`systemSettings.js`：`sendDataBackupNow()` 必须 `post({}, …)`，不要 `null`。
 
-### 2.3 数据库迁移（本阶段相关）
+**SMTP（本地曾踩坑后现状）**：
 
-路径：`TKHO-backend/prisma/migrations/`
+- 密码：`enc:v1:` + AES（密钥 `SETTINGS_ENCRYPTION_KEY` 或 `JWT_SECRET`）
+- 解密失败会回退 env `DATA_BACKUP_SENDING_EMAIL_PASSWORD`
+- 本地曾改用 **163**：`smtp.163.com` + 授权码；Wise 旧密码曾 535
+- 相关脚本：`scripts/set-data-backup-smtp-config.ts`、`test-data-backup-smtp.ts`、`reencrypt-data-backup-password.ts` 等
+
+**Cron 注意**：Nest 进程休眠/关机错过 09:00 **不会补发**。
+
+### 2.2 Schema / 鉴权清理（本会话迁移）
+
+路径：`TKHO-backend/prisma/migrations/`（本地多数已 `migrate deploy`）
 
 | 迁移 | 内容 |
 |------|------|
-| `20260825160000_data_backup_system_settings` | 初始 6 个 data backup 键 |
-| `20260825170000_encrypt_data_backup_sending_password` | 写入加密后的 SMTP 密码 |
-| `20260825180000_data_backup_sending_email_host` | 写入 `mail.wisesystemtech.com` |
+| `20260826110000_drop_user_account` | 删除 `user.account`；登录仅 `corpId` |
+| `20260826120000_drop_pending_users_access_role_id` | Pending 注册不再存角色；审批时再赋角色 |
+| `20260826130000_drop_departments_employee_count` | 删除未使用的 `departments.employee_count`（UI 人数仍实时统计） |
+| `20260826140000_drop_merge_group_and_account_vehicles` | 删 `display_venue_rules.merge_group`；删整表 `account_vehicles`（车牌 API 已用 `license_plates`） |
+| `20260826150000_venue_meeting_event_title_max_length` | 写入 Meeting/Event Title 最大字数配置 |
 
-同会话其他迁移（可能尚未 deploy）：`user_inactived_by`、`venue_bookings_cancelled_at` 等。
+**登录**：payload 用 `corpId`（前端 `Login.vue` / 后端 `login.dto.ts`）。
 
-### 2.4 同会话其他已完成改动（摘要）
+**Pending 审批**：`ApprovePendingDto.role` 必填；前端审批前校验角色。
 
-- **UserManagement**：姓名字段顺序、Add User 去掉 Reason、可选车牌、去掉 Delete、`inactived_by` 列
-- **MeetingApproval / VenueManageBooking**：Tea Service、Display on Homepage 列及弹窗
-- **PromptManagement**：去掉 Meeting Approval 子标签
-- **User inactivity**：`inactived_by` schema + 手动/系统自动写入逻辑
+### 2.3 Meeting / Event Title 最大字数（可配置）
+
+- DB key：`venue_meeting_event_title_max_length`，默认 **80**，Admin 可调 **1–500**
+- Keys / defaults：`system-setting.keys.ts`
+- System Settings 新卡片「Meeting / Event Title」
+- 前端缓存工具：`TKHO-frontend/src/utils/meetingEventTitleMaxLength.js`（Save Settings 后会 `invalidate`）
+- 已接：`VenueBookingDialog`、`VenueManageBooking`、`MeetingApproval`
+- 后端：`assertMeetingEventTitleLength()`；相关 DTO `@MaxLength(500)` 作硬顶，业务按配置校验
+
+### 2.4 EV Booking 日期选择器被裁切（UI 修复）
+
+**文件**：`TKHO-frontend/src/components/EVBookingDialog.vue`
+
+**原因**：`:teleported="false"` + 弹窗 `overflow: hidden` → 日历面板被裁；内容区滚动也滚不到面板外溢部分。难复现条件：管理员（多 Reserved By）、矮视口、14" zoom、Date 在表单底部。
+
+**修复（对齐 VenueBookingDialog）**：
+
+- 非 14" zoom：`teleported=true` 挂 body
+- 14" zoom：`teleported=false` + 日历 `placement="top-start"`
+- 弹窗 `overflow: visible`；遮罩可滚
+
+### 2.5 遗留数据结论（已删）
+
+- `merge_group`：Merge 大屏按 `display_type=merge` 取场地，字段无业务用处 → 已删
+- `account_vehicles`：无任何 `prisma.account_vehicles` 调用 → 表已删；`AccountVehiclesModule` API 保留（底层 `license_plates`）
 
 ---
 
-## 3. 当前卡在哪 / 未验证项
+## 3. `system_settings` 键一览（当前）
 
-1. **数据备份发信逻辑未实现**  
-   仅有配置存储与 getter，没有 cron、没有 nodemailer/邮件模块、没有备份报表内容生成。
-
-2. **`data_backup_sending_email`（发件邮箱地址）可能仍为空**  
-   本会话只配置了 host 和加密 password，发件邮箱需确认 DB 或 env 是否已填。
-
-3. **迁移是否已在目标环境执行未知**  
-   本地/生产需确认：`npx prisma migrate deploy` 是否已跑，以及 `system_settings` 实际行是否存在。
-
-4. **SMTP 密码解密依赖 JWT_SECRET 一致**  
-   若 dev 用 `change-me...`、生产用 `env.production` 的密钥，迁移里的密文在 dev 无法解密。
-
-5. **未创建 git commit**  
-   用户规则要求仅在明确要求时 commit；当前改动可能大量处于 unstaged/uncommitted 状态。
+| DB key | Admin 可见 | 默认 / 说明 |
+|--------|------------|-------------|
+| `user_inactive_after_months` | 是 | `6` |
+| `hk_public_holidays_url` | 是 | 1823 JSON |
+| `EV_date_update_time` | 是 | `13:00` |
+| `EV_weekly_booking_limit` | 是 | `1` |
+| `venue_booking_min_gap_minutes` | 是 | `15` |
+| `venue_meeting_event_title_max_length` | 是 | `80`（1–500） |
+| `data_backup_receiving_email` | 是 | 空 |
+| `data_backup_time_span` | 是 | `14` |
+| `data_backup_email_interval` | 是 | `daily` / weekly / monthly |
+| `data_backup_email_send_time` | 是 | `09:00` |
+| `data_backup_sending_email` | **否** | env 可覆盖 |
+| `data_backup_sending_email_host` | **否** | env 可覆盖 |
+| `data_backup_sending_email_password` | **否** | `enc:v1:`；env 可回退 |
 
 ---
 
-## 4. 下一步计划（建议顺序）
+## 4. 当前状态 / 未完成 / 风险
 
-### P0 — 部署与验证配置
+1. **大量改动未 git commit**（用户规则：仅明确要求时才 commit）。`main` 上大量 modified + 本会话 5 个未跟踪迁移。
+2. **生产未确认**：`prisma migrate deploy`、SMTP 密文与生产 `JWT_SECRET` 是否匹配、收件邮箱是否已配。
+3. **`prisma generate` EPERM**：Windows 上 Nest 占用 Prisma DLL 时会失败 → 先停后端再 generate。
+4. **HK holidays sync**（03:00 HKT）若 DNS 失败（`ENOTFOUND www.1823.gov.hk`）与 backup 无关。
+5. **`access_roles.employee_count` 列仍在 schema**（Departments 的已删）；Access Roles 备份 sheet 仍导出该字段；UI User Count 为实时统计。
+6. Data Backup Excel 列裁剪是迭代产品决策，后续若再改列，集中改 `data-backup-report.service.ts`。
+
+---
+
+## 5. 下一步建议
+
+### P0 — 生产部署清单
 
 ```powershell
 cd TKHO-backend
 npx prisma migrate deploy
-# 重启后端
+# 停 Nest 后再：
+npx prisma generate
+# 重启后端 / 前端
 ```
 
-验证 SQL：
+验证：
 
 ```sql
-SELECT setting_key, setting_value
+SELECT setting_key, left(setting_value, 40)
 FROM system_settings
-WHERE setting_key LIKE 'data_backup%';
+ORDER BY setting_key;
 ```
 
-确认：
+- Data Backup：收件邮箱、SMTP 发件/host/密码（或 env）
+- 用 Admin「Send backup now」试发一封
+- Title max length 在 System Settings 改一下，Venue 预订弹窗字数是否跟着变
 
-- `data_backup_sending_email_host` = `mail.wisesystemtech.com`
-- `data_backup_sending_email_password` 以 `enc:v1:` 开头
-- `data_backup_sending_email` 有值（若无则 INSERT 或设 env）
+### P1 — 可选收尾
 
-### P1 — 实现 Data Backup 发信
-
-建议新建模块，例如 `TKHO-backend/src/data-backup/`：
-
-1. 读取配置：`SystemSettingsService` 的 getter + receiving email / interval / send time / time span
-2. SMTP：host、port（默认 587? 需确认 WiseSystem 要求）、user、pass
-3. 定时任务：`@nestjs/schedule` cron，按 HKT `data_backup_email_send_time` + interval 触发
-4. 报表内容：按 time span 导出未来 N 天预订等（业务规则需与产品确认）
-5. 失败告警与日志
-
-### P2 — 可选增强
-
-- Admin 隐藏项改由 env 注入文档化（`env.production` 补 `DATA_BACKUP_*`）
-- SMTP port / TLS 是否也要进 `system_settings`
-- 发信集成测试（staging 不向真实收件人发）
+- 用户明确要求后再 **git commit / PR**
+- 是否删除 `access_roles.employee_count`（与 departments 同理）
+- 是否补 Data Backup sheet：`display_venue_rules` / `hk_public_holidays` 等
+- Cron 漏发是否要做 catch-up（当前不做）
 
 ---
 
-## 5. 踩过的坑（绝对不要再踩）
+## 6. 踩过的坑（不要再踩）
 
-### 5.1 14 寸屏 `html { zoom: 0.8 }` 与 Element Plus 浮层
+### 6.1 14" `html { zoom: 0.8 }` + Element Plus
 
-**现象**：`ElMessage` / `ElMessageBox` 挂 `body` 或 `#app` 时，提示条掉到页面左下/底部，或弹窗无法关闭。
+- Admin 提示：**`BookingStyleModal` + `showNotice()`**，不用 `ElMessage`/`ElMessageBox` 挂 `#app`
+- 浮层：zoom 断点内常 `:teleported="false"`；断点外挂 body 以免被 `overflow` 裁切（见 EV/Venue Booking Dialog）
 
-**原因**：`TKHO-frontend/src/style.css` 在 1100–1599px 宽度对 `html` 做 zoom，Teleport 到 body 的 fixed 定位会错位。
+### 6.2 SMTP / 加密
 
-**正确做法**：
+- 密文绑定加密密钥（`SETTINGS_ENCRYPTION_KEY` 或 `JWT_SECRET`）；换密钥要重加密
+- 163 等要用**授权码**不是登录密码；Wise 曾 535
+- `sendDataBackupNow` body 用 `{}` 不是 `null`
 
-- Admin 页内提示用 **`BookingStyleModal` + `showNotice()`**（见 `UserManagement.vue`、`SystemSettings.vue`）
-- 下拉/Popover 在 zoom 断点内用 **`:teleported="false"`**（项目内多处已有注释，如 `UserManagement.vue`、`VenueBookingDialog.vue`）
+### 6.3 Prisma Windows EPERM
 
-**不要**：在 System Settings 再用 `ElMessage`/`ElMessageBox` + `appendTo: '#app'`。
+Nest 占用 `query_engine-windows.dll.node` → generate 失败。停后端再 generate。
 
-### 5.2 Save 按钮一直转圈
+### 6.4 SuperAdmin 不可对普通 Admin 暴露
 
-**原因**：`await showAlert(...)` 等待 MessageBox 关闭，但弹窗因 zoom 无法交互，Promise 永不 resolve，`saving` 无法复位。
+列表、备份 Access Roles、用户列表等均已过滤；新增导出/下拉时沿用 `isSuperAdminRole`。
 
-**正确做法**：保存完成后 `showNotice(...)` 同步打开 Modal；`saving = false` 放在 `finally`，且 **不要 await** 弹窗。
+### 6.5 备份 Excel ≠ 严格 DB dump
 
-### 5.3 System Settings 布局反复横跳
-
-- `page-container--fit-content`：内容随高度收缩 → 底部露出米色背景（用户不喜欢）
-- `height: 100%` + `settings-panel flex:1` + footer `margin-top: auto`：与其他 Admin 页一致、白色铺满
-
-**当前方案**：普通 `page-container`（100% 高）+ 内层 `.settings-panel` 白色铺满。
-
-### 5.4 加密密码与 JWT_SECRET 绑定
-
-迁移 `20260825170000` 中的密文是用 **`env.production` 的 `JWT_SECRET`** 生成的。
-
-- dev 密钥不同 → 解密失败 → SMTP 发信会报错
-- 换密钥后需用 `scripts/encrypt-setting-secret.ts` 重新生成并 UPDATE DB
-
-**不要**：在 migration SQL 里写明文密码。
-
-### 5.5 隐藏 setting 不要暴露给 GET API
-
-`getSettings()` 只返回 Admin 可见字段；`SYSTEM_SETTING_HIDDEN_KEYS` 中的项仅通过专用 getter 给后端内部使用。
-
-### 5.6 Prisma 迁移顺序
-
-多个 `20260825*` 迁移互不依赖但需一次性 deploy；漏跑会导致 key 缺失或密码仍是明文。
+省略 password、过滤 SuperAdmin；ID 已恢复便于对照。严格主键级还原需另做方案。
 
 ---
 
-## 6. 关键文件速查
+## 7. 关键文件速查
 
 ```
-TKHO-frontend/src/components/admin/SystemSettings.vue   # Admin 配置页
-TKHO-frontend/src/views/AdminManagement.vue             # admin 布局壳
-TKHO-frontend/src/style.css                             # html zoom 断点
-TKHO-frontend/src/components/BookingStyleModal.vue      # 标准弹窗
+HANDOFF.md
 
-TKHO-backend/src/system-settings/
-TKHO-backend/src/common/settings-secret.crypto.ts
-TKHO-backend/prisma/migrations/202608251*
-TKHO-backend/scripts/encrypt-setting-secret.ts
-TKHO-backend/.env.example
-env.production                                          # 生产 JWT_SECRET 等
-```
+TKHO-backend/src/data-backup/*
+TKHO-backend/src/system-settings/*
+TKHO-backend/src/meeting-approval/*
+TKHO-backend/src/venue-calendar/venue-calendar.service.ts
+TKHO-backend/src/venue-management/venue-management.service.ts
+TKHO-backend/prisma/migrations/202608261*
 
----
+TKHO-frontend/src/components/admin/SystemSettings.vue
+TKHO-frontend/src/api/systemSettings.js
+TKHO-frontend/src/utils/meetingEventTitleMaxLength.js
+TKHO-frontend/src/components/EVBookingDialog.vue
+TKHO-frontend/src/components/VenueBookingDialog.vue
+TKHO-frontend/src/views/VenueManageBooking.vue
+TKHO-frontend/src/components/admin/MeetingApproval.vue
+TKHO-frontend/src/views/Login.vue
 
-## 7. 环境变量备忘
-
-```env
-# 加密（可选，默认同 JWT_SECRET）
-SETTINGS_ENCRYPTION_KEY=
-
-# Data backup SMTP（DB 优先；Admin 不可见项可只用 env）
-DATA_BACKUP_SENDING_EMAIL=
-DATA_BACKUP_SENDING_EMAIL_HOST=
-DATA_BACKUP_SENDING_EMAIL_PASSWORD=
+env.production / TKHO-backend/.env
 ```
 
 ---
@@ -233,15 +214,20 @@ DATA_BACKUP_SENDING_EMAIL_PASSWORD=
 
 - 回复使用 **中文**
 - Shell 使用 **PowerShell** 语法
-- **不要主动 git commit**，除非用户明确要求
-- 改代码：**最小 diff**，匹配现有项目风格
+- **不要主动 git commit / push**，除非用户明确要求
+- 改代码：**最小 diff**，匹配现有风格
+- System Settings / Admin 提示走 **BookingStyleModal**，注意 14" zoom
 
 ---
 
 ## 9. 新会话第一句话可以做什么
 
-> 「请读 `HANDOFF.md`，然后执行 P0 验证迁移与 `system_settings` 数据；若通过，开始实现 P1 Data Backup 定时发信。」
+> 「请读 `HANDOFF.md`，帮我检查本地/生产迁移是否都已 deploy，并用 Send backup now 验证发信。」
 
 或：
 
-> 「请读 `HANDOFF.md`，帮我在 DB 填入 `data_backup_sending_email` 并写一个 SMTP 连通性测试接口。」
+> 「请读 `HANDOFF.md`，把本会话未提交改动整理成 commit（或拆 PR）。」
+
+或：
+
+> 「请读 `HANDOFF.md`，评估是否删除 `access_roles.employee_count`，并补备份 sheet。」

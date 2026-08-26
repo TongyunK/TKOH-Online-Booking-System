@@ -44,6 +44,12 @@ export class UpdateSystemSettingsDto {
   venueBookingMinGapMinutes?: number;
 
   @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(500)
+  venueMeetingEventTitleMaxLength?: number;
+
+  @IsOptional()
   @ValidateIf((_, value) => value != null && String(value).trim() !== '')
   @IsEmail()
   dataBackupReceivingEmail?: string;

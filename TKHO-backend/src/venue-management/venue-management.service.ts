@@ -2560,6 +2560,15 @@ export class VenueManagementService {
     await this.assertVenueSlotAvailable(venue.id, bookingDate, startTime, endTime, row.id);
 
 
+    if (dto.topic !== undefined) {
+
+
+      await this.systemSettingsService.assertMeetingEventTitleLength(dto.topic);
+
+
+    }
+
+
 
 
 
@@ -2809,6 +2818,9 @@ export class VenueManagementService {
     const id = BigInt(idRaw);
 
 
+    await this.systemSettingsService.assertMeetingEventTitleLength(dto.topic);
+
+
     const updated = await this.prisma.venueBookings.update({
 
 
@@ -2891,6 +2903,9 @@ export class VenueManagementService {
 
 
     const id = BigInt(idRaw);
+
+
+    await this.systemSettingsService.assertMeetingEventTitleLength(dto.topic);
 
 
     const updated = await this.prisma.venueBookings.update({

@@ -581,7 +581,7 @@
         </el-form-item>
         <el-form-item label="Meeting / Event Title" class="no-wrap-label">
           <el-input v-model="handleForm.meetingTitle" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }"
-            resize="none" class="meeting-title-textarea" maxlength="80" show-word-limit />
+            resize="none" class="meeting-title-textarea" :maxlength="meetingEventTitleMaxLength" show-word-limit />
         </el-form-item>
         <el-form-item label="Date">
           <el-input v-model="handleForm.date" disabled />
@@ -653,10 +653,16 @@ import {
 } from '@/api/admin'
 import { notifyAdminPendingUpdated } from '@/utils/adminPendingSync'
 import { formatTeaServiceDisplay, stripTeaServiceSpecialSuffix } from '@/utils/venueTeaService'
+import {
+  DEFAULT_MEETING_EVENT_TITLE_MAX_LENGTH,
+  fetchMeetingEventTitleMaxLength,
+  meetingEventTitleTooLongMessage
+} from '@/utils/meetingEventTitleMaxLength'
 
 const adminStore = useAdminStore()
 const { pendingBookingsCount } = storeToRefs(adminStore)
 const activeTab = ref('pending')
+const meetingEventTitleMaxLength = ref(DEFAULT_MEETING_EVENT_TITLE_MAX_LENGTH)
 
 const searchState = ref({
   pending: '',
@@ -1190,6 +1196,9 @@ onMounted(() => {
   updateHandleBookingModalMaxHeight()
   handleBookingModalMq = window.matchMedia(HANDLE_BOOKING_MODAL_MQ)
   handleBookingModalMq.addEventListener('change', updateHandleBookingModalMaxHeight)
+  void fetchMeetingEventTitleMaxLength().then((maxLength) => {
+    meetingEventTitleMaxLength.value = maxLength
+  })
   loadMeetingApprovalLists()
 })
 
@@ -1361,8 +1370,8 @@ const confirmHandleApprove = async () => {
   if (!currentHandleRow.value) return
   const row = currentHandleRow.value
   const meetingTitle = handleForm.value.meetingTitle?.trim() || undefined
-  if (meetingTitle && meetingTitle.length > 80) {
-    showNotice('Meeting / Event Title must be at most 80 characters', 'Warning')
+  if (meetingTitle && meetingTitle.length > meetingEventTitleMaxLength.value) {
+    showNotice(meetingEventTitleTooLongMessage(meetingEventTitleMaxLength.value), 'Warning')
     return
   }
   try {

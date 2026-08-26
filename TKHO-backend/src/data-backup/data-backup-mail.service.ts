@@ -57,7 +57,7 @@ export class DataBackupMailService {
       auth: { user: from, pass },
     });
 
-    const subject = `TKOH Data Backup — ${range.startYmd} to ${range.endYmd}`;
+    const subject = `TKOH GA Service Center System Data Backup — ${range.startYmd} to ${range.endYmd}`;
     const text = [
       'Scheduled TKOH Online Booking System data backup.',
       '',
@@ -70,7 +70,16 @@ export class DataBackupMailService {
       `- Users: ${workbook.summary.users}`,
       `- Pending Users: ${workbook.summary.pendingUsers}`,
       `- Venues: ${workbook.summary.venues}`,
+      `- Venue Blocks: ${workbook.summary.venueBlocks}`,
       `- License Plates: ${workbook.summary.licensePlates}`,
+      `- EV Parking Slots: ${workbook.summary.evParkingSlots}`,
+      `- EV Time Periods: ${workbook.summary.evTimePeriods}`,
+      `- Departments: ${workbook.summary.departments}`,
+      `- Access Roles: ${workbook.summary.accessRoles}`,
+      `- Booking Windows: ${workbook.summary.bookingWindows}`,
+      `- Prompts: ${workbook.summary.prompts}`,
+      `- System Settings: ${workbook.summary.systemSettings}`,
+      `- Display Config Settings: ${workbook.summary.displayConfigSettings}`,
       '',
       'The Excel file is attached.',
     ].join('\n');

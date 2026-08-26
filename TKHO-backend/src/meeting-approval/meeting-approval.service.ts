@@ -11,6 +11,7 @@ import {
   formatUserDisplayName,
   userDisplayNameSelect,
 } from '../common/user-display-name';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
 
 const bookingInclude = {
   venue: { select: { id: true, name: true, color: true, userDefinedUploadEventTitle: true } },
@@ -32,7 +33,10 @@ type BookingRow = Prisma.VenueBookingsGetPayload<{ include: typeof bookingInclud
 
 @Injectable()
 export class MeetingApprovalService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly systemSettingsService: SystemSettingsService,
+  ) {}
 
   private parseHandlerId(authSub: unknown): bigint {
     const raw = String(authSub ?? '').trim();
@@ -251,6 +255,7 @@ export class MeetingApprovalService {
 
     const handlerId = this.parseHandlerId(handlerSub);
     const meetingTitle = dto.meetingTitle?.trim();
+    await this.systemSettingsService.assertMeetingEventTitleLength(meetingTitle);
     const updated = await this.prisma.venueBookings.update({
       where: { id: row.id },
       data: {
@@ -277,12 +282,13 @@ export class MeetingApprovalService {
     }
 
     const reason = (dto.reason ?? dto.rejectReason ?? '').trim();
+    const meetingTitle = dto.meetingTitle?.trim();
+    await this.systemSettingsService.assertMeetingEventTitleLength(meetingTitle);
     if (!reason) {
       throw new BadRequestException('Reject reason is required');
     }
 
     const handlerId = this.parseHandlerId(handlerSub);
-    const meetingTitle = dto.meetingTitle?.trim();
     const updated = await this.prisma.venueBookings.update({
       where: { id: row.id },
       data: {

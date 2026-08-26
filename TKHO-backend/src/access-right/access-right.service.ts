@@ -195,7 +195,6 @@ export class AccessRightService {
           id: nextId,
           department_name: dto.departmentName.trim(),
           description: dto.description?.trim() || null,
-          employee_count: 0,
         },
       });
       return this.mapDepartment(created, 0);

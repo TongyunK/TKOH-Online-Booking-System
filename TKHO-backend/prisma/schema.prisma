@@ -10,13 +10,12 @@ datasource db {
 model User {
   id               BigInt        @id
   corpId           String        @unique @map("corp_id")
-  account          String        @unique
   password         String
   /// 名（First Name）；展示全名时与 last_name 组合为 FirstName LastName。
   firstName        String        @default("") @map("first_name")
   /// 姓（Last Name）；由原 name 字段重命名而来。
   lastName         String        @map("last_name")
-  /// 员工编号（Employee No.）；与登录用 account / corp_id 区分。
+  /// 员工编号（Employee No.）；与登录用 corp_id 区分。
   employeeNo       String?       @map("employee_no")
   /// 职级 / 职衔（Rank）。
   rank             String?
@@ -127,15 +126,6 @@ model access_roles {
   employee_count     Int?     @default(0)
   created_at         DateTime @default(now()) @db.Timestamptz(6)
   users              User[]
-  pending_users      pending_users[]
-}
-
-/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
-model account_vehicles {
-  id         BigInt   @id @default(autoincrement())
-  plate      String   @unique
-  is_default Boolean  @default(false)
-  created_at DateTime @default(now()) @db.Timestamptz(6)
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -164,7 +154,6 @@ model departments {
   id              BigInt   @id
   department_name String   @unique
   description     String?
-  employee_count  Int?     @default(0)
   created_at      DateTime @default(now()) @db.Timestamptz(6)
   users           User[]
   pending_users   pending_users[]
@@ -205,7 +194,6 @@ model hk_public_holidays {
 model display_venue_rules {
   id              BigInt @id @default(autoincrement())
   venue_id        BigInt @unique
-  merge_group     String?
   display_name    String?
   arrow_direction String?
   venues          Venues @relation(fields: [venue_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -293,7 +281,6 @@ model pending_users {
   employee_no      String?
   rank             String?
   department_id    BigInt?
-  access_role_id   BigInt?
   approver_user_id BigInt?
   approver_name    String?
   email            String?
@@ -306,7 +293,6 @@ model pending_users {
   approval_status  String        @default("Pending")
   created_at       DateTime      @default(now()) @db.Timestamptz(6)
   departments      departments?  @relation(fields: [department_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  access_roles     access_roles? @relation(fields: [access_role_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   approver         User?         @relation(fields: [approver_user_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
 }
 

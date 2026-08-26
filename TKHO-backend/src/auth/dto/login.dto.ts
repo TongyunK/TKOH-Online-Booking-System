@@ -1,13 +1,14 @@
-import { IsIn, IsString } from 'class-validator';
+import { IsIn, IsString, MinLength } from 'class-validator';
 
 export class LoginDto {
   @IsString()
-  account: string;
+  @MinLength(1)
+  corpId!: string;
 
   @IsString()
-  password: string;
+  password!: string;
 
   @IsString()
   @IsIn(['parking', 'room', 'admin'])
-  system: 'parking' | 'room' | 'admin';
+  system!: 'parking' | 'room' | 'admin';
 }

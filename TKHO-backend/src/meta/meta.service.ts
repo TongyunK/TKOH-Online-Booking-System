@@ -13,7 +13,6 @@ export class MetaService {
       select: {
         id: true,
         corpId: true,
-        account: true,
         firstName: true,
         lastName: true,
         employeeNo: true,
@@ -41,7 +40,6 @@ export class MetaService {
     return visibleUsers.map((user) => ({
       id: user.id.toString(),
       corpId: user.corpId,
-      account: user.account,
       name: formatUserDisplayName(user),
       firstName: user.firstName ?? '',
       lastName: user.lastName ?? '',

@@ -7,7 +7,7 @@ export class UpdateVenueManageBookingDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(80)
+  @MaxLength(500)
   topic?: string;
 
   @IsOptional()

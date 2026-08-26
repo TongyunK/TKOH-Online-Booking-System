@@ -31,10 +31,6 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsString()
-  account?: string;
-
-  @IsOptional()
-  @IsString()
   contact?: string;
 
   @IsOptional()

@@ -12,7 +12,6 @@ import { VenueDisplayRuleDto } from './dto/venue-display-rule.dto';
 
 const venueRuleSelect = {
   venue_id: true,
-  merge_group: true,
   display_name: true,
   arrow_direction: true,
 } as const;
@@ -133,7 +132,6 @@ export class DisplayManagementService {
     }>,
     rules: Array<{
       venue_id: bigint;
-      merge_group: string | null;
       display_name: string | null;
       arrow_direction: string | null;
     }>,
@@ -148,7 +146,6 @@ export class DisplayManagementService {
         venueName: venue.name,
         displayType: this.normalizeVenueDisplayType(venue.displayType),
         status: String(venue.status || 'active').toLowerCase() || 'active',
-        mergeGroup: rule?.merge_group ?? '',
         displayName: rule?.display_name ?? '',
         arrowDirection: rule?.arrow_direction ?? '',
       };
@@ -159,7 +156,6 @@ export class DisplayManagementService {
       venueName: 'EV',
       displayType: this.normalizeVenueDisplayType(evDisplayMode),
       status: 'active',
-      mergeGroup: '',
       displayName: 'EV',
       arrowDirection: '',
     });
@@ -174,7 +170,6 @@ export class DisplayManagementService {
       venueName: string;
       displayType: string;
       status: string;
-      mergeGroup: string;
       displayName: string;
       arrowDirection: string;
     }>,
@@ -299,7 +294,6 @@ export class DisplayManagementService {
       for (const rule of editableRules) {
         const venueId = BigInt(String(rule.venueId).trim());
         const overlay = {
-          merge_group: rule.mergeGroup?.trim() || null,
           display_name: rule.displayName?.trim() || null,
           arrow_direction: rule.arrowDirection?.trim() || null,
         };

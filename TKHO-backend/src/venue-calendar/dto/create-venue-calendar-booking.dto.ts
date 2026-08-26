@@ -23,7 +23,7 @@ export class CreateVenueCalendarBookingDto {
   endTime!: string;
 
   @IsString()
-  @MaxLength(80)
+  @MaxLength(500)
   topic!: string;
 
   @IsOptional()

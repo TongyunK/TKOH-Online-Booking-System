@@ -763,6 +763,7 @@ export class VenueCalendarService {
     await this.assertWithinVenueBookingDateRange(bookingDate);
     this.assertWithinDailyBookingWindow(venue, startTime, endTime, auth);
     await this.assertSlotAvailable(venue.id, bookingDate, startTime, endTime);
+    await this.systemSettingsService.assertMeetingEventTitleLength(dto.topic);
 
     const notes = this.buildNotesPayload(dto);
     const attendees = dto.attendeeCount ?? 1;
@@ -886,6 +887,9 @@ export class VenueCalendarService {
       endTime,
       bookingId,
     );
+    if (dto.topic !== undefined) {
+      await this.systemSettingsService.assertMeetingEventTitleLength(dto.topic);
+    }
 
     const notes =
       dto.remark !== undefined

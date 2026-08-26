@@ -3,7 +3,7 @@ import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
 export class ApproveVenueManageBookingDto {
   @IsOptional()
   @IsString()
-  @MaxLength(80)
+  @MaxLength(500)
   topic?: string;
 
   @IsOptional()
@@ -14,7 +14,7 @@ export class ApproveVenueManageBookingDto {
 export class RejectVenueManageBookingDto {
   @IsOptional()
   @IsString()
-  @MaxLength(80)
+  @MaxLength(500)
   topic?: string;
 
   @IsString()

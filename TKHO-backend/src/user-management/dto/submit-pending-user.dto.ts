@@ -30,10 +30,6 @@ export class SubmitPendingUserDto {
   @MinLength(1)
   department!: string;
 
-  @IsOptional()
-  @IsString()
-  role?: string;
-
   @IsEmail()
   email!: string;
 

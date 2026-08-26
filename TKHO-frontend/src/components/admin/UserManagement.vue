@@ -2124,6 +2124,11 @@ const handlePending = (row) => {
 
 const confirmPendingApprove = async () => {
   const data = { ...pendingHandleForm.value }
+  const role = String(data.role || '').trim()
+  if (!role) {
+    showNotice('Please select a role before approving.', 'Warning')
+    return
+  }
   try {
     await approvePendingUser(data.id, {
       corpId: String(data.corpId || '').trim(),
@@ -2132,7 +2137,7 @@ const confirmPendingApprove = async () => {
       employeeNo: String(data.employeeNo || '').trim(),
       rank: String(data.rank || '').trim(),
       department: data.department || undefined,
-      role: data.role || undefined,
+      role,
       contact: data.contact ?? '',
       password: data.password || DEFAULT_PASSWORD,
       annualQuotaEV: isPendingEvQuotaUnlimited.value ? -1 : Number(data.annualQuotaEV ?? 0),

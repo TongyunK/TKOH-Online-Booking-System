@@ -26,7 +26,7 @@ export class UpdateProfileDto {
   @MaxLength(30)
   phone: string;
 
-  /** Maps to User.employeeNo (not account). */
+  /** Maps to User.employeeNo (not corpId). */
   @IsString()
   @MaxLength(50)
   @IsOptional()

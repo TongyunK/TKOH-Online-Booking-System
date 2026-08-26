@@ -37,7 +37,6 @@ export class AuthService {
     return {
       id: user.id.toString(),
       corpId: user.corpId,
-      account: user.account,
       name: formatUserDisplayName(user),
       firstName: user.firstName ?? '',
       lastName: user.lastName ?? '',
@@ -75,16 +74,14 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const account = dto.account.trim();
-    const user = await this.prisma.user.findFirst({
-      where: {
-        OR: [{ account }, { corpId: account }],
-      },
+    const corpId = dto.corpId.trim();
+    const user = await this.prisma.user.findUnique({
+      where: { corpId },
       include: this.userAuthInclude,
     });
 
     if (!user || !this.verifyPassword(dto.password, user.password)) {
-      throw new UnauthorizedException('Incorrect account or password');
+      throw new UnauthorizedException('Incorrect CORP User ID or password');
     }
     assertUserCanAuthenticate(user.status);
     const roleName = user.access_roles?.role_name ?? null;

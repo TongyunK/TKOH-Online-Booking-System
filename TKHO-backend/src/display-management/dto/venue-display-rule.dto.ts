@@ -26,10 +26,6 @@ export class VenueDisplayRuleDto {
 
   @IsOptional()
   @IsString()
-  mergeGroup?: string;
-
-  @IsOptional()
-  @IsString()
   displayName?: string;
 
   @IsOptional()

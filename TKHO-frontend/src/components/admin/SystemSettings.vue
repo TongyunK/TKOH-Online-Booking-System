@@ -29,7 +29,7 @@
             </div>
             <span class="value-pill value-pill--green">
               <span class="value-pill-label">Current</span>
-              <span class="value-pill-text">{{ form.userInactiveAfterMonths }} month{{ form.userInactiveAfterMonths === 1 ? '' : 's' }}</span>
+              <span class="value-pill-text">{{ saved.userInactiveAfterMonths }} month{{ saved.userInactiveAfterMonths === 1 ? '' : 's' }}</span>
             </span>
           </div>
 
@@ -56,10 +56,6 @@
               </div>
               <h3 class="setting-title">Hong Kong Public Holidays</h3>
             </div>
-            <span v-if="form.hkPublicHolidaysUrl" class="value-pill value-pill--green">
-              <span class="value-pill-label">Current</span>
-              <span class="value-pill-text value-pill-text--truncate" :title="form.hkPublicHolidaysUrl">Link set</span>
-            </span>
           </div>
 
           <div class="setting-card-body">
@@ -95,7 +91,7 @@
             </div>
             <span class="value-pill value-pill--green">
               <span class="value-pill-label">Current</span>
-              <span class="value-pill-text">{{ form.evDateUpdateTime }} · {{ form.evWeeklyBookingLimit }}/wk</span>
+              <span class="value-pill-text">{{ saved.evDateUpdateTime }} · {{ saved.evWeeklyBookingLimit }}/wk</span>
             </span>
           </div>
 
@@ -137,7 +133,7 @@
             </div>
             <span class="value-pill value-pill--green">
               <span class="value-pill-label">Current</span>
-              <span class="value-pill-text">{{ form.venueBookingMinGapMinutes }} min</span>
+              <span class="value-pill-text">{{ saved.venueBookingMinGapMinutes }} min</span>
             </span>
           </div>
 
@@ -159,6 +155,35 @@
         <section class="setting-card">
           <div class="setting-card-header">
             <div class="setting-card-title-row">
+              <div class="setting-icon setting-icon--title">
+                <font-awesome-icon :icon="['fas', 'heading']" />
+              </div>
+              <h3 class="setting-title">Meeting / Event Title</h3>
+            </div>
+            <span class="value-pill value-pill--green">
+              <span class="value-pill-label">Current</span>
+              <span class="value-pill-text">{{ saved.venueMeetingEventTitleMaxLength }} chars</span>
+            </span>
+          </div>
+
+          <div class="setting-card-body">
+            <label class="field-label" for="venue-meeting-event-title-max">Max length (characters)</label>
+            <el-input-number
+              id="venue-meeting-event-title-max"
+              v-model="form.venueMeetingEventTitleMaxLength"
+              :min="1"
+              :max="500"
+              :step="1"
+              controls-position="right"
+              class="field-control"
+            />
+            <p class="field-hint">Maximum characters for Meeting / Event Title on venue bookings.</p>
+          </div>
+        </section>
+
+        <section class="setting-card">
+          <div class="setting-card-header">
+            <div class="setting-card-title-row">
               <div class="setting-icon setting-icon--backup">
                 <font-awesome-icon :icon="['fas', 'database']" />
               </div>
@@ -166,7 +191,7 @@
             </div>
             <span class="value-pill value-pill--green">
               <span class="value-pill-label">Current</span>
-              <span class="value-pill-text">{{ formatBackupIntervalLabel(form.dataBackupEmailInterval) }} · {{ form.dataBackupEmailSendTime }}</span>
+              <span class="value-pill-text">{{ formatBackupIntervalLabel(saved.dataBackupEmailInterval) }} · {{ saved.dataBackupEmailSendTime }}</span>
             </span>
           </div>
 
@@ -222,7 +247,7 @@
                   maxlength="5"
                   class="field-control field-control--time"
                 />
-                <p class="field-hint">HKT. Default 09:00.</p>
+                <p class="field-hint">HKT.</p>
               </div>
             </div>
 
@@ -266,6 +291,7 @@ import { onMounted, reactive, ref } from 'vue'
 import BookingStyleModal from '@/components/BookingStyleModal.vue'
 import { getSystemSettings, saveSystemSettings, sendDataBackupNow } from '@/api/systemSettings'
 import { APP_TIMEZONE } from '@/utils/appTimezone'
+import { invalidateMeetingEventTitleMaxLengthCache } from '@/utils/meetingEventTitleMaxLength'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -287,8 +313,20 @@ const form = reactive({
   evDateUpdateTime: '13:00',
   evWeeklyBookingLimit: 1,
   venueBookingMinGapMinutes: 15,
+  venueMeetingEventTitleMaxLength: 80,
   dataBackupReceivingEmail: '',
   dataBackupTimeSpan: 14,
+  dataBackupEmailInterval: 'daily',
+  dataBackupEmailSendTime: '09:00'
+})
+
+/** Last saved values shown in Current pills (only refresh after load / Save). */
+const saved = reactive({
+  userInactiveAfterMonths: 6,
+  evDateUpdateTime: '13:00',
+  evWeeklyBookingLimit: 1,
+  venueBookingMinGapMinutes: 15,
+  venueMeetingEventTitleMaxLength: 80,
   dataBackupEmailInterval: 'daily',
   dataBackupEmailSendTime: '09:00'
 })
@@ -319,6 +357,16 @@ function formatUpdatedAt (value) {
   })
 }
 
+function applySavedFromForm () {
+  saved.userInactiveAfterMonths = form.userInactiveAfterMonths
+  saved.evDateUpdateTime = form.evDateUpdateTime
+  saved.evWeeklyBookingLimit = form.evWeeklyBookingLimit
+  saved.venueBookingMinGapMinutes = form.venueBookingMinGapMinutes
+  saved.venueMeetingEventTitleMaxLength = form.venueMeetingEventTitleMaxLength
+  saved.dataBackupEmailInterval = form.dataBackupEmailInterval
+  saved.dataBackupEmailSendTime = form.dataBackupEmailSendTime
+}
+
 function applySettings (data) {
   form.userInactiveAfterMonths = Number(data?.userInactiveAfterMonths) || 6
   form.hkPublicHolidaysUrl = String(data?.hkPublicHolidaysUrl ?? '')
@@ -328,11 +376,16 @@ function applySettings (data) {
     data?.venueBookingMinGapMinutes == null
       ? 15
       : Number(data.venueBookingMinGapMinutes)
+  form.venueMeetingEventTitleMaxLength =
+    data?.venueMeetingEventTitleMaxLength == null
+      ? 80
+      : Number(data.venueMeetingEventTitleMaxLength)
   form.dataBackupReceivingEmail = String(data?.dataBackupReceivingEmail ?? '')
   form.dataBackupTimeSpan = Number(data?.dataBackupTimeSpan) || 14
   form.dataBackupEmailInterval = String(data?.dataBackupEmailInterval ?? 'daily')
   form.dataBackupEmailSendTime = String(data?.dataBackupEmailSendTime ?? '09:00')
   updatedAt.value = data?.updatedAt ?? null
+  applySavedFromForm()
 }
 
 async function loadSettings () {
@@ -374,6 +427,15 @@ async function handleSave () {
     return
   }
 
+  if (
+    !Number.isInteger(form.venueMeetingEventTitleMaxLength) ||
+    form.venueMeetingEventTitleMaxLength < 1 ||
+    form.venueMeetingEventTitleMaxLength > 500
+  ) {
+    showNotice('Meeting / Event Title max length must be an integer between 1 and 500', 'Warning')
+    return
+  }
+
   const receivingEmail = String(form.dataBackupReceivingEmail || '').trim()
   if (receivingEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(receivingEmail)) {
     showNotice('Data backup receiving email must be a valid email address', 'Warning')
@@ -407,12 +469,14 @@ async function handleSave () {
       evDateUpdateTime: form.evDateUpdateTime,
       evWeeklyBookingLimit: form.evWeeklyBookingLimit,
       venueBookingMinGapMinutes: form.venueBookingMinGapMinutes,
+      venueMeetingEventTitleMaxLength: form.venueMeetingEventTitleMaxLength,
       dataBackupReceivingEmail: receivingEmail,
       dataBackupTimeSpan: form.dataBackupTimeSpan,
       dataBackupEmailInterval: form.dataBackupEmailInterval,
       dataBackupEmailSendTime: form.dataBackupEmailSendTime
     })
     applySettings(data)
+    invalidateMeetingEventTitleMaxLengthCache()
     showNotice('System settings saved', 'Success')
   } catch (err) {
     const msg = err?.response?.data?.message
@@ -647,6 +711,12 @@ onMounted(() => {
   background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
   color: #4338ca;
   border: 1px solid #a5b4fc;
+}
+
+.setting-icon--title {
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  color: #047857;
+  border: 1px solid #6ee7b7;
 }
 
 .setting-icon--backup {

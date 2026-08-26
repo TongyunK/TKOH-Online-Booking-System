@@ -146,10 +146,7 @@
               <el-form-item
                 label="Meeting / Event Title"
                 prop="topic"
-                :rules="[
-                  { required: true, message: 'Please enter topic' },
-                  { max: 80, message: 'Meeting / Event Title must be at most 80 characters', trigger: 'blur' }
-                ]"
+                :rules="topicRules"
                 class="topic-item no-wrap-label"
               >
                 <el-input
@@ -159,7 +156,7 @@
                   resize="none"
                   class="meeting-title-textarea"
                   placeholder="e.g. Quarterly Performance"
-                  maxlength="80"
+                  :maxlength="meetingEventTitleMaxLength"
                   show-word-limit
                   :disabled="isApprovedOnlyNote"
                 ></el-input>
@@ -488,6 +485,11 @@ import {
   isYmdOutsideVenueBookingDateRange
 } from '@/utils/venueBookingDateRange'
 import { pickPromptTooltipText } from '@/utils/promptTooltip'
+import {
+  DEFAULT_MEETING_EVENT_TITLE_MAX_LENGTH,
+  fetchMeetingEventTitleMaxLength,
+  meetingEventTitleTooLongMessage
+} from '@/utils/meetingEventTitleMaxLength'
 
 const props = defineProps({
   visible: {
@@ -796,6 +798,7 @@ onMounted(async () => {
   updateVenueBookingDialogMaxHeight()
   venueBookingDialogModalMq = window.matchMedia(VENUE_BOOKING_DIALOG_MODAL_MQ)
   venueBookingDialogModalMq.addEventListener('change', updateVenueBookingDialogMaxHeight)
+  meetingEventTitleMaxLength.value = await fetchMeetingEventTitleMaxLength()
   try {
     const prompts = await getPrompts()
     promptList.value = Array.isArray(prompts) ? prompts : []
@@ -811,6 +814,16 @@ onUnmounted(() => {
     venueBookingDialogModalMq.removeEventListener('change', updateVenueBookingDialogMaxHeight)
   }
 })
+
+const meetingEventTitleMaxLength = ref(DEFAULT_MEETING_EVENT_TITLE_MAX_LENGTH)
+const topicRules = computed(() => [
+  { required: true, message: 'Please enter topic' },
+  {
+    max: meetingEventTitleMaxLength.value,
+    message: meetingEventTitleTooLongMessage(meetingEventTitleMaxLength.value),
+    trigger: 'blur'
+  }
+])
 
 const form = ref({
   reservedByUserId: '',

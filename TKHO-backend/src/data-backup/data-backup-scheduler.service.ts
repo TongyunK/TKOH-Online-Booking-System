@@ -32,7 +32,16 @@ export type DataBackupRunResult = {
     users: number;
     pendingUsers: number;
     venues: number;
+    venueBlocks: number;
     licensePlates: number;
+    evParkingSlots: number;
+    evTimePeriods: number;
+    departments: number;
+    accessRoles: number;
+    bookingWindows: number;
+    prompts: number;
+    systemSettings: number;
+    displayConfigSettings: number;
   };
 };
 

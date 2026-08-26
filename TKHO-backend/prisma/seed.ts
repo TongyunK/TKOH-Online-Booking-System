@@ -15,7 +15,6 @@ async function detachDepartmentAndRoleReferences() {
   await prisma.pending_users.updateMany({
     data: {
       department_id: null,
-      access_role_id: null,
       approver_user_id: null,
     },
   });
@@ -42,7 +41,6 @@ async function main() {
         id: BigInt(row.id),
         department_name: row.departmentName,
         description: row.description ?? null,
-        employee_count: row.employeeCount ?? 0,
       })),
     });
   }
@@ -70,7 +68,6 @@ async function main() {
         where: { id: userId },
         update: {
           corpId: row.corpId,
-          account: row.corpId,
           firstName: row.firstName,
           lastName: row.lastName,
           employeeNo: row.employeeNo ?? null,
@@ -88,7 +85,6 @@ async function main() {
         create: {
           id: userId,
           corpId: row.corpId,
-          account: row.corpId,
           password: bcrypt.hashSync('123456', 10),
           firstName: row.firstName,
           lastName: row.lastName,

@@ -29,9 +29,10 @@ export class ApprovePendingDto {
   @IsString()
   department?: string;
 
-  @IsOptional()
+  /** Required when approving; assigned to the created user. */
   @IsString()
-  role?: string;
+  @MinLength(1)
+  role!: string;
 
   @IsOptional()
   @IsString()

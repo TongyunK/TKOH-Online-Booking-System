@@ -21,7 +21,6 @@ import {
 const userSelect = {
   id: true,
   corpId: true,
-  account: true,
   firstName: true,
   lastName: true,
   employeeNo: true,
@@ -135,7 +134,6 @@ export class UserManagementService {
     return {
       id: user.id.toString(),
       corpId: user.corpId,
-      account: user.account,
       firstName: user.firstName ?? '',
       lastName: user.lastName ?? '',
       name: formatUserDisplayName(user),
@@ -167,7 +165,6 @@ export class UserManagementService {
     employee_no: string | null;
     rank: string | null;
     department_id: bigint | null;
-    access_role_id: bigint | null;
     approver_user_id: bigint | null;
     approver_name: string | null;
     email: string | null;
@@ -179,7 +176,6 @@ export class UserManagementService {
     handled_at: Date | null;
     approval_status: string;
     departments?: { department_name: string } | null;
-    access_roles?: { role_name: string } | null;
   }) {
     const firstName = p.first_name ?? '';
     const lastName = p.last_name ?? '';
@@ -193,8 +189,6 @@ export class UserManagementService {
       rank: p.rank ?? '',
       department: p.departments?.department_name ?? null,
       departmentId: p.department_id != null ? p.department_id.toString() : null,
-      role: p.access_roles?.role_name ?? null,
-      accessRoleId: p.access_role_id != null ? p.access_role_id.toString() : null,
       approverUserId: p.approver_user_id != null ? p.approver_user_id.toString() : null,
       approverName: p.approver_name ?? null,
       email: p.email,
@@ -227,7 +221,6 @@ export class UserManagementService {
         data: {
           id: nextId,
           department_name: trimmed,
-          employee_count: 0,
         },
       });
       return created.id;
@@ -346,11 +339,10 @@ export class UserManagementService {
     const reason = dto.reason?.trim() || null;
     const carPlateNo = dto.carPlateNo?.replace(/[^A-Za-z0-9]/g, '').slice(0, 8).toUpperCase() || null;
     const departmentId = await this.resolveDepartmentId(dto.department);
-    const accessRoleId = await this.resolveAccessRoleId(dto.role);
 
     const [existingUser, existingPending] = await Promise.all([
       this.prisma.user.findFirst({
-        where: { OR: [{ corpId }, { account: corpId }] },
+        where: { corpId },
         select: { id: true },
       }),
       this.prisma.pending_users.findFirst({
@@ -372,7 +364,6 @@ export class UserManagementService {
         employee_no: employeeNo,
         rank,
         department_id: departmentId,
-        access_role_id: accessRoleId,
         email,
         contact_no: contactNo,
         reason,
@@ -506,7 +497,6 @@ export class UserManagementService {
     auth?: { isSuperAdmin?: boolean; role?: string; sub?: unknown },
   ) {
     const corpId = dto.corpId.trim();
-    const account = (dto.account ?? corpId).trim();
     const departmentId = await this.resolveDepartmentId(dto.department);
     const accessRoleId = await this.resolveAccessRoleId(dto.role);
     this.assertCanAssignRole(dto.role, auth);
@@ -521,7 +511,6 @@ export class UserManagementService {
           data: {
             id,
             corpId,
-            account,
             password: bcrypt.hashSync(dto.password, 10),
             firstName: String(dto.firstName ?? '').trim(),
             lastName: dto.lastName.trim(),
@@ -556,7 +545,7 @@ export class UserManagementService {
         if (target.toLowerCase().includes('plate')) {
           throw new ConflictException('License plate already exists');
         }
-        throw new ConflictException('CORP User ID or account already exists');
+        throw new ConflictException('CORP User ID already exists');
       }
       throw e;
     }
@@ -572,7 +561,6 @@ export class UserManagementService {
 
     const data: Prisma.UserUpdateInput = {};
     if (dto.corpId !== undefined) data.corpId = dto.corpId.trim();
-    if (dto.account !== undefined) data.account = dto.account.trim();
     if (dto.firstName !== undefined) data.firstName = dto.firstName.trim();
     if (dto.lastName !== undefined) data.lastName = dto.lastName.trim();
     if (dto.employeeNo !== undefined) data.employeeNo = dto.employeeNo.trim() || null;
@@ -623,7 +611,7 @@ export class UserManagementService {
       return this.mapUser(updated);
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
-        throw new ConflictException('CORP User ID or account already exists');
+        throw new ConflictException('CORP User ID already exists');
       }
       throw e;
     }
@@ -691,7 +679,6 @@ export class UserManagementService {
       orderBy: { id: 'asc' },
       include: {
         departments: { select: { department_name: true } },
-        access_roles: { select: { role_name: true } },
       },
     });
     return rows.map((p) => this.mapPendingUser(p));
@@ -712,7 +699,6 @@ export class UserManagementService {
       orderBy: { id: 'asc' },
       include: {
         departments: { select: { department_name: true } },
-        access_roles: { select: { role_name: true } },
       },
     });
     return rows.map((p) => this.mapPendingUser(p));
@@ -758,12 +744,12 @@ export class UserManagementService {
       dto.department !== undefined
         ? await this.resolveDepartmentId(dto.department)
         : p.department_id;
-    const roleName = dto.role !== undefined ? dto.role : undefined;
+    const roleName = String(dto.role ?? '').trim();
+    if (!roleName) {
+      throw new BadRequestException('Role is required');
+    }
     this.assertCanAssignRole(roleName, auth);
-    const accessRoleId =
-      dto.role !== undefined
-        ? await this.resolveAccessRoleId(dto.role)
-        : p.access_role_id;
+    const accessRoleId = await this.resolveAccessRoleId(roleName);
 
     const newId = await this.nextUserId();
     try {
@@ -772,7 +758,6 @@ export class UserManagementService {
           data: {
             id: newId,
             corpId,
-            account: corpId,
             password: bcrypt.hashSync(dto.password, 10),
             firstName,
             lastName,
