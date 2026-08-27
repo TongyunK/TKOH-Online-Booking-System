@@ -1038,22 +1038,15 @@ export class VenueManagementService {
       );
     }
 
-    const displayRule = await this.prisma.display_venue_rules.findUnique({
-      where: { venue_id: venueId },
-      select: { id: true },
-    });
-    if (displayRule) {
-      throw new BadRequestException(
-        'Cannot delete this venue because it is used in Display Management. Please remove its display rule first.',
-      );
-    }
-
     await this.unlinkVenueUploadFile(existing.imageUrl);
 
-
     try {
-      try {
-      await this.prisma.venues.delete({ where: { id: venueId } });
+      // Display Management 保存时会为每个 venue upsert display_venue_rules；
+      // 界面无法单独删规则，删除 venue 时一并清理，避免测试/无预订场地无法删除。
+      await this.prisma.$transaction(async (tx) => {
+        await tx.display_venue_rules.deleteMany({ where: { venue_id: venueId } });
+        await tx.venues.delete({ where: { id: venueId } });
+      });
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2003') {
         throw new BadRequestException(
@@ -1062,19 +1055,8 @@ export class VenueManagementService {
       }
       throw e;
     }
-    } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2003') {
-        throw new BadRequestException(
-          'Cannot delete this venue because it is still referenced by other records.',
-        );
-      }
-      throw e;
-    }
-
 
     return { ok: true };
-
-
   }
 
 
