@@ -96,29 +96,31 @@
           </div>
 
           <div class="setting-card-body">
-            <div class="field-group">
-              <label class="field-label" for="ev-date-update-time">Date update time (HH:mm)</label>
-              <el-input
-                id="ev-date-update-time"
-                v-model.trim="form.evDateUpdateTime"
-                placeholder="13:00"
-                maxlength="5"
-                class="field-control field-control--time"
-              />
-              <p class="field-hint">HKT. Daily calendar roll-forward time.</p>
-            </div>
-            <div class="field-group">
-              <label class="field-label" for="ev-weekly-booking-limit">Weekly limit per user</label>
-              <el-input-number
-                id="ev-weekly-booking-limit"
-                v-model="form.evWeeklyBookingLimit"
-                :min="1"
-                :max="7"
-                :step="1"
-                controls-position="right"
-                class="field-control"
-              />
-              <p class="field-hint">Max active bookings per user per week.</p>
+            <div class="field-row field-row--ev">
+              <div class="field-group">
+                <label class="field-label" for="ev-date-update-time">Date update time</label>
+                <el-input
+                  id="ev-date-update-time"
+                  v-model.trim="form.evDateUpdateTime"
+                  placeholder="13:00"
+                  maxlength="5"
+                  class="field-control field-control--time"
+                />
+                <p class="field-hint">HKT. (HH:mm) Daily calendar roll-forward time.</p>
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="ev-weekly-booking-limit">Weekly limit per user</label>
+                <el-input-number
+                  id="ev-weekly-booking-limit"
+                  v-model="form.evWeeklyBookingLimit"
+                  :min="1"
+                  :max="7"
+                  :step="1"
+                  controls-position="right"
+                  class="field-control"
+                />
+                <p class="field-hint">Max active bookings per user per week.</p>
+              </div>
             </div>
           </div>
         </section>
@@ -194,55 +196,26 @@
             </div>
             <span class="value-pill value-pill--green">
               <span class="value-pill-label">Current</span>
-              <span class="value-pill-text">{{ formatBackupIntervalLabel(saved.dataBackupEmailInterval) }} · {{ saved.dataBackupEmailSendTime }}</span>
+              <span class="value-pill-text">{{ saved.dataBackupEmailSendTime }} HKT</span>
             </span>
           </div>
 
           <div class="setting-card-body">
-            <label class="field-label" for="data-backup-receiving-email">Receiving email</label>
-            <el-input
-              id="data-backup-receiving-email"
-              v-model.trim="form.dataBackupReceivingEmail"
-              type="email"
-              placeholder="backup-recipient@example.com"
-              clearable
-              class="field-control field-control--full"
-            />
-            <p class="field-hint">Recipient for scheduled backup reports.</p>
-
-            <div class="field-row field-row--triple">
-              <div class="field-group">
-                <label class="field-label" for="data-backup-time-span">Time span (days)</label>
-                <el-input-number
-                  id="data-backup-time-span"
-                  v-model="form.dataBackupTimeSpan"
-                  :min="1"
-                  :max="365"
-                  :step="1"
-                  controls-position="right"
-                  class="field-control"
+            <div class="field-row field-row--backup">
+              <div class="field-group field-group--email">
+                <label class="field-label" for="data-backup-receiving-email">Receiving email</label>
+                <el-input
+                  id="data-backup-receiving-email"
+                  v-model.trim="form.dataBackupReceivingEmail"
+                  type="email"
+                  placeholder="backup-recipient@example.com"
+                  clearable
+                  class="field-control field-control--full"
                 />
-                <p class="field-hint">Future days included.</p>
+                <p class="field-hint">Recipient for scheduled backup reports.</p>
               </div>
-              <div class="field-group">
-                <label class="field-label" for="data-backup-email-interval">Send interval</label>
-                <el-select
-                  id="data-backup-email-interval"
-                  v-model="form.dataBackupEmailInterval"
-                  class="field-control field-control--select"
-                  :teleported="false"
-                >
-                  <el-option
-                    v-for="option in backupEmailIntervalOptions"
-                    :key="option.value"
-                    :label="option.label"
-                    :value="option.value"
-                  />
-                </el-select>
-                <p class="field-hint">Default daily.</p>
-              </div>
-              <div class="field-group">
-                <label class="field-label" for="data-backup-email-send-time">Send time (HH:mm)</label>
+              <div class="field-group field-group--time">
+                <label class="field-label" for="data-backup-email-send-time">Send time</label>
                 <el-input
                   id="data-backup-email-send-time"
                   v-model.trim="form.dataBackupEmailSendTime"
@@ -250,7 +223,7 @@
                   maxlength="5"
                   class="field-control field-control--time"
                 />
-                <p class="field-hint">HKT.</p>
+                <p class="field-hint">HKT. (HH:mm)</p>
               </div>
             </div>
 
@@ -318,8 +291,6 @@ const form = reactive({
   venueBookingMinGapMinutes: 15,
   venueMeetingEventTitleMaxLength: 80,
   dataBackupReceivingEmail: '',
-  dataBackupTimeSpan: 14,
-  dataBackupEmailInterval: 'daily',
   dataBackupEmailSendTime: '09:00'
 })
 
@@ -330,20 +301,8 @@ const saved = reactive({
   evWeeklyBookingLimit: 1,
   venueBookingMinGapMinutes: 15,
   venueMeetingEventTitleMaxLength: 80,
-  dataBackupEmailInterval: 'daily',
   dataBackupEmailSendTime: '09:00'
 })
-
-const backupEmailIntervalOptions = [
-  { value: 'daily', label: 'Daily' },
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'monthly', label: 'Monthly' }
-]
-
-function formatBackupIntervalLabel (value) {
-  const option = backupEmailIntervalOptions.find((item) => item.value === value)
-  return option?.label || 'Daily'
-}
 
 function formatUpdatedAt (value) {
   if (!value) return ''
@@ -366,7 +325,6 @@ function applySavedFromForm () {
   saved.evWeeklyBookingLimit = form.evWeeklyBookingLimit
   saved.venueBookingMinGapMinutes = form.venueBookingMinGapMinutes
   saved.venueMeetingEventTitleMaxLength = form.venueMeetingEventTitleMaxLength
-  saved.dataBackupEmailInterval = form.dataBackupEmailInterval
   saved.dataBackupEmailSendTime = form.dataBackupEmailSendTime
 }
 
@@ -384,8 +342,6 @@ function applySettings (data) {
       ? 80
       : Number(data.venueMeetingEventTitleMaxLength)
   form.dataBackupReceivingEmail = String(data?.dataBackupReceivingEmail ?? '')
-  form.dataBackupTimeSpan = Number(data?.dataBackupTimeSpan) || 14
-  form.dataBackupEmailInterval = String(data?.dataBackupEmailInterval ?? 'daily')
   form.dataBackupEmailSendTime = String(data?.dataBackupEmailSendTime ?? '09:00')
   updatedAt.value = data?.updatedAt ?? null
   applySavedFromForm()
@@ -445,20 +401,6 @@ async function handleSave () {
     return
   }
 
-  if (
-    !Number.isInteger(form.dataBackupTimeSpan) ||
-    form.dataBackupTimeSpan < 1 ||
-    form.dataBackupTimeSpan > 365
-  ) {
-    showNotice('Data backup time span must be an integer between 1 and 365', 'Warning')
-    return
-  }
-
-  if (!['daily', 'weekly', 'monthly'].includes(form.dataBackupEmailInterval)) {
-    showNotice('Email send interval must be Daily, Weekly, or Monthly', 'Warning')
-    return
-  }
-
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(form.dataBackupEmailSendTime)) {
     showNotice('Email send time must be HH:mm in 24-hour format', 'Warning')
     return
@@ -474,8 +416,6 @@ async function handleSave () {
       venueBookingMinGapMinutes: form.venueBookingMinGapMinutes,
       venueMeetingEventTitleMaxLength: form.venueMeetingEventTitleMaxLength,
       dataBackupReceivingEmail: receivingEmail,
-      dataBackupTimeSpan: form.dataBackupTimeSpan,
-      dataBackupEmailInterval: form.dataBackupEmailInterval,
       dataBackupEmailSendTime: form.dataBackupEmailSendTime
     })
     applySettings(data)
@@ -500,18 +440,6 @@ function validateBackupFields () {
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(receivingEmail)) {
     showNotice('Data backup receiving email must be a valid email address', 'Warning')
-    return null
-  }
-  if (
-    !Number.isInteger(form.dataBackupTimeSpan) ||
-    form.dataBackupTimeSpan < 1 ||
-    form.dataBackupTimeSpan > 365
-  ) {
-    showNotice('Data backup time span must be an integer between 1 and 365', 'Warning')
-    return null
-  }
-  if (!['daily', 'weekly', 'monthly'].includes(form.dataBackupEmailInterval)) {
-    showNotice('Email send interval must be Daily, Weekly, or Monthly', 'Warning')
     return null
   }
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(form.dataBackupEmailSendTime)) {
@@ -541,8 +469,6 @@ async function handleSendBackupNow () {
   try {
     const data = await saveSystemSettings({
       dataBackupReceivingEmail: receivingEmail,
-      dataBackupTimeSpan: form.dataBackupTimeSpan,
-      dataBackupEmailInterval: form.dataBackupEmailInterval,
       dataBackupEmailSendTime: form.dataBackupEmailSendTime
     })
     applySettings(data)
@@ -795,6 +721,29 @@ onMounted(() => {
   align-items: start;
 }
 
+.field-row--backup {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem 1rem;
+  align-items: start;
+}
+
+.field-row--ev {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+  align-items: start;
+}
+
+.field-row--backup .field-group--email {
+  min-width: 0;
+}
+
+.field-row--backup .field-group--time {
+  width: 120px;
+  flex-shrink: 0;
+}
+
 .field-row--triple .field-group {
   width: 100%;
   min-width: 0;
@@ -913,6 +862,12 @@ onMounted(() => {
   max-width: none;
 }
 
+.setting-card-body .field-row--backup .field-group--email .field-control,
+.setting-card-body .field-row--backup .field-group--email :deep(.el-input) {
+  width: 100%;
+  max-width: none;
+}
+
 .setting-card-body .field-row--triple :deep(.el-input-number),
 .setting-card-body .field-row--triple :deep(.el-select),
 .setting-card-body .field-row--triple :deep(.el-input) {
@@ -975,6 +930,18 @@ onMounted(() => {
 
   .field-row--triple {
     grid-template-columns: 1fr;
+  }
+
+  .field-row--backup {
+    grid-template-columns: 1fr;
+  }
+
+  .field-row--ev {
+    grid-template-columns: 1fr;
+  }
+
+  .field-row--backup .field-group--time {
+    width: 100%;
   }
 
   .field-control,

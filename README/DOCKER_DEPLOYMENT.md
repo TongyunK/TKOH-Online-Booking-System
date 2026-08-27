@@ -149,6 +149,9 @@ docker exec tkho-booking-backend-blue node prisma/seed-dist/seed.js
 docker exec tkho-booking-backend-blue npx prisma db seed
 ```
 
+容器日志已配置轮转：`max-size=50m`、`max-file=3`（单容器大约最多约 150MB，超出自动丢弃最旧文件）。  
+**需 recreate 容器后生效**（例如重新 `./deploy.sh blue`，或对各栈 `docker compose ... up -d --force-recreate`）。
+
 ---
 
 ### 五、停止与清理

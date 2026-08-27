@@ -12,6 +12,10 @@ export const SystemSettingKey = {
   dataBackupTimeSpan: 'data_backup_time_span',
   dataBackupEmailInterval: 'data_backup_email_interval',
   dataBackupEmailSendTime: 'data_backup_email_send_time',
+  /** 在线数据保留月数；超龄预订/Inactive 用户由月度 purge 清理 */
+  dataRetentionMonths: 'data_retention_months',
+  /** 数据保留清理结果/失败通知的运维邮箱 */
+  dataRetentionOpsEmail: 'data_retention_ops_email',
   /** Merge 大屏：场地/会议翻页间隔（毫秒） */
   mergeDisplayRotateIntervalMs: 'merge_display_rotate_interval_ms',
   /** Merge 大屏：底部 ticker 一整轮滚动时长（秒） */
@@ -26,6 +30,8 @@ export const SYSTEM_SETTING_HIDDEN_KEYS: SystemSettingKeyName[] = [
   SystemSettingKey.dataBackupSendingEmail,
   SystemSettingKey.dataBackupSendingEmailHost,
   SystemSettingKey.dataBackupSendingEmailPassword,
+  SystemSettingKey.dataRetentionMonths,
+  SystemSettingKey.dataRetentionOpsEmail,
   SystemSettingKey.mergeDisplayRotateIntervalMs,
   SystemSettingKey.mergeDisplayTickerDurationSeconds,
 ];
@@ -45,6 +51,8 @@ export const SYSTEM_SETTING_DEFAULTS: Record<SystemSettingKeyName, string> = {
   [SystemSettingKey.dataBackupTimeSpan]: '14',
   [SystemSettingKey.dataBackupEmailInterval]: 'daily',
   [SystemSettingKey.dataBackupEmailSendTime]: '09:00',
+  [SystemSettingKey.dataRetentionMonths]: '24',
+  [SystemSettingKey.dataRetentionOpsEmail]: '',
   [SystemSettingKey.mergeDisplayRotateIntervalMs]: '8000',
   [SystemSettingKey.mergeDisplayTickerDurationSeconds]: '40',
 };
@@ -77,6 +85,10 @@ export const SYSTEM_SETTING_DESCRIPTIONS: Record<SystemSettingKeyName, string> =
       'How often backup emails are sent (daily, weekly, monthly)',
     [SystemSettingKey.dataBackupEmailSendTime]:
       'Time of day (HH:mm, Hong Kong) to send backup emails',
+    [SystemSettingKey.dataRetentionMonths]:
+      'Months to retain online booking/user data before monthly purge (admin UI hidden; bookings by created_at; inactive users by inactive_time)',
+    [SystemSettingKey.dataRetentionOpsEmail]:
+      'Ops email for monthly data retention purge summary and failure alerts (admin UI hidden)',
     [SystemSettingKey.mergeDisplayRotateIntervalMs]:
       'Venue Merge display: interval in ms between venue/meeting page rotations (admin UI hidden)',
     [SystemSettingKey.mergeDisplayTickerDurationSeconds]:

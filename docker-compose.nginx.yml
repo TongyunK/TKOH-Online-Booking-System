@@ -1,10 +1,17 @@
 # Nginx 入口（蓝绿流量切换）
 
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "3"
+
 services:
   nginx:
     image: nginx:alpine
     container_name: tkho-booking-nginx
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "3200:80"
       - "3243:443"

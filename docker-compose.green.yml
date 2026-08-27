@@ -1,5 +1,11 @@
 # 绿环境应用
 
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "3"
+
 services:
   backend-green:
     build:
@@ -8,6 +14,7 @@ services:
     image: tkho-booking-images-backend-green
     container_name: tkho-booking-backend-green
     restart: unless-stopped
+    logging: *default-logging
     environment:
       - TZ=Asia/Hong_Kong
       - NODE_ENV=production
@@ -44,6 +51,7 @@ services:
     image: tkho-booking-images-frontend-green
     container_name: tkho-booking-frontend-green
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "3214:80"
     networks:

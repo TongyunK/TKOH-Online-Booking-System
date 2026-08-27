@@ -134,6 +134,12 @@ export class SystemSettingsService {
     return null;
   }
 
+  private parseDataRetentionMonths(raw: string): number | null {
+    const value = Number.parseInt(String(raw ?? '').trim(), 10);
+    if (Number.isFinite(value) && value >= 1 && value <= 120) return value;
+    return null;
+  }
+
   private resolveHiddenSettingFromEnv(
     key: SystemSettingKeyName,
     envKey: string,
@@ -335,6 +341,26 @@ export class SystemSettingsService {
     );
     if (fromDb != null) return fromDb;
     return this.resolveInactiveAfterMonthsFromEnv();
+  }
+
+  async getDataRetentionMonths(): Promise<number> {
+    const map = await this.ensureDefaultSettings();
+    return (
+      this.parseDataRetentionMonths(
+        this.getSetting(map, SystemSettingKey.dataRetentionMonths),
+      ) ??
+      Number.parseInt(
+        SYSTEM_SETTING_DEFAULTS[SystemSettingKey.dataRetentionMonths],
+        10,
+      )
+    );
+  }
+
+  async getDataRetentionOpsEmail(): Promise<string> {
+    const map = await this.ensureDefaultSettings();
+    return String(
+      this.getSetting(map, SystemSettingKey.dataRetentionOpsEmail),
+    ).trim();
   }
 
   async getHkPublicHolidaysUrl(): Promise<string> {

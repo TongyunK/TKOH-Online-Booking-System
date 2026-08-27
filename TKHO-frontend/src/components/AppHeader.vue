@@ -325,7 +325,7 @@ const saveCurrentPath = () => {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.75rem 2rem;
+  padding: 0.75rem 1.6rem;
   flex-wrap: nowrap;
 }
 

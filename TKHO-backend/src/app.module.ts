@@ -22,6 +22,7 @@ import { MeetingApprovalModule } from './meeting-approval/meeting-approval.modul
 import { AdminPendingModule } from './admin-pending/admin-pending.module';
 import { VenueCalendarModule } from './venue-calendar/venue-calendar.module';
 import { DataBackupModule } from './data-backup/data-backup.module';
+import { DataRetentionModule } from './data-retention/data-retention.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { DataBackupModule } from './data-backup/data-backup.module';
     AdminPendingModule,
     VenueCalendarModule,
     DataBackupModule,
+    DataRetentionModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],
 })

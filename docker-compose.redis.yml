@@ -1,10 +1,17 @@
 # Redis 缓存（独立部署）
 
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "3"
+
 services:
   redis:
     image: redis:7-alpine
     container_name: tkho-booking-redis
     restart: unless-stopped
+    logging: *default-logging
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-tkhoRedis123}
     volumes:
       - tkho_redis_data_volumes:/data
