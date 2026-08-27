@@ -29,6 +29,8 @@ import { join } from 'path';
 
 
 import {
+  APP_END_OF_DAY_HM,
+  APP_END_OF_DAY_MINUTES,
   dbTimeToAppMinutes,
   formatDbDateAsAppYmd,
   formatDbTimeAsAppHm,
@@ -3958,7 +3960,7 @@ export class VenueManagementService {
     blockEnd: Date,
 
 
-  ): { startTime: string; endTime: string; startMinutes: number } | null {
+  ): { startTime: string; endTime: string; startMinutes: number; endMinutes: number } | null {
 
 
     const { dayStart, dayEnd } = this.resolveVenueDisplayDayBounds(displayDateYmd);
@@ -3976,13 +3978,31 @@ export class VenueManagementService {
     const startTime = formatInstantAsAppHm(new Date(startMs));
 
 
-    const endTime = formatInstantAsAppHm(new Date(endMs));
+    const dayEndMs = dayEnd.getTime();
 
 
-    const startMinutes = this.hmStringToMinutes(startTime);
+    const endsAtDayEnd = endMs === dayEndMs;
 
 
-    const endMinutes = this.hmStringToMinutes(endTime);
+    const endTime = endsAtDayEnd
+
+
+      ? APP_END_OF_DAY_HM
+
+
+      : formatInstantAsAppHm(new Date(endMs));
+
+
+    const startMinutes = hmStringToAppMinutes(startTime);
+
+
+    const endMinutes = endsAtDayEnd
+
+
+      ? APP_END_OF_DAY_MINUTES
+
+
+      : hmStringToAppMinutes(endTime);
 
 
     if (!(endMinutes > startMinutes)) return null;
@@ -3998,6 +4018,9 @@ export class VenueManagementService {
 
 
       startMinutes,
+
+
+      endMinutes,
 
 
     };
@@ -4169,7 +4192,7 @@ export class VenueManagementService {
     const blockId = block.id.toString();
 
 
-    const endMinutes = this.hmStringToMinutes(segment.endTime);
+    const endMinutes = segment.endMinutes;
 
 
     const pmCutoffHm = `${String(Math.floor(pmCutoffMinutes / 60)).padStart(2, '0')}:${String(pmCutoffMinutes % 60).padStart(2, '0')}`;

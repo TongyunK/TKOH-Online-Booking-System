@@ -168,6 +168,10 @@ export function formatInstantAsAppHm(
   return `${String(parts.hour).padStart(2, '0')}:${String(parts.minute).padStart(2, '0')}`;
 }
 
+/** 业务日结束墙钟（次日 00:00 的排他上界，用于整日 block 展示） */
+export const APP_END_OF_DAY_HM = '24:00';
+export const APP_END_OF_DAY_MINUTES = 24 * 60;
+
 export function hmStringToAppMinutes(hm: string): number {
   const match = String(hm || '').match(/^(\d{1,2}):(\d{2})$/);
   if (!match) return 0;
