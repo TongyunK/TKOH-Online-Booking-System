@@ -85,14 +85,35 @@ export class DataBackupSchedulerService {
       const interval = settings.dataBackupEmailInterval as DataBackupEmailInterval;
       const now = new Date();
       const todayYmd = formatYmdInTimeZone(now, APP_TIMEZONE);
+      const currentHm = this.formatHmInTimeZone(now, APP_TIMEZONE);
 
       if (trigger === 'cron') {
         if (!this.isConfiguredSendMinute(now, sendTime)) return;
-        if (!this.shouldSendForInterval(interval, todayYmd)) return;
+        if (!this.shouldSendForInterval(interval, todayYmd)) {
+          this.logger.debug(
+            `Data backup cron skipped at ${currentHm} HKT: interval=${interval} does not apply today (${todayYmd})`,
+          );
+          return;
+        }
 
-        const sentKey = this.buildSentKey(interval, todayYmd);
-        if (this.lastSentKey === sentKey) return;
-        this.lastSentKey = sentKey;
+        // Include sendTime so changing Send time the same day can be re-tested.
+        const sentKey = this.buildSentKey(interval, todayYmd, sendTime);
+        if (this.lastSentKey === sentKey) {
+          this.logger.debug(
+            `Data backup cron skipped at ${currentHm} HKT: already sent for key ${sentKey}`,
+          );
+          return;
+        }
+
+        this.logger.log(
+          `Data backup cron matched ${sendTime} HKT (${interval}); starting send…`,
+        );
+        const result = await this.executeBackup(trigger, { throwOnError: false });
+        // Only mark sent after success, so a failed minute can retry next tick / after fix.
+        if (result) {
+          this.lastSentKey = sentKey;
+        }
+        return;
       }
 
       await this.executeBackup(trigger, { throwOnError: false });
@@ -180,13 +201,15 @@ export class DataBackupSchedulerService {
   private buildSentKey(
     interval: DataBackupEmailInterval,
     todayYmd: string,
+    sendTime: string,
   ): string {
-    if (interval === 'daily') return `${todayYmd}-daily`;
+    const hm = String(sendTime || '').trim() || '09:00';
+    if (interval === 'daily') return `${todayYmd}-daily-${hm}`;
     if (interval === 'weekly') {
       const { weekStartYmd } = getAppWeekBoundsYmd(todayYmd, APP_TIMEZONE);
-      return `${weekStartYmd}-weekly`;
+      return `${weekStartYmd}-weekly-${hm}`;
     }
-    return `${todayYmd.slice(0, 7)}-monthly`;
+    return `${todayYmd.slice(0, 7)}-monthly-${hm}`;
   }
 
   private formatHmInTimeZone(date: Date, timeZone: string): string {
@@ -201,6 +224,9 @@ export class DataBackupSchedulerService {
         .filter((part) => part.type !== 'literal')
         .map((part) => [part.type, part.value]),
     ) as Record<string, string>;
-    return `${parts.hour}:${parts.minute}`;
+    // Some Node/ICU builds may omit leading zeros even with hour: '2-digit'.
+    const hour = String(parts.hour ?? '').padStart(2, '0');
+    const minute = String(parts.minute ?? '').padStart(2, '0');
+    return `${hour}:${minute}`;
   }
 }

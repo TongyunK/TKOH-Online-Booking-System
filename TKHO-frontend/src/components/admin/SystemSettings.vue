@@ -210,7 +210,7 @@
             />
             <p class="field-hint">Recipient for scheduled backup reports.</p>
 
-            <div class="field-row">
+            <div class="field-row field-row--triple">
               <div class="field-group">
                 <label class="field-label" for="data-backup-time-span">Time span (days)</label>
                 <el-input-number
@@ -788,6 +788,18 @@ onMounted(() => {
   gap: 0.75rem 1.25rem;
 }
 
+.field-row--triple {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem 0.85rem;
+  align-items: start;
+}
+
+.field-row--triple .field-group {
+  width: 100%;
+  min-width: 0;
+}
+
 .field-group {
   display: flex;
   flex-direction: column;
@@ -893,6 +905,25 @@ onMounted(() => {
   padding-right: 0.5rem;
 }
 
+/* Data Backup 三列：强制与其它列同宽（覆盖上方固定 140px） */
+.setting-card-body .field-row--triple .field-control,
+.setting-card-body .field-row--triple .field-control--time,
+.setting-card-body .field-row--triple .field-control--select {
+  width: 100%;
+  max-width: none;
+}
+
+.setting-card-body .field-row--triple :deep(.el-input-number),
+.setting-card-body .field-row--triple :deep(.el-select),
+.setting-card-body .field-row--triple :deep(.el-input) {
+  width: 100%;
+  max-width: none;
+}
+
+.setting-card-body .field-row--triple :deep(.el-select .el-input) {
+  width: 100%;
+}
+
 .setting-card-body :deep(.el-input__wrapper) {
   border-radius: 0.375rem;
   box-shadow: 0 0 0 1px #d1d5db inset;
@@ -940,6 +971,10 @@ onMounted(() => {
   .field-row {
     flex-direction: column;
     gap: 0.65rem;
+  }
+
+  .field-row--triple {
+    grid-template-columns: 1fr;
   }
 
   .field-control,

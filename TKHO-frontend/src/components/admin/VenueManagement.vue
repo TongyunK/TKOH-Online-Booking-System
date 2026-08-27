@@ -97,14 +97,28 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="Display on Homepage" min-width="150" align="center">
+        <el-table-column
+          width="90"
+          align="center"
+          header-align="center"
+          class-name="table-nowrap-col"
+          label-class-name="col-display-homepage-header"
+        >
+          <template #header>
+            <span class="display-homepage-header">Display on<br>Homepage</span>
+          </template>
           <template #default="{ row }">
-            <el-tag
-              effect="light"
-              :class="normalizeUserDefinedUploadEventTitle(row.userDefinedUploadEventTitle) ? 'upload-event-title-tag-yes' : 'upload-event-title-tag-no'"
+            <span
+              :class="[
+                'status-badge',
+                'display-homepage-badge',
+                normalizeUserDefinedUploadEventTitle(row.userDefinedUploadEventTitle)
+                  ? 'badge-display-homepage-yes'
+                  : 'badge-display-homepage-no'
+              ]"
             >
               {{ normalizeUserDefinedUploadEventTitle(row.userDefinedUploadEventTitle) ? 'Yes' : 'No' }}
-            </el-tag>
+            </span>
           </template>
         </el-table-column>
         <el-table-column min-width="150">
@@ -1469,6 +1483,21 @@ const handlePreview = (file) => {
   text-overflow: clip;
 }
 
+.page-content :deep(.el-table th.col-display-homepage-header),
+.page-content :deep(.el-table th.col-display-homepage-header .cell) {
+  white-space: normal;
+  line-height: 1.25;
+  text-align: center;
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+}
+
+.display-homepage-header {
+  display: inline-block;
+  line-height: 1.25;
+  font-size: 0.75rem;
+}
+
 .th-sort-btn {
   display: inline-flex;
   align-items: center;
@@ -2059,20 +2088,32 @@ const handlePreview = (file) => {
   color: #6b7280;
 }
 
-.page-content :deep(.upload-event-title-tag-yes) {
-  border-radius: 999px;
+.status-badge {
+  padding: 0.1875rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
   font-weight: 600;
-  padding: 0 10px;
+  white-space: nowrap;
+  display: inline-block;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.badge-display-homepage-yes {
   background-color: #dcfce7;
   color: #166534;
 }
 
-.page-content :deep(.upload-event-title-tag-no) {
-  border-radius: 999px;
-  font-weight: 600;
-  padding: 0 10px;
+.badge-display-homepage-no {
   background-color: #f3f4f6;
   color: #6b7280;
+}
+
+.display-homepage-badge {
+  width: auto;
+  min-width: 0;
+  padding: 0.125rem 0.4375rem;
+  text-align: center;
 }
 
 .page-content :deep(.display-tag-single) {
