@@ -134,3 +134,63 @@ function getTimeZoneOffsetMs(date: Date, timeZone: string): number {
   );
   return asUtc - date.getTime();
 }
+
+/**
+ * Prisma @db.Time：业务墙钟（按香港录入），UTC 分量即 HH:mm。
+ * 用于预订 start_time / end_time、EV 时段等。
+ */
+export function formatDbTimeAsAppHm(value: Date | null | undefined): string {
+  if (!value) return '';
+  return `${String(value.getUTCHours()).padStart(2, '0')}:${String(value.getUTCMinutes()).padStart(2, '0')}`;
+}
+
+export function dbTimeToAppMinutes(value: Date | null | undefined): number {
+  if (!value) return 0;
+  return value.getUTCHours() * 60 + value.getUTCMinutes();
+}
+
+/** timestamptz 绝对时刻 → APP_TIMEZONE 的 HH:mm（如 venue block） */
+export function formatInstantAsAppHm(
+  date: Date,
+  timeZone: string = APP_TIMEZONE,
+): string {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    })
+      .formatToParts(date)
+      .filter((part) => part.type !== 'literal')
+      .map((part) => [part.type, part.value]),
+  ) as Record<string, string>;
+  return `${String(parts.hour).padStart(2, '0')}:${String(parts.minute).padStart(2, '0')}`;
+}
+
+export function hmStringToAppMinutes(hm: string): number {
+  const match = String(hm || '').match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return 0;
+  return Number.parseInt(match[1], 10) * 60 + Number.parseInt(match[2], 10);
+}
+
+export function formatDbTimeRangeAsAppHm(
+  start: Date | null | undefined,
+  end: Date | null | undefined,
+  separator = '-',
+): string {
+  const startText = formatDbTimeAsAppHm(start);
+  const endText = formatDbTimeAsAppHm(end);
+  if (!startText && !endText) return '';
+  if (!endText) return startText;
+  return `${startText}${separator}${endText}`;
+}
+
+/** Prisma @db.Date → YYYY-MM-DD（日历日，与业务 YMD 一致） */
+export function formatDbDateAsAppYmd(value: Date | null | undefined): string {
+  if (!value) return '';
+  const y = value.getUTCFullYear();
+  const m = String(value.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(value.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}

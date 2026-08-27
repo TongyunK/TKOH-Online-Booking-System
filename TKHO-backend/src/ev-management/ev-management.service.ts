@@ -7,7 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { getAppTodayYmd } from '../common/app-timezone';
+import { formatDbTimeAsAppHm, getAppTodayYmd } from '../common/app-timezone';
 import { releaseEvQuota } from '../common/user-quota';
 import { assertEvWeeklyBookingLimit } from '../common/ev-weekly-booking-limit';
 import { DisplayManagementService } from '../display-management/display-management.service';
@@ -73,9 +73,7 @@ export class EvManagementService {
   }
 
   private formatHHmm(d: Date): string {
-    const h = d.getUTCHours();
-    const min = d.getUTCMinutes();
-    return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+    return formatDbTimeAsAppHm(d);
   }
 
   private mapParking(row: { id: bigint; evSpace: string; location: string | null; status: string }) {

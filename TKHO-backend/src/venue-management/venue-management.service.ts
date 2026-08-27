@@ -28,7 +28,16 @@ import { promises as fs } from 'fs';
 import { join } from 'path';
 
 
-import { getAppTodayYmd } from '../common/app-timezone';
+import {
+  dbTimeToAppMinutes,
+  formatDbDateAsAppYmd,
+  formatDbTimeAsAppHm,
+  formatDbTimeRangeAsAppHm,
+  formatInstantAsAppHm,
+  getAppDayBounds,
+  getAppTodayYmd,
+  hmStringToAppMinutes,
+} from '../common/app-timezone';
 
 
 import { consumeVenueQuota, releaseVenueQuota } from '../common/user-quota';
@@ -3043,19 +3052,7 @@ export class VenueManagementService {
   private formatTeaDisplayDate(value: Date | null | undefined): string {
 
 
-    if (!value) return '';
-
-
-    const y = value.getUTCFullYear();
-
-
-    const m = String(value.getUTCMonth() + 1).padStart(2, '0');
-
-
-    const d = String(value.getUTCDate()).padStart(2, '0');
-
-
-    return `${y}-${m}-${d}`;
+    return formatDbDateAsAppYmd(value);
 
 
   }
@@ -3076,19 +3073,7 @@ export class VenueManagementService {
   ): string {
 
 
-    const startText = this.formatTimeValue(start);
-
-
-    const endText = this.formatTimeValue(end);
-
-
-    if (!startText && !endText) return '';
-
-
-    if (!endText) return startText;
-
-
-    return `${startText}-${endText}`;
+    return formatDbTimeRangeAsAppHm(start, end);
 
 
   }
@@ -3898,10 +3883,10 @@ export class VenueManagementService {
       venueId: row.venueId != null ? row.venueId.toString() : '',
 
 
-      startTime: this.formatTimeValue(row.startTime),
+      startTime: formatDbTimeAsAppHm(row.startTime),
 
 
-      endTime: this.formatTimeValue(row.endTime),
+      endTime: formatDbTimeAsAppHm(row.endTime),
 
 
       topic: this.resolvePublicVenueDisplayTopic(row),
@@ -3916,7 +3901,404 @@ export class VenueManagementService {
       time: this.formatTeaDisplayTimeRange(row.startTime, row.endTime),
 
 
+      isBlocked: false,
+
+
     };
+
+
+  }
+
+
+
+
+
+  private hmStringToMinutes(hm: string): number {
+
+
+    return hmStringToAppMinutes(hm);
+
+
+  }
+
+
+
+
+
+  private resolveVenueDisplayDayBounds(displayDateYmd: string): {
+
+
+    dayStart: Date;
+
+
+    dayEnd: Date;
+
+
+  } {
+
+
+    return getAppDayBounds(displayDateYmd);
+
+
+  }
+
+
+
+
+
+  private blockSegmentTimesOnDisplayDate(
+
+
+    displayDateYmd: string,
+
+
+    blockStart: Date,
+
+
+    blockEnd: Date,
+
+
+  ): { startTime: string; endTime: string; startMinutes: number } | null {
+
+
+    const { dayStart, dayEnd } = this.resolveVenueDisplayDayBounds(displayDateYmd);
+
+
+    const startMs = Math.max(blockStart.getTime(), dayStart.getTime());
+
+
+    const endMs = Math.min(blockEnd.getTime(), dayEnd.getTime());
+
+
+    if (!(endMs > startMs)) return null;
+
+
+    const startTime = formatInstantAsAppHm(new Date(startMs));
+
+
+    const endTime = formatInstantAsAppHm(new Date(endMs));
+
+
+    const startMinutes = this.hmStringToMinutes(startTime);
+
+
+    const endMinutes = this.hmStringToMinutes(endTime);
+
+
+    if (!(endMinutes > startMinutes)) return null;
+
+
+    return {
+
+
+      startTime,
+
+
+      endTime,
+
+
+      startMinutes,
+
+
+    };
+
+
+  }
+
+
+
+
+
+  private mapVenueDisplayBlockRow(
+
+
+    block: {
+
+
+      id: bigint;
+
+
+      venue_id: bigint;
+
+
+      start_at: Date;
+
+
+      end_at: Date;
+
+
+      reason: string | null;
+
+
+    },
+
+
+    displayDateYmd: string,
+
+
+  ) {
+
+
+    const segment = this.blockSegmentTimesOnDisplayDate(
+
+
+      displayDateYmd,
+
+
+      block.start_at,
+
+
+      block.end_at,
+
+
+    );
+
+
+    if (!segment) return null;
+
+
+    const reason = String(block.reason ?? '').trim() || 'Blocked';
+
+
+    return {
+
+
+      id: `block-${block.id.toString()}`,
+
+
+      bookingId: '',
+
+
+      venueId: block.venue_id.toString(),
+
+
+      startTime: segment.startTime,
+
+
+      endTime: segment.endTime,
+
+
+      topic: reason,
+
+
+      reservedBy: '',
+
+
+      attendees: null,
+
+
+      time: `${segment.startTime} - ${segment.endTime}`,
+
+
+      isBlocked: true,
+
+
+      startMinutes: segment.startMinutes,
+
+
+    };
+
+
+  }
+
+
+
+
+
+  /** Merge 大屏：跨 13:00 的 block 拆成 AM/PM 两条，避免下午列误显示为空闲。 */
+  private mapVenueMergeDisplayBlockEntries(
+
+
+    block: {
+
+
+      id: bigint;
+
+
+      venue_id: bigint;
+
+
+      start_at: Date;
+
+
+      end_at: Date;
+
+
+      reason: string | null;
+
+
+    },
+
+
+    displayDateYmd: string,
+
+
+    pmCutoffMinutes: number,
+
+
+  ): Array<{
+    id: string;
+    startMinutes: number;
+    time: string;
+    title: string;
+    isBlocked: true;
+  }> {
+
+
+    const segment = this.blockSegmentTimesOnDisplayDate(
+
+
+      displayDateYmd,
+
+
+      block.start_at,
+
+
+      block.end_at,
+
+
+    );
+
+
+    if (!segment) return [];
+
+
+    const reason = String(block.reason ?? '').trim() || 'Blocked';
+
+
+    const blockId = block.id.toString();
+
+
+    const endMinutes = this.hmStringToMinutes(segment.endTime);
+
+
+    const pmCutoffHm = `${String(Math.floor(pmCutoffMinutes / 60)).padStart(2, '0')}:${String(pmCutoffMinutes % 60).padStart(2, '0')}`;
+
+
+    if (
+
+
+      segment.startMinutes < pmCutoffMinutes &&
+
+
+      endMinutes > pmCutoffMinutes
+
+
+    ) {
+
+
+      return [
+
+
+        {
+
+
+          id: `block-${blockId}-am`,
+
+
+          startMinutes: segment.startMinutes,
+
+
+          time: `${segment.startTime} - ${pmCutoffHm}`,
+
+
+          title: reason,
+
+
+          isBlocked: true,
+
+
+        },
+
+
+        {
+
+
+          id: `block-${blockId}-pm`,
+
+
+          startMinutes: pmCutoffMinutes,
+
+
+          time: `${pmCutoffHm} - ${segment.endTime}`,
+
+
+          title: reason,
+
+
+          isBlocked: true,
+
+
+        },
+
+
+      ];
+
+
+    }
+
+
+    return [
+
+
+      {
+
+
+        id: `block-${blockId}`,
+
+
+        startMinutes: segment.startMinutes,
+
+
+        time: `${segment.startTime} - ${segment.endTime}`,
+
+
+        title: reason,
+
+
+        isBlocked: true,
+
+
+      },
+
+
+    ];
+
+
+  }
+
+
+
+
+
+  private sortVenueDisplayEvents<T extends { startTime?: string; startMinutes?: number }>(
+
+
+    events: T[],
+
+
+  ): T[] {
+
+
+    return [...events].sort((a, b) => {
+
+
+      const aMin =
+
+
+        a.startMinutes ?? this.hmStringToMinutes(String(a.startTime ?? ''));
+
+
+      const bMin =
+
+
+        b.startMinutes ?? this.hmStringToMinutes(String(b.startTime ?? ''));
+
+
+      return aMin - bMin;
+
+
+    });
 
 
   }
@@ -4093,6 +4475,45 @@ export class VenueManagementService {
     });
 
 
+    const { dayStart, dayEnd } = this.resolveVenueDisplayDayBounds(displayDate);
+
+
+    const blockRows = await this.prisma.venue_blocks.findMany({
+
+
+      where: {
+
+
+        venue_id: venueId,
+
+
+        start_at: { lt: dayEnd },
+
+
+        end_at: { gt: dayStart },
+
+
+      },
+
+
+    });
+
+
+    const bookingEvents = rows.map((row) => this.mapVenueDisplayEventRow(row));
+
+
+    const blockEvents = blockRows
+
+
+      .map((block) => this.mapVenueDisplayBlockRow(block, displayDate))
+
+
+      .filter((event): event is NonNullable<typeof event> => event != null);
+
+
+    const events = this.sortVenueDisplayEvents([...bookingEvents, ...blockEvents]);
+
+
 
 
 
@@ -4114,7 +4535,7 @@ export class VenueManagementService {
       ),
 
 
-      events: rows.map((row) => this.mapVenueDisplayEventRow(row)),
+      events,
 
 
     };
@@ -4237,6 +4658,45 @@ export class VenueManagementService {
 
 
 
+    const { dayStart, dayEnd } = this.resolveVenueDisplayDayBounds(displayDate);
+
+
+    const venueIds = venues.map((venue) => venue.id);
+
+
+    const blockRows =
+
+
+      venueIds.length > 0
+
+
+        ? await this.prisma.venue_blocks.findMany({
+
+
+            where: {
+
+
+              venue_id: { in: venueIds },
+
+
+              start_at: { lt: dayEnd },
+
+
+              end_at: { gt: dayStart },
+
+
+            },
+
+
+          })
+
+
+        : [];
+
+
+
+
+
     const ruleByVenueId = new Map(
 
 
@@ -4267,6 +4727,24 @@ export class VenueManagementService {
     }
 
 
+    const blocksByVenueId = new Map<string, typeof blockRows>();
+
+
+    for (const block of blockRows) {
+
+
+      const key = block.venue_id.toString();
+
+
+      if (!blocksByVenueId.has(key)) blocksByVenueId.set(key, []);
+
+
+      blocksByVenueId.get(key)!.push(block);
+
+
+    }
+
+
 
 
 
@@ -4291,34 +4769,52 @@ export class VenueManagementService {
       const arrowDirection = rule?.arrow_direction || 'right';
 
 
-      const venueMeetings = (bookingsByVenueId.get(id) || []).map((row) => {
+      const venueMeetings = this.sortVenueDisplayEvents([
 
 
-        const event = this.mapVenueDisplayEventRow(row);
+        ...(bookingsByVenueId.get(id) || []).map((row) => {
 
 
-        const startMinutes = this.timeToMinutes(row.startTime);
+          const event = this.mapVenueDisplayEventRow(row);
 
 
-        return {
+          const startMinutes = dbTimeToAppMinutes(row.startTime);
 
 
-          id: event.id,
+            return {
 
 
-          startMinutes,
+              id: event.id,
 
 
-          time: event.time,
+              startMinutes,
 
 
-          title: event.topic,
+              time: event.time,
 
 
-        };
+              title: event.topic,
 
 
-      });
+              isBlocked: false,
+
+
+            };
+
+
+        }),
+
+
+        ...(blocksByVenueId.get(id) || []).flatMap((block) =>
+
+
+          this.mapVenueMergeDisplayBlockEntries(block, displayDate, pmCutoffMinutes),
+
+
+        ),
+
+
+      ]);
 
 
 
