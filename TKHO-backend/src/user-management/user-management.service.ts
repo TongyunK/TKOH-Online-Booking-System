@@ -740,6 +740,10 @@ export class UserManagementService {
       dto.contact !== undefined
         ? dto.contact.trim() || null
         : p.contact_no?.trim() || null;
+    const email =
+      dto.email !== undefined
+        ? dto.email.trim() || null
+        : p.email?.trim() || null;
     const departmentId =
       dto.department !== undefined
         ? await this.resolveDepartmentId(dto.department)
@@ -763,7 +767,7 @@ export class UserManagementService {
             lastName,
             employeeNo,
             rank,
-            email: p.email?.trim() || null,
+            email,
             contact,
             departmentId,
             accessRoleId,

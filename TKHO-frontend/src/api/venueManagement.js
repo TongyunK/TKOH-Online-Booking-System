@@ -12,8 +12,11 @@ export function updateVenue(id, payload) {
   return request.patch(`/venue-management/venues/${id}`, payload)
 }
 
-export function deleteVenue(id) {
-  return request.delete(`/venue-management/venues/${id}`, { silentError: true })
+export function deleteVenue(id, { cascadeRelated = false } = {}) {
+  return request.delete(`/venue-management/venues/${id}`, {
+    silentError: true,
+    params: cascadeRelated ? { cascadeRelated: true } : undefined
+  })
 }
 
 export function getVenueBookingWindow() {

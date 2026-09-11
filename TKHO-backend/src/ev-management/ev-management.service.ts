@@ -162,7 +162,7 @@ export class EvManagementService {
     return this.mapParking(updated);
   }
 
-  async deleteParkingSlot(id: string) {
+  async deleteParkingSlot(id: string, cascadeRelated = false) {
     const slotId = BigInt(id);
     const exists = await this.prisma.evParkingSlots.findUnique({ where: { id: slotId } });
     if (!exists) throw new NotFoundException('EV space not found');
@@ -172,18 +172,24 @@ export class EvManagementService {
         status: { notIn: ['cancelled', 'canceled', 'past'] },
       },
     });
-    if (upcomingCnt > 0) {
-      throw new BadRequestException(
-        'Cannot delete this EV space because it has upcoming bookings. Please cancel those bookings first.',
-      );
-    }
     const historyCnt = await this.prisma.evBookings.count({ where: { slotId } });
-    if (historyCnt > 0) {
-      throw new BadRequestException(
-        'Cannot delete this EV space because it has booking history. Historical booking records cannot be removed.',
-      );
+    if (!cascadeRelated && (upcomingCnt > 0 || historyCnt > 0)) {
+      throw new BadRequestException({
+        code: 'HAS_RELATED_BOOKINGS',
+        message:
+          `This EV space has ${historyCnt} related booking record(s)` +
+          (upcomingCnt > 0 ? ` (including ${upcomingCnt} upcoming).` : '.') +
+          ' Do you also want to delete all related records?',
+        bookingCount: historyCnt,
+        upcomingCount: upcomingCnt,
+      });
     }
-    await this.prisma.evParkingSlots.delete({ where: { id: slotId } });
+    await this.prisma.$transaction(async (tx) => {
+      if (cascadeRelated && historyCnt > 0) {
+        await tx.evBookings.deleteMany({ where: { slotId } });
+      }
+      await tx.evParkingSlots.delete({ where: { id: slotId } });
+    });
     return { ok: true };
   }
 
@@ -260,7 +266,7 @@ export class EvManagementService {
     }
   }
 
-  async deleteTimePeriod(id: string) {
+  async deleteTimePeriod(id: string, cascadeRelated = false) {
     const periodId = BigInt(id);
     const exists = await this.prisma.evTimePeriods.findUnique({ where: { id: periodId } });
     if (!exists) throw new NotFoundException('Time period not found');
@@ -270,18 +276,24 @@ export class EvManagementService {
         status: { notIn: ['cancelled', 'canceled', 'past'] },
       },
     });
-    if (upcomingCnt > 0) {
-      throw new BadRequestException(
-        'Cannot delete this time period because it has upcoming bookings. Please cancel those bookings first.',
-      );
-    }
     const historyCnt = await this.prisma.evBookings.count({ where: { periodId } });
-    if (historyCnt > 0) {
-      throw new BadRequestException(
-        'Cannot delete this time period because it has booking history. Historical booking records cannot be removed.',
-      );
+    if (!cascadeRelated && (upcomingCnt > 0 || historyCnt > 0)) {
+      throw new BadRequestException({
+        code: 'HAS_RELATED_BOOKINGS',
+        message:
+          `This time period has ${historyCnt} related booking record(s)` +
+          (upcomingCnt > 0 ? ` (including ${upcomingCnt} upcoming).` : '.') +
+          ' Do you also want to delete all related records?',
+        bookingCount: historyCnt,
+        upcomingCount: upcomingCnt,
+      });
     }
-    await this.prisma.evTimePeriods.delete({ where: { id: periodId } });
+    await this.prisma.$transaction(async (tx) => {
+      if (cascadeRelated && historyCnt > 0) {
+        await tx.evBookings.deleteMany({ where: { periodId } });
+      }
+      await tx.evTimePeriods.delete({ where: { id: periodId } });
+    });
     return { ok: true };
   }
 

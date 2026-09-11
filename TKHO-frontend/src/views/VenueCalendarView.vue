@@ -1132,7 +1132,7 @@ async function handleBookingConfirm (bookingData) {
     } else {
       await createVenueBooking(payload)
       notifyAdminPendingUpdated({ source: 'bookings' })
-      showNotice('Booking submitted and pending approval', 'Success')
+      showNotice('Booking submitted and approved', 'Success')
       await userStore.refreshSessionUser()
     }
     await fetchBookings()

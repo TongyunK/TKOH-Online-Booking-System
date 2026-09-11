@@ -20,6 +20,8 @@
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
+  /* Display 大屏：优先微软雅黑，保证中英混排观感一致 */
+  --display-font-family: 'Microsoft YaHei', '微软雅黑', Arial, 'PingFang SC', 'Hiragino Sans GB', sans-serif;
 
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;

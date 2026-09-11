@@ -12,8 +12,11 @@ export function updateEvParkingSlot(id, payload) {
   return request.patch(`/ev-management/parking/${id}`, payload)
 }
 
-export function deleteEvParkingSlot(id) {
-  return request.delete(`/ev-management/parking/${id}`, { silentError: true })
+export function deleteEvParkingSlot(id, { cascadeRelated = false } = {}) {
+  return request.delete(`/ev-management/parking/${id}`, {
+    silentError: true,
+    params: cascadeRelated ? { cascadeRelated: true } : undefined
+  })
 }
 
 export function getEvTimePeriods(config = {}) {
@@ -28,8 +31,11 @@ export function updateEvTimePeriod(id, payload) {
   return request.patch(`/ev-management/time-periods/${id}`, payload)
 }
 
-export function deleteEvTimePeriod(id) {
-  return request.delete(`/ev-management/time-periods/${id}`, { silentError: true })
+export function deleteEvTimePeriod(id, { cascadeRelated = false } = {}) {
+  return request.delete(`/ev-management/time-periods/${id}`, {
+    silentError: true,
+    params: cascadeRelated ? { cascadeRelated: true } : undefined
+  })
 }
 
 export function getEvBookingWindow(config = {}) {

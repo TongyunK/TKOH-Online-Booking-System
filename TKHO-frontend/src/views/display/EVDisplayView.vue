@@ -355,8 +355,13 @@ html.ev-display-fullscreen #app {
   overflow: hidden;
   background: #8fce4c;
   color: #ffffff;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--display-font-family);
   transform-origin: top left;
+}
+
+.ev-display-root,
+.ev-display-root * {
+  font-family: var(--display-font-family);
 }
 
 .ev-display-stage {

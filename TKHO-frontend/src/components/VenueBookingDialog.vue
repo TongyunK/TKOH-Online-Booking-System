@@ -827,7 +827,7 @@ const form = ref({
   remark: '',
   teaServiceRequired: false,
   attendeeCount: null,
-  displayOnHomepage: true,
+  displayOnHomepage: false,
   teaServiceOption: '1',
   teaServiceOption4: false,
   teaServiceRatioFrom: null,
@@ -964,7 +964,7 @@ const showUploadEventTitleOption = computed(() => {
 
 function applyUploadEventTitleVisibilityRules() {
   if (showUploadEventTitleOption.value) return
-  form.value.displayOnHomepage = true
+  form.value.displayOnHomepage = false
 }
 
 // 非管理员禁用今日之前；所有人禁用 Venue Booking Date Range 之外；管理员可选周末/假日
@@ -1120,7 +1120,7 @@ function initializeForm() {
       remark: '',
       teaServiceRequired: false,
       attendeeCount: null,
-      displayOnHomepage: true,
+      displayOnHomepage: false,
       teaServiceOption: '1',
       teaServiceOption4: false,
       teaServiceRatioFrom: null,

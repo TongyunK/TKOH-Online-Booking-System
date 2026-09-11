@@ -786,7 +786,7 @@ export class VenueCalendarService {
           bookingType: 'venue',
           approvalStatus: 'pending',
           teaServiceRequired: teaRequired,
-          displayOnHomepage: dto.displayOnHomepage !== false,
+          displayOnHomepage: dto.displayOnHomepage ?? false,
           submittedAt: new Date(),
           submitterUserId: actorUserId,
         },

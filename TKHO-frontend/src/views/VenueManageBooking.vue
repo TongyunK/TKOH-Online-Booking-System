@@ -275,7 +275,7 @@
                     <div class="booking-popover-content">
                       <div class="booking-popover-row"><span class="popover-label">Meeting / Event</span><span class="popover-value">{{ booking.topic || '-' }}</span></div>
                       <div v-if="!isAdminAllBookingsView" class="booking-popover-row"><span class="popover-label">My Note</span><span class="popover-value">{{ booking.myNote || '-' }}</span></div>
-                      <div class="booking-popover-row"><span class="popover-label">Reserved By</span><span class="popover-value">{{ booking.reservedBy || '-' }}</span></div>
+                      <div class="booking-popover-row"><span class="popover-label">Reserved By</span><span class="popover-value">{{ formatBookingReservedByDisplay(booking) || '-' }}</span></div>
                       <div class="booking-popover-row"><span class="popover-label">Contact</span><span class="popover-value">{{ booking.contact || '-' }}</span></div>
                       <div class="booking-popover-row"><span class="popover-label">Email</span><span class="popover-value">{{ booking.email || '-' }}</span></div>
                       <div class="booking-popover-row"><span class="popover-label">Tea Service</span><span class="popover-value">{{ formatTeaServiceStatus(booking) }}</span></div>
@@ -557,7 +557,7 @@
                   </td>
                   <td v-if="availableColumns[1].visible" class="col-venue">{{ booking.room }}</td>
                   <td v-if="availableColumns[2].visible" class="col-topic">{{ booking.topic }}</td>
-                  <td v-if="isReservedByTableColumnVisible">{{ booking.reservedBy }}</td>
+                  <td v-if="isReservedByTableColumnVisible">{{ formatBookingReservedByDisplay(booking) }}</td>
                   <td v-if="isContactTableColumnVisible">{{ booking.contact }}</td>
                   <td v-if="isEmailTableColumnVisible">{{ booking.email }}</td>
                   <td v-if="availableColumns[6].visible">
@@ -625,7 +625,7 @@
                     </span>
                     <span v-else>-</span>
                   </td>
-                  <td v-if="isAdminAllBookingsView">{{ booking.submitter || '-' }}</td>
+                  <td v-if="isAdminAllBookingsView">{{ formatBookingSubmitterDisplay(booking) || '-' }}</td>
                   <td v-if="availableColumns[8].visible">{{ booking.bookedOn }}</td>
                   <td v-if="isMyNoteTableColumnVisible" class="col-mynote">
                     <span class="col-mynote-text">{{ booking.myNote || '-' }}</span>
@@ -1159,6 +1159,7 @@ import {
   isMeetingEventTitleTooLong,
   createMeetingEventTitleMaxRule
 } from '@/utils/meetingEventTitleMaxLength'
+import { formatBookingReservedByDisplay, formatBookingSubmitterDisplay } from '@/utils/userDisplayName'
 import * as XLSX from 'xlsx'
 
 const userStore = useUserStore()
@@ -1425,10 +1426,11 @@ function mapManageBookingToDialogBooking (booking) {
     teaServiceRequired: Boolean(booking.teaServiceRequired),
     displayOnHomepage: booking.displayOnHomepage !== false,
     reservedByUserId: booking.employeeId != null ? String(booking.employeeId) : '',
-    reservedBy: booking.reservedBy || '',
+    reservedBy: booking.reservedByName || booking.reservedBy || '',
     corpId: booking.corpId || '',
-    fullName: booking.reservedBy || '',
+    fullName: booking.reservedByName || booking.reservedBy || '',
     department: booking.department || '',
+    rank: booking.rank || '',
     contactPhone: booking.contact || '',
     contactEmail: booking.email || '',
     teaService: booking.teaService,
@@ -1694,7 +1696,7 @@ const showHandleUploadEventTitleOption = computed(() => {
 
 function applyEditUploadEventTitleVisibilityRules() {
   if (showEditUploadEventTitleOption.value) return
-  editForm.value.displayOnHomepage = true
+  editForm.value.displayOnHomepage = false
 }
 
 /** Approved???????? My Note?????????????*/
@@ -2073,7 +2075,8 @@ const buildFilteredBookings = (options = {}) => {
       String(b.topic || '').toLowerCase().includes(query) ||
       String(b.room || '').toLowerCase().includes(query) ||
       String(b.date || '').toLowerCase().includes(query) ||
-      String(b.reservedBy || '').toLowerCase().includes(query) ||
+      String(formatBookingReservedByDisplay(b) || b.reservedBy || '').toLowerCase().includes(query) ||
+      String(b.department || '').toLowerCase().includes(query) ||
       String(b.myNote || '').toLowerCase().includes(query)
     )
   }
@@ -2084,7 +2087,7 @@ const buildFilteredBookings = (options = {}) => {
   }
   if (columnFilterState.value.reservedBy.length) {
     const selected = new Set(columnFilterState.value.reservedBy)
-    result = result.filter((b) => selected.has(b.reservedBy || ''))
+    result = result.filter((b) => selected.has(formatBookingReservedByDisplay(b) || b.reservedBy || ''))
   }
   if (columnFilterState.value.approvalStatus.length) {
     const selected = new Set(columnFilterState.value.approvalStatus)
@@ -2096,7 +2099,7 @@ const buildFilteredBookings = (options = {}) => {
   }
   if (columnFilterState.value.submitter.length) {
     const selected = new Set(columnFilterState.value.submitter)
-    result = result.filter((b) => selected.has(b.submitter || ''))
+    result = result.filter((b) => selected.has(formatBookingSubmitterDisplay(b) || b.submitter || ''))
   }
 
   return result
@@ -2146,7 +2149,7 @@ const getSortValue = (booking, key) => {
     case 'topic':
       return booking.topic || ''
     case 'reservedBy':
-      return booking.reservedBy || ''
+      return formatBookingReservedByDisplay(booking) || booking.reservedBy || ''
     case 'contact':
       return booking.contact || ''
     case 'email':
@@ -2156,7 +2159,7 @@ const getSortValue = (booking, key) => {
     case 'status':
       return booking.status || ''
     case 'submitter':
-      return booking.submitter || ''
+      return formatBookingSubmitterDisplay(booking) || booking.submitter || ''
     case 'bookedOn':
       return parseBookedOnDateTime(booking.bookedOn).getTime()
     case 'teaService': {
@@ -2239,10 +2242,10 @@ const getFilterOptions = (key) => {
   for (const booking of bookings.value) {
     let value = ''
     if (key === 'room') value = booking.room || ''
-    if (key === 'reservedBy') value = booking.reservedBy || ''
+    if (key === 'reservedBy') value = formatBookingReservedByDisplay(booking) || booking.reservedBy || ''
     if (key === 'approvalStatus') value = booking.approvalStatus || 'pending'
     if (key === 'status') value = booking.status || ''
-    if (key === 'submitter') value = booking.submitter || ''
+    if (key === 'submitter') value = formatBookingSubmitterDisplay(booking) || booking.submitter || ''
     if (!value) continue
     if (!map.has(value)) map.set(value, String(value).toLowerCase())
   }
@@ -2390,11 +2393,13 @@ const handleExportMenuClickOutside = (event) => {
 
 const getExportDepartment = (booking) => {
   if (booking?.department) return String(booking.department)
+  const plainName = booking?.reservedByName || booking?.reservedBy || ''
   const matched = employeeList.value.find(
-    (e) => e.name === booking?.reservedBy
-      || (e.name && booking?.reservedBy && e.name.toLowerCase() === booking.reservedBy.toLowerCase())
+    (e) => e.name === plainName
+      || (e.name && plainName && e.name.toLowerCase() === plainName.toLowerCase())
       || (booking?.corpId && e.corpId === booking.corpId)
-      || (booking?.email && e.email === booking.email),
+      || (booking?.email && e.email === booking.email)
+      || (booking?.employeeId != null && String(e.id) === String(booking.employeeId)),
   )
   return matched?.department || ''
 }
@@ -2438,7 +2443,7 @@ const handleExportExcel = async (mode = 'current', quickValue) => {
       'Time': booking.time || '',
       'Venue': booking.room || '',
       'Meeting / Event': booking.topic || '',
-      'Reserved By': booking.reservedBy || '',
+      'Reserved By': formatBookingReservedByDisplay(booking) || booking.reservedBy || '',
       'Department / Unit': getExportDepartment(booking),
       'No. of participants': getExportParticipantCount(booking),
       'Contact No.': booking.contact || '',
@@ -2448,7 +2453,7 @@ const handleExportExcel = async (mode = 'current', quickValue) => {
       'Tea Service': formatTeaServiceStatus(booking),
       'Tea Special Requests': formatTeaSpecialRequest(booking),
       'Display on Homepage': formatDisplayOnHomepage(booking),
-      'Submitted By': booking.submitter || '',
+      'Submitted By': formatBookingSubmitterDisplay(booking) || booking.submitter || '',
       'Application Date': booking.bookedOn || '',
       'Cancelled by': formatCancelledBy(booking),
       'Cancelled At': formatCancelledAt(booking),
@@ -3054,9 +3059,13 @@ const confirmEditBooking = async () => {
 function openHandleBooking (booking) {
   if (booking.status !== 'upcoming') return
   currentHandleBookingId.value = booking.id
-  const name = booking.reservedBy || ''
+  const name = booking.reservedByName || booking.reservedBy || ''
   const matched = employeeList.value.find(
-    (e) => e.name === name || (e.name && name && e.name.toLowerCase() === name.toLowerCase())
+    (e) =>
+      (booking.employeeId != null && String(e.id) === String(booking.employeeId))
+      || (booking.corpId && e.corpId === booking.corpId)
+      || e.name === name
+      || (e.name && name && e.name.toLowerCase() === name.toLowerCase())
   )
   const venueMeta = editableVenueMeta.value.find((v) => v.name === booking.room)
   const uploadEnabled =
@@ -3073,7 +3082,7 @@ function openHandleBooking (booking) {
       ?? booking.teaService?.attendees
       ?? '-',
     teaService: formatTeaServiceStatus(booking),
-    userName: booking.reservedBy || '',
+    userName: name,
     departmentUnit: matched?.department || booking.department || '-',
     contactPhone: booking.contact || '-',
     contactEmail: booking.email || '-',

@@ -236,7 +236,15 @@
       <p>Are you sure you want to delete this {{ activeTab === 'parking' ? 'EV' : 'time period' }}?</p>
       <template #footer>
         <el-button type="default" class="cancel-btn" @click="showDeleteDialog = false">Cancel</el-button>
-        <el-button type="default" class="action-btn action-delete" @click="confirmDelete">Delete</el-button>
+        <el-button type="default" class="action-btn action-delete" @click="confirmDelete(false)">Delete</el-button>
+      </template>
+    </BookingStyleModal>
+
+    <BookingStyleModal v-model="showCascadeDeleteDialog" title="Delete Related Records?" max-width="520px">
+      <p class="notice-message">{{ cascadeDeleteMessage }}</p>
+      <template #footer>
+        <el-button type="default" class="cancel-btn" @click="showCascadeDeleteDialog = false">No</el-button>
+        <el-button type="default" class="action-btn action-delete" @click="confirmDelete(true)">Yes, delete all</el-button>
       </template>
     </BookingStyleModal>
 
@@ -397,6 +405,8 @@ const formData = ref({
 })
 
 const showDeleteDialog = ref(false)
+const showCascadeDeleteDialog = ref(false)
+const cascadeDeleteMessage = ref('')
 const currentRow = ref(null)
 const showNoticeDialog = ref(false)
 const noticeTitle = ref('Notice')
@@ -411,14 +421,26 @@ const showNotice = (message, title = 'Notice') => {
 const closeNoticeDialog = () => {
   showNoticeDialog.value = false
   showDeleteDialog.value = false
+  showCascadeDeleteDialog.value = false
 }
 
 const getErrorMessage = (error, fallback = 'Operation failed') => {
   const message = error?.response?.data?.message
   if (Array.isArray(message)) return message[0] || fallback
   if (typeof message === 'string' && message.trim()) return message
+  if (message && typeof message === 'object' && typeof message.message === 'string') {
+    return message.message
+  }
   if (typeof error?.message === 'string' && error.message.trim()) return error.message
   return fallback
+}
+
+const getRelatedBookingsConflict = (error) => {
+  const data = error?.response?.data
+  if (!data || typeof data !== 'object') return null
+  const payload = data.message && typeof data.message === 'object' ? data.message : data
+  if (payload?.code !== 'HAS_RELATED_BOOKINGS') return null
+  return payload
 }
 
 const applyEvWindowFromApi = (win) => {
@@ -603,22 +625,41 @@ const handleSave = async () => {
 
 const handleDelete = (row) => {
   currentRow.value = row
+  showCascadeDeleteDialog.value = false
+  cascadeDeleteMessage.value = ''
   showDeleteDialog.value = true
 }
 
-const confirmDelete = async () => {
+const confirmDelete = async (cascadeRelated = false) => {
   if (!currentRow.value) return
+  const resourceLabel = activeTab.value === 'parking' ? 'EV space' : 'time period'
   try {
     if (activeTab.value === 'parking') {
-      await deleteEvParkingSlot(currentRow.value.id)
+      await deleteEvParkingSlot(currentRow.value.id, { cascadeRelated: Boolean(cascadeRelated) })
     } else {
-      await deleteEvTimePeriod(currentRow.value.id)
+      await deleteEvTimePeriod(currentRow.value.id, { cascadeRelated: Boolean(cascadeRelated) })
     }
-    showNotice('Deleted successfully', 'Success')
+    showNotice(
+      cascadeRelated
+        ? `${resourceLabel[0].toUpperCase()}${resourceLabel.slice(1)} and related booking records deleted successfully`
+        : 'Deleted successfully',
+      'Success'
+    )
     showDeleteDialog.value = false
+    showCascadeDeleteDialog.value = false
+    cascadeDeleteMessage.value = ''
     currentRow.value = null
     await loadEvManagementData()
   } catch (error) {
+    const conflict = getRelatedBookingsConflict(error)
+    if (!cascadeRelated && conflict) {
+      showDeleteDialog.value = false
+      cascadeDeleteMessage.value = typeof conflict.message === 'string' && conflict.message.trim()
+        ? conflict.message
+        : `This ${resourceLabel} has related booking records. Do you also want to delete all related records?`
+      showCascadeDeleteDialog.value = true
+      return
+    }
     showNotice(getErrorMessage(error, 'Failed to delete'), 'Error')
   }
 }

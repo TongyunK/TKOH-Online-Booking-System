@@ -1,7 +1,7 @@
 import request from './request'
 
-export function getSystemSettings () {
-  return request.get('/system-settings')
+export function getSystemSettings (config = {}) {
+  return request.get('/system-settings', config)
 }
 
 export function saveSystemSettings (payload) {

@@ -5,7 +5,7 @@
     trigger="hover"
     :show-after="180"
     :hide-after="80"
-    :teleported="teleported"
+    :teleported="resolvedTeleported"
     popper-class="calendar-booking-popover"
   >
     <template #default>
@@ -42,8 +42,11 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { getCalendarBookingPopoverTitleStyle } from '@/utils/venueCalendarApi'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import {
+  getCalendarBookingPopoverTitleStyle,
+  HTML_ZOOM_BREAKPOINT_MQ
+} from '@/utils/venueCalendarApi'
 
 const props = defineProps({
   booking: {
@@ -62,9 +65,13 @@ const props = defineProps({
     type: String,
     default: '#f97316'
   },
+  /**
+   * 未传时：14" html zoom 断点内 false（留在缩放 DOM），断点外 true。
+   * 显式传入 true/false 时以传入为准（Week/Day 固定 false）。
+   */
   teleported: {
     type: Boolean,
-    default: true
+    default: undefined
   },
   /** 场地列表，用于 Block 等无 color 时按 roomName 取 venue 色 */
   rooms: {
@@ -73,9 +80,34 @@ const props = defineProps({
   }
 })
 
+const autoTeleported = ref(true)
+let zoomBreakpointMq = null
+
+function syncAutoTeleported () {
+  if (typeof window === 'undefined') return
+  // 与 style.css html zoom:0.8 断点一致：挂 body 的 fixed 浮层会坐标偏移
+  autoTeleported.value = !window.matchMedia(HTML_ZOOM_BREAKPOINT_MQ).matches
+}
+
+const resolvedTeleported = computed(() => {
+  if (typeof props.teleported === 'boolean') return props.teleported
+  return autoTeleported.value
+})
+
 const popoverTitleStyle = computed(() =>
   getCalendarBookingPopoverTitleStyle(props.booking, props.rooms)
 )
+
+onMounted(() => {
+  syncAutoTeleported()
+  zoomBreakpointMq = window.matchMedia(HTML_ZOOM_BREAKPOINT_MQ)
+  zoomBreakpointMq.addEventListener('change', syncAutoTeleported)
+})
+
+onUnmounted(() => {
+  zoomBreakpointMq?.removeEventListener('change', syncAutoTeleported)
+  zoomBreakpointMq = null
+})
 
 function getBookingContact() {
   return props.booking.contact ?? props.booking.contactNumber ?? props.booking.phone ?? props.booking.tel ?? 'N/A'

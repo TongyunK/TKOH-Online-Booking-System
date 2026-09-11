@@ -1,4 +1,5 @@
 import { getSystemSettings } from '@/api/systemSettings'
+import { SILENT_ERROR } from '@/utils/requestOptions'
 
 export const DEFAULT_MEETING_EVENT_TITLE_MAX_LENGTH = 80
 export const MEETING_EVENT_TITLE_MAX_LENGTH_CEILING = 500
@@ -67,12 +68,16 @@ export function invalidateMeetingEventTitleMaxLengthCache () {
   cachedMaxLength = null
 }
 
-/** Cached fetch of Venue Meeting / Event Title max length from system settings. */
+/**
+ * Cached fetch of Venue Meeting / Event Title max length from system settings.
+ * Uses silentError: non-admin users get 403 on /system-settings; fall back to default
+ * without showing the global "Admin portal access required" Reminder.
+ */
 export async function fetchMeetingEventTitleMaxLength () {
   if (cachedMaxLength != null) return cachedMaxLength
   if (inflight) return inflight
 
-  inflight = getSystemSettings()
+  inflight = getSystemSettings(SILENT_ERROR)
     .then((data) => {
       cachedMaxLength = normalizeMaxLength(data?.venueMeetingEventTitleMaxLength)
       return cachedMaxLength

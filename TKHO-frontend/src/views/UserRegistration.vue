@@ -116,7 +116,7 @@ const reasonOptions = ['EV booking', 'Venue booking']
 const PLATE_MAX_LENGTH = 8
 const EMPLOYEE_NO_LENGTH = 6
 const CONTACT_NO_LENGTH = 8
-const CORP_ID_PATTERN = /^[A-Z]+$/
+const CORP_ID_PATTERN = /^[A-Z0-9]+$/
 const EMPLOYEE_NO_PATTERN = new RegExp(`^\\d{${EMPLOYEE_NO_LENGTH}}$`)
 const CONTACT_NO_PATTERN = new RegExp(`^\\d{${CONTACT_NO_LENGTH}}$`)
 const showCarPlate = computed(() => form.value.reason === 'EV booking')
@@ -186,7 +186,7 @@ function sanitizePlateNumber (raw) {
 }
 
 function sanitizeCorpId (raw) {
-  return String(raw ?? '').replace(/[^A-Za-z]/g, '').toUpperCase()
+  return String(raw ?? '').replace(/[^A-Za-z0-9]/g, '').toUpperCase()
 }
 
 function sanitizeDigits (raw, maxLength) {
@@ -264,7 +264,7 @@ async function submit () {
     return
   }
   if (!CORP_ID_PATTERN.test(corpId)) {
-    showResult('warning', 'Cannot submit', 'CORP User ID must contain capital letters only.')
+    showResult('warning', 'Cannot submit', 'CORP User ID must contain capital letters and numbers only.')
     return
   }
   if (!EMPLOYEE_NO_PATTERN.test(employeeNo)) {

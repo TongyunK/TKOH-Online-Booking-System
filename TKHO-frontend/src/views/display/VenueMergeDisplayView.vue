@@ -558,10 +558,15 @@ html.merge-display-fullscreen #app {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  font-family: 'Arial Narrow', Arial, sans-serif;
+  font-family: var(--display-font-family);
   transform-origin: top left;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+}
+
+.merge-display-root,
+.merge-display-root * {
+  font-family: var(--display-font-family);
 }
 
 .merge-display-root * {

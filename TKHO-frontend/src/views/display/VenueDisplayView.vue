@@ -377,7 +377,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  font-family: 'Arial Narrow', Arial, sans-serif;
+  font-family: var(--display-font-family);
   transform: scale(var(--display-scale, 2));
   transform-origin: top left;
   /* Prevent text selection */
@@ -390,6 +390,11 @@ onUnmounted(() => {
   -webkit-touch-callout: none;
   /* Keep plain scale to avoid text ghosting at non-integer ratios */
   -webkit-transform: scale(var(--display-scale, 2));
+}
+
+.display-container,
+.display-container * {
+  font-family: var(--display-font-family);
 }
 
 /* Prevent zoom on double tap */

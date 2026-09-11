@@ -44,6 +44,7 @@
             v-model="loginForm.corpId"
             size="large"
             class="login-input input-with-prefix"
+            @input="onCorpIdInput"
           >
             <template #prefix>
               <span class="input-prefix-text">CORP ID</span>
@@ -119,6 +120,14 @@ const loginForm = reactive({
   password: '',
   system: ''
 })
+
+function sanitizeCorpId (raw) {
+  return String(raw ?? '').replace(/[^A-Za-z0-9]/g, '').toUpperCase()
+}
+
+function onCorpIdInput (val) {
+  loginForm.corpId = sanitizeCorpId(val)
+}
 
 const systemOptions = [
   { label: 'EV Booking', value: 'parking', icon: 'car' },
@@ -204,7 +213,8 @@ const resolveLoginErrorMessage = (error) => {
 }
 
 const handleLogin = async () => {
-  const corpId = loginForm.corpId?.trim()
+  const corpId = sanitizeCorpId(loginForm.corpId)
+  loginForm.corpId = corpId
   const password = loginForm.password?.trim()
 
   if (!loginForm.system) {

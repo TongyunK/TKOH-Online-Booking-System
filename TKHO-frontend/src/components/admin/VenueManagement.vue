@@ -380,7 +380,15 @@
       <p>Are you sure you want to delete this venue?</p>
       <template #footer>
         <el-button type="default" class="cancel-btn" @click="showDeleteDialog = false">Cancel</el-button>
-        <el-button type="default" class="action-btn action-delete" @click="confirmDelete">Delete</el-button>
+        <el-button type="default" class="action-btn action-delete" @click="confirmDelete(false)">Delete</el-button>
+      </template>
+    </BookingStyleModal>
+
+    <BookingStyleModal v-model="showCascadeDeleteDialog" title="Delete Related Records?" max-width="520px">
+      <p class="notice-message">{{ cascadeDeleteMessage }}</p>
+      <template #footer>
+        <el-button type="default" class="cancel-btn" @click="showCascadeDeleteDialog = false">No</el-button>
+        <el-button type="default" class="action-btn action-delete" @click="confirmDelete(true)">Yes, delete all</el-button>
       </template>
     </BookingStyleModal>
 
@@ -671,7 +679,7 @@ const formData = ref({
   dailyBookingStartTime: null,
   dailyBookingEndTime: null,
   teaServiceAvailable: true,
-  userDefinedUploadEventTitle: true,
+  userDefinedUploadEventTitle: false,
   displayType: 'single',
   image: '',
   imageList: [],
@@ -681,6 +689,8 @@ const formData = ref({
 const showImagePreview = ref(false)
 const previewImageUrl = ref('')
 const showDeleteDialog = ref(false)
+const showCascadeDeleteDialog = ref(false)
+const cascadeDeleteMessage = ref('')
 const currentRow = ref(null)
 const showBlockDialog = ref(false)
 const currentBlockVenue = ref(null)
@@ -702,14 +712,26 @@ const showNotice = (message, title = 'Notice') => {
 const closeNoticeDialog = () => {
   showNoticeDialog.value = false
   showDeleteDialog.value = false
+  showCascadeDeleteDialog.value = false
 }
 
 const getErrorMessage = (error, fallback = 'Operation failed') => {
   const message = error?.response?.data?.message
   if (Array.isArray(message)) return message[0] || fallback
   if (typeof message === 'string' && message.trim()) return message
+  if (message && typeof message === 'object' && typeof message.message === 'string') {
+    return message.message
+  }
   if (typeof error?.message === 'string' && error.message.trim()) return error.message
   return fallback
+}
+
+const getRelatedBookingsConflict = (error) => {
+  const data = error?.response?.data
+  if (!data || typeof data !== 'object') return null
+  const payload = data.message && typeof data.message === 'object' ? data.message : data
+  if (payload?.code !== 'HAS_RELATED_BOOKINGS') return null
+  return payload
 }
 
 const getSelectedVenueImageFile = () => {
@@ -1023,7 +1045,7 @@ const handleAdd = () => {
     dailyBookingStartTime: null,
     dailyBookingEndTime: null,
     teaServiceAvailable: true,
-    userDefinedUploadEventTitle: true,
+    userDefinedUploadEventTitle: false,
     displayType: 'single',
     image: '',
     imageList: [],
@@ -1173,20 +1195,39 @@ const handleSave = async () => {
 
 const handleDelete = (row) => {
   currentRow.value = row
+  showCascadeDeleteDialog.value = false
+  cascadeDeleteMessage.value = ''
   showDeleteDialog.value = true
 }
 
-const confirmDelete = async () => {
+const confirmDelete = async (cascadeRelated = false) => {
+  if (!currentRow.value) return
   try {
-    await deleteVenue(currentRow.value.id)
+    await deleteVenue(currentRow.value.id, { cascadeRelated: Boolean(cascadeRelated) })
     const index = venueList.value.findIndex(item => String(item.id) === String(currentRow.value.id))
     if (index !== -1) {
       venueList.value.splice(index, 1)
-      showNotice('Deleted successfully', 'Success')
     }
+    showNotice(
+      cascadeRelated
+        ? 'Venue and related booking records deleted successfully'
+        : 'Deleted successfully',
+      'Success'
+    )
     showDeleteDialog.value = false
+    showCascadeDeleteDialog.value = false
+    cascadeDeleteMessage.value = ''
     currentRow.value = null
   } catch (error) {
+    const conflict = getRelatedBookingsConflict(error)
+    if (!cascadeRelated && conflict) {
+      showDeleteDialog.value = false
+      cascadeDeleteMessage.value = typeof conflict.message === 'string' && conflict.message.trim()
+        ? conflict.message
+        : 'This venue has related booking records. Do you also want to delete all related records?'
+      showCascadeDeleteDialog.value = true
+      return
+    }
     showNotice(getErrorMessage(error, 'Failed to delete venue'), 'Error')
   }
 }

@@ -92,8 +92,13 @@ export class VenueManagementController {
   }
 
   @Delete('venues/:id')
-  deleteVenue(@Param('id') id: string) {
-    return this.venueService.deleteVenue(id);
+  deleteVenue(
+    @Param('id') id: string,
+    @Query('cascadeRelated') cascadeRelated?: string,
+  ) {
+    const cascade =
+      cascadeRelated === 'true' || cascadeRelated === '1' || cascadeRelated === 'yes';
+    return this.venueService.deleteVenue(id, cascade);
   }
 
   @Post('venues/:id/image')

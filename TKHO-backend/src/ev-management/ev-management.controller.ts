@@ -39,8 +39,13 @@ export class EvManagementController {
   }
 
   @Delete('parking/:id')
-  deleteParking(@Param('id') id: string) {
-    return this.evManagementService.deleteParkingSlot(id);
+  deleteParking(
+    @Param('id') id: string,
+    @Query('cascadeRelated') cascadeRelated?: string,
+  ) {
+    const cascade =
+      cascadeRelated === 'true' || cascadeRelated === '1' || cascadeRelated === 'yes';
+    return this.evManagementService.deleteParkingSlot(id, cascade);
   }
 
   @Get('time-periods')
@@ -59,8 +64,13 @@ export class EvManagementController {
   }
 
   @Delete('time-periods/:id')
-  deleteTimePeriod(@Param('id') id: string) {
-    return this.evManagementService.deleteTimePeriod(id);
+  deleteTimePeriod(
+    @Param('id') id: string,
+    @Query('cascadeRelated') cascadeRelated?: string,
+  ) {
+    const cascade =
+      cascadeRelated === 'true' || cascadeRelated === '1' || cascadeRelated === 'yes';
+    return this.evManagementService.deleteTimePeriod(id, cascade);
   }
 
   @Get('booking-window')

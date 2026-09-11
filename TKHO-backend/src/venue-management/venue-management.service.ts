@@ -51,6 +51,9 @@ import {
   formatUserDisplayName,
 
 
+  formatUserDisplayNameWithAffiliation,
+
+
   userDisplayNameSelect,
 
 
@@ -168,6 +171,9 @@ const manageBookingRowInclude = {
       ...userDisplayNameSelect,
 
 
+      rank: true,
+
+
       contact: true,
 
 
@@ -196,6 +202,12 @@ const manageBookingRowInclude = {
 
 
       ...userDisplayNameSelect,
+
+
+      rank: true,
+
+
+      department: { select: { department_name: true } },
 
 
     },
@@ -729,7 +741,7 @@ export class VenueManagementService {
         teaServiceAvailable: dto.teaServiceAvailable ?? true,
 
 
-        userDefinedUploadEventTitle: dto.userDefinedUploadEventTitle ?? true,
+        userDefinedUploadEventTitle: dto.userDefinedUploadEventTitle ?? false,
 
 
         dailyBookingStartTime: dailyWindow.start,
@@ -996,7 +1008,7 @@ export class VenueManagementService {
 
 
 
-  async deleteVenue(id: string) {
+  async deleteVenue(id: string, cascadeRelated = false) {
 
 
     const venueId = BigInt(id);
@@ -1023,19 +1035,22 @@ export class VenueManagementService {
         status: { notIn: ['cancelled', 'canceled', 'past'] },
       },
     });
-    if (upcomingBookingCount > 0) {
-      throw new BadRequestException(
-        'Cannot delete this venue because it has upcoming bookings. Please cancel those bookings first.',
-      );
-    }
-
     const bookingHistoryCount = await this.prisma.venueBookings.count({
       where: { venueId },
     });
-    if (bookingHistoryCount > 0) {
-      throw new BadRequestException(
-        'Cannot delete this venue because it has booking history. Historical booking records cannot be removed.',
-      );
+
+    if (!cascadeRelated && (upcomingBookingCount > 0 || bookingHistoryCount > 0)) {
+      throw new BadRequestException({
+        code: 'HAS_RELATED_BOOKINGS',
+        message:
+          `This venue has ${bookingHistoryCount} related booking record(s)` +
+          (upcomingBookingCount > 0
+            ? ` (including ${upcomingBookingCount} upcoming).`
+            : '.') +
+          ' Do you also want to delete all related records?',
+        bookingCount: bookingHistoryCount,
+        upcomingCount: upcomingBookingCount,
+      });
     }
 
     await this.unlinkVenueUploadFile(existing.imageUrl);
@@ -1043,7 +1058,11 @@ export class VenueManagementService {
     try {
       // Display Management 保存时会为每个 venue upsert display_venue_rules；
       // 界面无法单独删规则，删除 venue 时一并清理，避免测试/无预订场地无法删除。
+      // cascadeRelated=true 时先删 venue_bookings（venue_tea_service 靠 FK Cascade）。
       await this.prisma.$transaction(async (tx) => {
+        if (cascadeRelated && bookingHistoryCount > 0) {
+          await tx.venueBookings.deleteMany({ where: { venueId } });
+        }
         await tx.display_venue_rules.deleteMany({ where: { venue_id: venueId } });
         await tx.venues.delete({ where: { id: venueId } });
       });
@@ -1058,7 +1077,6 @@ export class VenueManagementService {
 
     return { ok: true };
   }
-
 
 
 
@@ -1891,10 +1909,32 @@ export class VenueManagementService {
       time: `${this.formatTimeValue(row.startTime)} - ${this.formatTimeValue(row.endTime)}`,
 
 
-      reservedBy: formatUserDisplayName(row.reservedBy),
+      reservedBy: formatUserDisplayNameWithAffiliation({
+        firstName: row.reservedBy?.firstName,
+        lastName: row.reservedBy?.lastName,
+        rank: row.reservedBy?.rank,
+        department: row.reservedBy?.department?.department_name,
+      }),
 
 
-      submitter: formatUserDisplayName(row.submitter),
+      reservedByName: formatUserDisplayName(row.reservedBy),
+
+
+      submitter: formatUserDisplayNameWithAffiliation({
+        firstName: row.submitter?.firstName,
+        lastName: row.submitter?.lastName,
+        rank: row.submitter?.rank,
+        department: row.submitter?.department?.department_name,
+      }),
+
+
+      submitterName: formatUserDisplayName(row.submitter),
+
+
+      submitterDepartment: row.submitter?.department?.department_name ?? '',
+
+
+      submitterRank: row.submitter?.rank ?? '',
 
 
       cancelledBy: formatUserDisplayName(row.cancelledBy),
@@ -1906,6 +1946,9 @@ export class VenueManagementService {
 
 
       department: row.reservedBy?.department?.department_name ?? '',
+
+
+      rank: row.reservedBy?.rank ?? '',
 
 
       contact: row.reservedBy?.contact || '',

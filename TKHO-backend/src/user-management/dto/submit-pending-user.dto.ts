@@ -3,8 +3,8 @@ import { IsEmail, IsOptional, IsString, Matches, MinLength } from 'class-validat
 export class SubmitPendingUserDto {
   @IsString()
   @MinLength(1)
-  @Matches(/^[A-Z]+$/, {
-    message: 'CORP User ID must contain capital letters only',
+  @Matches(/^[A-Z0-9]+$/, {
+    message: 'CORP User ID must contain capital letters and numbers only',
   })
   corpId!: string;
 

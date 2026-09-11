@@ -996,9 +996,14 @@ watch(
 }
 
 /* 14" zoom + teleported=false：仅放开当前格子，避免整表 overflow 错乱 */
-.date-cell:has(> .month-more-root.is-popover-open) {
+.date-cell:has(> .month-more-root.is-popover-open),
+.date-cell:has(.calendar-booking-popover) {
   overflow: visible;
   z-index: 45;
+}
+
+.date-cell:has(.calendar-booking-popover) .month-booking-list {
+  overflow: visible;
 }
 
 .date-number {

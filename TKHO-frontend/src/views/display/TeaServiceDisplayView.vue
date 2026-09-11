@@ -487,12 +487,17 @@ html.tea-display-fullscreen #app {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  font-family: 'Arial Narrow', Arial, sans-serif;
+  font-family: var(--display-font-family);
   font-size: calc(23px * var(--ui-scale, 1));
   user-select: none;
   -webkit-user-select: none;
   touch-action: none;
   -webkit-touch-callout: none;
+}
+
+.tea-display-root,
+.tea-display-root * {
+  font-family: var(--display-font-family);
 }
 
 .tea-display-root * {

@@ -909,7 +909,7 @@
           <el-input v-model="pendingHandleForm.rank" />
         </el-form-item>
         <el-form-item label="Email">
-          <el-input v-model="pendingHandleForm.email" disabled />
+          <el-input v-model="pendingHandleForm.email" type="email" />
         </el-form-item>
         <el-form-item label="Contact No.">
           <el-input v-model="pendingHandleForm.contact" />
@@ -2137,6 +2137,7 @@ const confirmPendingApprove = async () => {
       employeeNo: String(data.employeeNo || '').trim(),
       rank: String(data.rank || '').trim(),
       department: data.department || undefined,
+      email: String(data.email || '').trim(),
       role,
       contact: data.contact ?? '',
       password: data.password || DEFAULT_PASSWORD,
