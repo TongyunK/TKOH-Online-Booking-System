@@ -26,7 +26,7 @@
         :data-cell-key="dayCellKey(day, 'prev')"
         class="date-cell"
         :class="{
-          empty: !hasBookings(day, 'prev'),
+          empty: true,
           'has-bookings': hasBookings(day, 'prev'),
           'has-more-trigger': getHiddenBookingCount(day, 'prev') > 0,
           'is-public-holiday': isPublicHolidayCell(day, 'prev'),
@@ -144,7 +144,7 @@
         :data-cell-key="dayCellKey(day, 'next')"
         class="date-cell"
         :class="{
-          empty: !hasBookings(day, 'next'),
+          empty: true,
           'has-bookings': hasBookings(day, 'next'),
           'has-more-trigger': getHiddenBookingCount(day, 'next') > 0,
           'is-public-holiday': isPublicHolidayCell(day, 'next'),

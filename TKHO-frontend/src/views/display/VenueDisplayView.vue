@@ -1,48 +1,51 @@
 <template>
-  <div class="display-container">
-    <div class="display-above-footer">
-      <!-- Header -->
-      <div class="display-header">
-        <VenueDisplayClock @tick="onClockTick" />
-        <img v-if="displayType === 'merge' && qrCodeImage" :src="qrCodeImage" alt="QR Code" class="header-qr" />
-      </div>
+  <!-- 视口铺满；内部固定 1080×1920 竖向设计稿，整体 transform 等比缩放并居中 -->
+  <div ref="displayViewport" class="venue-display-viewport">
+    <div ref="displayRoot" class="venue-display-root">
+      <div class="display-above-footer">
+        <!-- Header -->
+        <div class="display-header">
+          <VenueDisplayClock @tick="onClockTick" />
+          <img v-if="displayType === 'merge' && qrCodeImage" :src="qrCodeImage" alt="QR Code" class="header-qr" />
+        </div>
 
-      <!-- Main content：当天全部活动列表 -->
-      <div class="display-content" :style="contentLayoutStyle">
-        <div class="events-section-title">TODAY'S EVENTS 今日活動</div>
-        <div
-          v-if="sortedTodayEvents.length"
-          ref="eventsListRef"
-          class="events-list"
-        >
+        <!-- Main content：当天全部活动列表 -->
+        <div class="display-content" :style="contentLayoutStyle">
+          <div class="events-section-title">TODAY'S EVENTS 今日活動</div>
           <div
-            v-for="event in sortedTodayEvents"
-            :key="getEventKey(event)"
-            class="event-card"
-            :class="{ 'is-current': activeEventKeys.has(getEventKey(event)) }"
+            v-if="sortedTodayEvents.length"
+            ref="eventsListRef"
+            class="events-list"
           >
-            <div class="event-topic">{{ event.topic }}</div>
-            <div class="event-time">{{ event.startTime }} - {{ event.endTime }}</div>
+            <div
+              v-for="event in sortedTodayEvents"
+              :key="getEventKey(event)"
+              class="event-card"
+              :class="{ 'is-current': activeEventKeys.has(getEventKey(event)) }"
+            >
+              <div class="event-topic">{{ event.topic }}</div>
+              <div class="event-time">{{ event.startTime }} - {{ event.endTime }}</div>
+            </div>
+          </div>
+          <div v-else class="no-events">
+            <div class="no-events-text-en">NO EVENTS</div>
+            <div class="no-events-text-zh">沒有活動</div>
           </div>
         </div>
-        <div v-else class="no-events">
-          <div class="no-events-text-en">NO EVENTS</div>
-          <div class="no-events-text-zh">沒有活動</div>
-        </div>
       </div>
-    </div>
 
-    <!-- Footer -->
-    <div class="display-footer">
-      <div class="venue-info-row">
-        <span v-if="venueName" class="venue-name">{{ venueName }}</span>
-        <span v-if="venueName && venueLocation" class="separator">|</span>
-        <span v-if="venueLocation" class="venue-location">{{ venueLocation }}</span>
-      </div>
-      <div v-if="venueNameZh || venueLocationZh" class="venue-info-row">
-        <span v-if="venueNameZh" class="venue-name-zh">{{ venueNameZh }}</span>
-        <span v-if="venueNameZh && venueLocationZh" class="separator">|</span>
-        <span v-if="venueLocationZh" class="venue-location-zh">{{ venueLocationZh }}</span>
+      <!-- Footer -->
+      <div class="display-footer">
+        <div class="venue-info-row">
+          <span v-if="venueName" class="venue-name">{{ venueName }}</span>
+          <span v-if="venueName && venueLocation" class="separator">|</span>
+          <span v-if="venueLocation" class="venue-location">{{ venueLocation }}</span>
+        </div>
+        <div v-if="venueNameZh || venueLocationZh" class="venue-info-row">
+          <span v-if="venueNameZh" class="venue-name-zh">{{ venueNameZh }}</span>
+          <span v-if="venueNameZh && venueLocationZh" class="separator">|</span>
+          <span v-if="venueLocationZh" class="venue-location-zh">{{ venueLocationZh }}</span>
+        </div>
       </div>
     </div>
   </div>
@@ -59,8 +62,14 @@ import { todayYmdInAppTimeZone } from '@/utils/appTimezone'
 import VenueDisplayClock from './VenueDisplayClock.vue'
 
 const route = useRoute()
-const DISPLAY_SCALE = 1.8
 const DATA_POLL_MS = 20_000
+
+/** 竖向 9:16（与横屏 16:9 同比例，旋转 90°） */
+const BASE_WIDTH = 1080
+const BASE_HEIGHT = 1920
+
+const displayViewport = ref(null)
+const displayRoot = ref(null)
 
 const venueId = ref(route.query.venueId)
 const displayType = ref(route.query.displayType || 'single')
@@ -292,43 +301,49 @@ function onDocumentVisibilityChange () {
   }
 }
 
-// Force fullscreen layout
-function forceFullscreen() {
-  const container = document.querySelector('.display-container')
-  if (container) {
-    container.style.setProperty('--display-scale', String(DISPLAY_SCALE))
-    // Force dimensions
-    const scaledSize = `${100 / DISPLAY_SCALE}%`
-    const scaledViewport = `${100 / DISPLAY_SCALE}vw`
-    const scaledViewportHeight = `${100 / DISPLAY_SCALE}vh`
-    container.style.width = scaledSize
-    container.style.height = scaledSize
-    container.style.minWidth = scaledViewport
-    container.style.minHeight = scaledViewportHeight
-  }
+/** 设计稿等比缩放并居中；比例不同时留同色边条，不拉伸变形 */
+function adaptFullscreen () {
+  const root = displayRoot.value
+  if (!root) return
 
-  // Force body and html
-  document.documentElement.style.width = '100%'
-  document.documentElement.style.height = '100%'
-  document.documentElement.style.margin = '0'
-  document.documentElement.style.padding = '0'
-  document.documentElement.style.overflow = 'hidden'
+  const viewportScale = window.visualViewport?.scale || 1
+  const zoomCompensation = viewportScale > 0 ? viewportScale : 1
+  const vw = (window.innerWidth || BASE_WIDTH) * zoomCompensation
+  const vh = (window.innerHeight || BASE_HEIGHT) * zoomCompensation
+  const scale = Math.min(vw / BASE_WIDTH, vh / BASE_HEIGHT) || 1
+  const offsetX = (vw - BASE_WIDTH * scale) / 2
+  const offsetY = (vh - BASE_HEIGHT * scale) / 2
 
-  document.body.style.width = '100%'
-  document.body.style.height = '100%'
-  document.body.style.margin = '0'
-  document.body.style.padding = '0'
-  document.body.style.overflow = 'hidden'
+  root.style.width = `${BASE_WIDTH}px`
+  root.style.height = `${BASE_HEIGHT}px`
+  root.style.transform = `scale(${scale})`
+  root.style.transformOrigin = 'top left'
+  root.style.left = `${offsetX}px`
+  root.style.top = `${offsetY}px`
+
   scheduleFitEventsLayout()
 }
 
 onMounted(() => {
-  void refreshDisplayData().catch(() => { /* 首次失敗仍顯示框架 */ })
+  document.documentElement.classList.add('venue-display-fullscreen')
+  adaptFullscreen()
+  window.addEventListener('resize', adaptFullscreen)
+  window.visualViewport?.addEventListener('resize', adaptFullscreen)
+
+  void refreshDisplayData()
+    .catch(() => { /* 首次失敗仍顯示框架 */ })
+    .finally(() => {
+      nextTick(() => {
+        adaptFullscreen()
+      })
+    })
+
   dataPollTimer = setInterval(pollDisplayDataFromServer, DATA_POLL_MS)
   document.addEventListener('visibilitychange', onDocumentVisibilityChange)
 
-  forceFullscreen()
-  window.addEventListener('resize', forceFullscreen)
+  nextTick(() => {
+    adaptFullscreen()
+  })
 
   const viewport = document.querySelector('meta[name="viewport"]')
   if (viewport) {
@@ -337,24 +352,32 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  document.documentElement.classList.remove('venue-display-fullscreen')
   if (dataPollTimer) clearInterval(dataPollTimer)
   if (fitLayoutTimer) clearTimeout(fitLayoutTimer)
   document.removeEventListener('visibilitychange', onDocumentVisibilityChange)
-
-  window.removeEventListener('resize', forceFullscreen)
-
-  // Restore styles
-  document.body.style.overflow = ''
-  document.documentElement.style.overflow = ''
-  document.body.style.width = ''
-  document.body.style.height = ''
-  document.documentElement.style.width = ''
-  document.documentElement.style.height = ''
+  window.removeEventListener('resize', adaptFullscreen)
+  window.visualViewport?.removeEventListener('resize', adaptFullscreen)
 })
 </script>
 
+<style>
+html.venue-display-fullscreen {
+  zoom: 1 !important;
+}
+
+html.venue-display-fullscreen #app {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 100vh !important;
+  max-width: none !important;
+  margin: 0 !important;
+  background-color: transparent !important;
+  overflow: hidden !important;
+}
+</style>
+
 <style scoped>
-/* Force body and html to be full screen */
 :global(html),
 :global(body) {
   margin: 0;
@@ -364,41 +387,41 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-.display-container {
+.venue-display-viewport {
   position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #111111;
+  user-select: none;
+  touch-action: none;
+}
+
+.venue-display-root {
+  position: absolute;
   top: 0;
   left: 0;
-  width: 50%;
-  height: 50%;
-  min-width: 50vw;
-  min-height: 50vh;
-  /* 稍微降低饱和度/亮度的橙色背景，接近原色但不荧光 */
+  z-index: 1;
+  box-sizing: border-box;
+  width: 1080px;
+  height: 1920px;
   background: rgb(255, 153, 0);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   font-family: var(--display-font-family);
-  transform: scale(var(--display-scale, 2));
   transform-origin: top left;
-  /* Prevent text selection */
-  user-select: none;
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
-  /* Prevent touch actions that might cause zoom */
-  touch-action: none;
   -webkit-touch-callout: none;
-  /* Keep plain scale to avoid text ghosting at non-integer ratios */
-  -webkit-transform: scale(var(--display-scale, 2));
 }
 
-.display-container,
-.display-container * {
+.venue-display-root,
+.venue-display-root * {
   font-family: var(--display-font-family);
 }
 
-/* Prevent zoom on double tap */
-* {
+.venue-display-root * {
   touch-action: manipulation;
 }
 
@@ -412,19 +435,19 @@ onUnmounted(() => {
 .display-header {
   flex-shrink: 0;
   z-index: 1;
-  padding: 0.5rem 0.5rem;
+  padding: 24px 28px;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
+  gap: 20px;
 }
 
 .header-qr {
-  width: 72px;
-  height: 72px;
-  margin-left: 0.75rem;
-  border-radius: 4px;
+  width: 120px;
+  height: 120px;
+  border-radius: 6px;
   background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(0, 0, 0, 0.18);
+  border: 2px solid rgba(0, 0, 0, 0.18);
   object-fit: cover;
   flex-shrink: 0;
 }
@@ -436,18 +459,18 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-start;
-  padding: 0.15rem 1.1rem 0.85rem;
+  padding: 8px 28px 36px;
   overflow: hidden;
 }
 
 .events-section-title {
   flex-shrink: 0;
   text-align: center;
-  font-size: calc(1.75rem * var(--layout-scale, 1));
+  font-size: calc(48px * var(--layout-scale, 1));
   font-weight: 700;
   color: #111111;
   letter-spacing: 0.04em;
-  margin: calc(1.1rem * var(--layout-scale, 1)) 0 calc(0.85rem * var(--layout-scale, 1));
+  margin: calc(36px * var(--layout-scale, 1)) 0 calc(28px * var(--layout-scale, 1));
 }
 
 .events-list {
@@ -457,41 +480,41 @@ onUnmounted(() => {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: calc(0.75rem * var(--layout-scale, 1));
-  padding: 0 0.15rem;
+  gap: calc(24px * var(--layout-scale, 1));
+  padding: 0 6px;
 }
 
 .event-card {
   width: 100%;
   box-sizing: border-box;
-  padding: calc(0.85rem * var(--layout-scale, 1)) calc(1rem * var(--layout-scale, 1));
+  padding: calc(28px * var(--layout-scale, 1)) calc(32px * var(--layout-scale, 1));
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   text-align: left;
-  border-radius: 6px;
+  border-radius: 10px;
   /* 比页面底色更深一档的橙色块 */
   background: rgb(230, 126, 0);
 }
 
 .event-card.is-current {
-  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.28);
+  box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.28);
 }
 
 .event-topic {
   width: 100%;
-  font-size: calc(1.85rem * var(--layout-scale, 1));
+  font-size: calc(52px * var(--layout-scale, 1));
   font-weight: 700;
   color: #111111;
   line-height: 1.25;
-  margin-bottom: calc(0.45rem * var(--layout-scale, 1));
+  margin-bottom: calc(14px * var(--layout-scale, 1));
   word-break: break-word;
 }
 
 .event-time {
   width: 100%;
-  font-size: calc(1.75rem * var(--layout-scale, 1));
+  font-size: calc(48px * var(--layout-scale, 1));
   font-weight: 500;
   color: #111111;
   letter-spacing: 0.02em;
@@ -508,25 +531,23 @@ onUnmounted(() => {
 }
 
 .no-events-text-en {
-  font-size: 2rem;
+  font-size: 56px;
   font-weight: 700;
-  line-height: 0.8;
+  line-height: 0.9;
   letter-spacing: 2px;
-  margin-bottom: 1rem;
+  margin-bottom: 28px;
 }
 
 .no-events-text-zh {
-  font-size: 2rem;
+  font-size: 56px;
   font-weight: 600;
-  line-height: 0.8;
+  line-height: 0.9;
   letter-spacing: 4px;
 }
 
 .display-footer {
-  padding: 0.5rem 0.5rem;
-  /* 比当前再浅一些、接近原始蓝但不荧光 */
+  padding: 16px 32px;
   background: rgb(240, 240, 240);
-  /* border-top: 2px solid rgba(0, 0, 0, 0.15); */
   text-align: left;
   flex-shrink: 0;
 }
@@ -535,7 +556,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   color: #111111;
-  margin-bottom: 0.25rem;
+  margin-bottom: 8px;
+  line-height: 1.15;
 }
 
 .venue-info-row:last-child {
@@ -544,75 +566,25 @@ onUnmounted(() => {
 
 .venue-name,
 .venue-location {
-  font-size: 1.6rem;
+  font-size: 44px;
   font-weight: 700;
   letter-spacing: 0.5px;
 }
 
 .venue-name-zh,
 .venue-location-zh {
-  font-size: 1.6rem;
+  font-size: 44px;
   font-weight: 600;
   letter-spacing: 0.5px;
 }
 
 .separator {
-  margin: 0 0.5rem;
-  font-size: 1.5rem;
+  margin: 0 16px;
+  font-size: 40px;
   font-weight: 700;
 }
 
 .venue-info-row:last-child .separator {
-  font-size: 1.1rem;
-}
-
-/* Responsive adjustments for different screen sizes */
-@media (max-width: 768px) {
-  .header-qr {
-    width: 48px;
-    height: 48px;
-  }
-
-  .no-events-text-en {
-    font-size: 2.5rem;
-  }
-
-  .no-events-text-zh {
-    font-size: 2rem;
-  }
-
-  .venue-name,
-  .venue-location {
-    font-size: 1.6rem;
-  }
-
-  .venue-name-zh,
-  .venue-location-zh {
-    font-size: 1.6rem;
-  }
-
-  .separator {
-    font-size: 1.5rem;
-    margin: 0 0.5rem;
-  }
-
-  .venue-info-row:last-child .separator {
-    font-size: 1.125rem;
-  }
-}
-
-/* Ensure content fits on very small screens */
-@media (max-height: 600px) {
-  .display-header {
-    padding: 0.5rem 0.5rem;
-  }
-
-  .display-footer {
-    padding: 0.5rem 0.5rem;
-  }
-
-  .display-content {
-    padding: 0.25rem 0.85rem 0.65rem;
-  }
+  font-size: 36px;
 }
 </style>

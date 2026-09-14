@@ -78,6 +78,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* 配合 VenueDisplayView 1080×1920 设计稿的固定字号 */
 .date-time {
   display: flex;
   justify-content: space-between;
@@ -85,27 +86,18 @@ onUnmounted(() => {
   color: #111111;
   flex: 1;
   min-width: 0;
+  gap: 24px;
 }
 
 .date {
-  font-size: 1.6rem;
+  font-size: 44px;
   font-weight: 700;
   letter-spacing: 0.5px;
 }
 
 .time {
-  font-size: 1.6rem;
+  font-size: 44px;
   font-weight: 700;
   letter-spacing: 1px;
-}
-
-@media (max-width: 768px) {
-  .date {
-    font-size: 1.125rem;
-  }
-
-  .time {
-    font-size: 1.5rem;
-  }
 }
 </style>
