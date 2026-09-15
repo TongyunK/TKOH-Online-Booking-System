@@ -539,7 +539,7 @@ html.merge-display-fullscreen #app {
   position: fixed;
   inset: 0;
   overflow: hidden;
-  background: #1e2a91;
+  background: #111111;
   user-select: none;
   touch-action: none;
 }

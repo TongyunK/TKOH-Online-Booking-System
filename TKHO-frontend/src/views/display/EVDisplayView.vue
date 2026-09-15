@@ -341,7 +341,7 @@ html.ev-display-fullscreen #app {
   position: fixed;
   inset: 0;
   overflow: hidden;
-  background: #8fce4c;
+  background: #111111;
   user-select: none;
   touch-action: none;
 }

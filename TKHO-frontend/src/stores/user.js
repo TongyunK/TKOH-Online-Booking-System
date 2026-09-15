@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { getUserInfo, logout as logoutApi } from '../api/auth'
 import { clearImportantNoteTipPrefs } from '../utils/importantNoteTip'
+import { clearIdleLastActivity, writeIdleLastActivity } from '../utils/idleAutoLogout'
 
 export const useUserStore = defineStore('user', () => {
   const userInfo = ref(null)
@@ -18,6 +19,9 @@ export const useUserStore = defineStore('user', () => {
   })
 
   const login = (userData, authToken) => {
+    // 新登录从当前时刻重新计空闲时间，避免沿用上次超时留下的旧时间戳
+    clearIdleLastActivity()
+    writeIdleLastActivity(Date.now())
     userInfo.value = userData
     token.value = authToken
     localStorage.setItem('token', authToken)
@@ -30,6 +34,7 @@ export const useUserStore = defineStore('user', () => {
     localStorage.removeItem('token')
     localStorage.removeItem('userInfo')
     clearImportantNoteTipPrefs()
+    clearIdleLastActivity()
   }
 
   const initUserInfo = () => {

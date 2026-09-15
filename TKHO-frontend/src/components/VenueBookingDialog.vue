@@ -456,6 +456,14 @@
       <el-button type="default" class="submit-btn" @click="showNoticeDialog = false">OK</el-button>
     </template>
   </BookingStyleModal>
+
+  <BookingStyleModal v-model="showPastConfirmDialog" title="Warning" max-width="420px">
+    <p class="notice-message">{{ VENUE_BOOKING_PAST_RANGE_MESSAGE }}</p>
+    <template #footer>
+      <el-button type="default" class="cancel-btn" @click="cancelPastConfirm">Cancel</el-button>
+      <el-button type="default" class="submit-btn" @click="confirmPastAndSubmit">Confirm</el-button>
+    </template>
+  </BookingStyleModal>
 </template>
 
 <script setup>
@@ -480,6 +488,10 @@ import {
   validateVenueBookingDateRange,
   isYmdOutsideVenueBookingDateRange
 } from '@/utils/venueBookingDateRange'
+import {
+  isVenueBookingRangePast,
+  VENUE_BOOKING_PAST_RANGE_MESSAGE
+} from '@/utils/venueBookingPast'
 import { pickPromptTooltipText } from '@/utils/promptTooltip'
 import {
   DEFAULT_MEETING_EVENT_TITLE_MAX_LENGTH,
@@ -646,11 +658,34 @@ const formRef = ref(null)
 const showNoticeDialog = ref(false)
 const noticeTitle = ref('Notice')
 const noticeMessage = ref('')
+const showPastConfirmDialog = ref(false)
 
 const showNotice = (message, title = 'Notice') => {
   noticeTitle.value = title
   noticeMessage.value = message
   showNoticeDialog.value = true
+}
+
+function cancelPastConfirm () {
+  showPastConfirmDialog.value = false
+}
+
+function confirmPastAndSubmit () {
+  showPastConfirmDialog.value = false
+  emit('confirm', buildBookingConfirmPayload())
+  handleClose()
+}
+
+function submitBookingAfterValidation () {
+  if (
+    !props.isAdmin &&
+    isVenueBookingRangePast(form.value.date, form.value.startTime, form.value.endTime)
+  ) {
+    showPastConfirmDialog.value = true
+    return
+  }
+  emit('confirm', buildBookingConfirmPayload())
+  handleClose()
 }
 
 const promptList = ref([])
@@ -1195,8 +1230,7 @@ function handleConfirm() {
         showNotice(dailyWindowCheck.message, 'Error')
         return
       }
-      emit('confirm', buildBookingConfirmPayload())
-      handleClose()
+      submitBookingAfterValidation()
     } else {
       showNotice('Please fill in all required fields', 'Error')
     }

@@ -247,6 +247,7 @@ const handleLogin = async () => {
     }
 
     userStore.login(res.user, res.token)
+    statusDialogStore.hide()
 
     if (redirect) {
       router.push(redirect)

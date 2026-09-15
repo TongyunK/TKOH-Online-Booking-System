@@ -18,238 +18,307 @@
 
     <div v-loading="loading" class="page-content">
       <div class="settings-panel">
-      <div class="settings-grid">
-        <section class="setting-card">
-          <div class="setting-card-header">
-            <div class="setting-card-title-row">
-              <div class="setting-icon setting-icon--user">
-                <font-awesome-icon :icon="['fas', 'user-clock']" />
-              </div>
-              <h3 class="setting-title">User Inactivity</h3>
-            </div>
-            <span class="value-pill value-pill--green">
-              <span class="value-pill-label">Current</span>
-              <span class="value-pill-text">{{ saved.userInactiveAfterMonths }} month{{ saved.userInactiveAfterMonths === 1 ? '' : 's' }}</span>
-            </span>
-          </div>
+        <div class="settings-layout">
+          <aside class="settings-sidebar">
+            <nav class="sidebar-nav" aria-label="Settings category filter">
+              <button
+                v-for="item in categoryOptions"
+                :key="item.id"
+                type="button"
+                class="sidebar-filter-btn"
+                :class="{ 'is-active': activeCategory === item.id }"
+                @click="activeCategory = item.id"
+              >
+                {{ item.label }}
+              </button>
+            </nav>
+          </aside>
 
-          <div class="setting-card-body">
-            <label class="field-label" for="inactive-months">Inactive after (months)</label>
-            <el-input-number
-              id="inactive-months"
-              v-model="form.userInactiveAfterMonths"
-              :min="1"
-              :max="120"
-              :step="1"
-              controls-position="right"
-              class="field-control"
-            />
-            <p class="field-hint">Auto-set Inactive after no login. Admin excluded.</p>
-          </div>
-        </section>
-
-        <section class="setting-card">
-          <div class="setting-card-header">
-            <div class="setting-card-title-row">
-              <div class="setting-icon setting-icon--calendar">
-                <font-awesome-icon :icon="['fas', 'calendar-days']" />
-              </div>
-              <h3 class="setting-title">Hong Kong Public Holidays</h3>
-            </div>
-          </div>
-
-          <div class="setting-card-body">
-            <label class="field-label" for="hk-holidays-url">Public holidays URL</label>
-            <el-input
-              id="hk-holidays-url"
-              v-model.trim="form.hkPublicHolidaysUrl"
-              placeholder="https://www.1823.gov.hk/common/ical/en.json"
-              clearable
-              class="field-control field-control--full"
-            />
-            <p class="field-hint">Reference link for Hong Kong public holidays.</p>
-            <a
-              v-if="form.hkPublicHolidaysUrl"
-              :href="form.hkPublicHolidaysUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="url-preview"
+          <div class="settings-main">
+            <div class="settings-grid">
+            <section
+              v-if="isCategoryVisible('account')"
+              class="setting-card"
             >
-              <font-awesome-icon :icon="['fas', 'arrow-up-right-from-square']" class="url-preview-icon" />
-              Open link in new tab
-            </a>
-          </div>
-        </section>
-
-        <section class="setting-card">
-          <div class="setting-card-header">
-            <div class="setting-card-title-row">
-              <div class="setting-icon setting-icon--ev">
-                <font-awesome-icon :icon="['fas', 'car']" />
+              <div class="setting-card-header">
+                <div class="setting-card-title-row">
+                  <div class="setting-icon setting-icon--user">
+                    <font-awesome-icon :icon="['fas', 'user-clock']" />
+                  </div>
+                  <h3 class="setting-title">User Inactivity</h3>
+                </div>
+                <span class="value-pill value-pill--green">
+                  <span class="value-pill-label">Current</span>
+                  <span class="value-pill-text">{{ saved.userInactiveAfterMonths }} month{{ saved.userInactiveAfterMonths === 1 ? '' : 's' }}</span>
+                </span>
               </div>
-              <h3 class="setting-title">EV Booking Calendar</h3>
-            </div>
-            <span class="value-pill value-pill--green">
-              <span class="value-pill-label">Current</span>
-              <span class="value-pill-text">{{ saved.evDateUpdateTime }} · {{ saved.evWeeklyBookingLimit }}/wk</span>
-            </span>
-          </div>
 
-          <div class="setting-card-body">
-            <div class="field-row field-row--ev">
-              <div class="field-group">
-                <label class="field-label" for="ev-date-update-time">Date update time</label>
-                <el-input
-                  id="ev-date-update-time"
-                  v-model.trim="form.evDateUpdateTime"
-                  placeholder="13:00"
-                  maxlength="5"
-                  class="field-control field-control--time"
-                />
-                <p class="field-hint">HKT. (HH:mm) Daily calendar roll-forward time.</p>
-              </div>
-              <div class="field-group">
-                <label class="field-label" for="ev-weekly-booking-limit">Weekly limit per user</label>
+              <div class="setting-card-body">
+                <label class="field-label" for="inactive-months">Inactive after (months)</label>
                 <el-input-number
-                  id="ev-weekly-booking-limit"
-                  v-model="form.evWeeklyBookingLimit"
+                  id="inactive-months"
+                  v-model="form.userInactiveAfterMonths"
                   :min="1"
-                  :max="7"
+                  :max="120"
                   :step="1"
                   controls-position="right"
                   class="field-control"
                 />
-                <p class="field-hint">Max active bookings per user per week.</p>
+                <p class="field-hint">Auto-set Inactive after no login. Admin excluded.</p>
               </div>
-            </div>
-          </div>
-        </section>
+            </section>
 
-        <section class="setting-card">
-          <div class="setting-card-header">
-            <div class="setting-card-title-row">
-              <div class="setting-icon setting-icon--venue">
-                <font-awesome-icon :icon="['fas', 'door-open']" />
+            <section
+              v-if="isCategoryVisible('account')"
+              class="setting-card"
+            >
+              <div class="setting-card-header">
+                <div class="setting-card-title-row">
+                  <div class="setting-icon setting-icon--logout">
+                    <font-awesome-icon :icon="['fas', 'right-from-bracket']" />
+                  </div>
+                  <h3 class="setting-title">Auto Logout</h3>
+                </div>
+                <span class="value-pill value-pill--green">
+                  <span class="value-pill-label">Current</span>
+                  <span class="value-pill-text">{{ saved.userAutoLogoutMinutes }} min</span>
+                </span>
               </div>
-              <h3 class="setting-title">Venue Booking Gap</h3>
-            </div>
-            <span class="value-pill value-pill--green">
-              <span class="value-pill-label">Current</span>
-              <span class="value-pill-text">{{ saved.venueBookingMinGapMinutes }} min</span>
-            </span>
-          </div>
 
-          <div class="setting-card-body">
-            <label class="field-label" for="venue-booking-min-gap">Minimum gap (minutes)</label>
-            <el-input-number
-              id="venue-booking-min-gap"
-              v-model="form.venueBookingMinGapMinutes"
-              :min="0"
-              :max="120"
-              :step="5"
-              controls-position="right"
-              class="field-control"
-            />
-            <p class="field-hint">Buffer between same-venue bookings. 0 = back-to-back.</p>
-          </div>
-        </section>
-
-        <section class="setting-card">
-          <div class="setting-card-header">
-            <div class="setting-card-title-row">
-              <div class="setting-icon setting-icon--title">
-                <font-awesome-icon :icon="['fas', 'heading']" />
+              <div class="setting-card-body">
+                <label class="field-label" for="auto-logout-minutes">Idle timeout (minutes)</label>
+                <el-input-number
+                  id="auto-logout-minutes"
+                  v-model="form.userAutoLogoutMinutes"
+                  :min="1"
+                  :max="1440"
+                  :step="1"
+                  controls-position="right"
+                  class="field-control"
+                />
+                <p class="field-hint">Log out automatically after no mouse/keyboard activity.</p>
               </div>
-              <h3 class="setting-title">Meeting / Event Title</h3>
-            </div>
-            <span class="value-pill value-pill--green">
-              <span class="value-pill-label">Current</span>
-              <span class="value-pill-text">{{ saved.venueMeetingEventTitleMaxLength }} units</span>
-            </span>
-          </div>
+            </section>
 
-          <div class="setting-card-body">
-            <label class="field-label" for="venue-meeting-event-title-max">Max length (units)</label>
-            <el-input-number
-              id="venue-meeting-event-title-max"
-              v-model="form.venueMeetingEventTitleMaxLength"
-              :min="1"
-              :max="500"
-              :step="1"
-              controls-position="right"
-              class="field-control"
-            />
-            <p class="field-hint">
-              Maximum units for Meeting / Event Title on venue bookings.
-              Each Chinese character counts as <strong>2</strong> units; other characters count as <strong>1</strong>.
-            </p>
-          </div>
-        </section>
-
-        <section class="setting-card">
-          <div class="setting-card-header">
-            <div class="setting-card-title-row">
-              <div class="setting-icon setting-icon--backup">
-                <font-awesome-icon :icon="['fas', 'database']" />
+            <section
+              v-if="isCategoryVisible('holidays')"
+              class="setting-card"
+            >
+              <div class="setting-card-header">
+                <div class="setting-card-title-row">
+                  <div class="setting-icon setting-icon--calendar">
+                    <font-awesome-icon :icon="['fas', 'calendar-days']" />
+                  </div>
+                  <h3 class="setting-title">Hong Kong Public Holidays</h3>
+                </div>
               </div>
-              <h3 class="setting-title">Data Backup</h3>
-            </div>
-            <span class="value-pill value-pill--green">
-              <span class="value-pill-label">Current</span>
-              <span class="value-pill-text">{{ saved.dataBackupEmailSendTime }} HKT</span>
-            </span>
-          </div>
 
-          <div class="setting-card-body">
-            <div class="field-row field-row--backup">
-              <div class="field-group field-group--email">
-                <label class="field-label" for="data-backup-receiving-email">Receiving email</label>
+              <div class="setting-card-body">
+                <label class="field-label" for="hk-holidays-url">Public holidays URL</label>
                 <el-input
-                  id="data-backup-receiving-email"
-                  v-model.trim="form.dataBackupReceivingEmail"
-                  type="email"
-                  placeholder="backup-recipient@example.com"
+                  id="hk-holidays-url"
+                  v-model.trim="form.hkPublicHolidaysUrl"
+                  placeholder="https://www.1823.gov.hk/common/ical/en.json"
                   clearable
                   class="field-control field-control--full"
                 />
-                <p class="field-hint">Recipient for scheduled backup reports.</p>
+                <p class="field-hint">Reference link for Hong Kong public holidays.</p>
+                <a
+                  v-if="form.hkPublicHolidaysUrl"
+                  :href="form.hkPublicHolidaysUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="url-preview"
+                >
+                  <font-awesome-icon :icon="['fas', 'arrow-up-right-from-square']" class="url-preview-icon" />
+                  Open link in new tab
+                </a>
               </div>
-              <div class="field-group field-group--time">
-                <label class="field-label" for="data-backup-email-send-time">Send time</label>
-                <el-input
-                  id="data-backup-email-send-time"
-                  v-model.trim="form.dataBackupEmailSendTime"
-                  placeholder="09:00"
-                  maxlength="5"
-                  class="field-control field-control--time"
+            </section>
+
+            <section
+              v-if="isCategoryVisible('ev')"
+              class="setting-card"
+            >
+              <div class="setting-card-header">
+                <div class="setting-card-title-row">
+                  <div class="setting-icon setting-icon--ev">
+                    <font-awesome-icon :icon="['fas', 'car']" />
+                  </div>
+                  <h3 class="setting-title">EV Booking Calendar</h3>
+                </div>
+                <span class="value-pill value-pill--green">
+                  <span class="value-pill-label">Current</span>
+                  <span class="value-pill-text">{{ saved.evDateUpdateTime }} · {{ saved.evWeeklyBookingLimit }}/wk</span>
+                </span>
+              </div>
+
+              <div class="setting-card-body">
+                <div class="field-row field-row--ev">
+                  <div class="field-group">
+                    <label class="field-label" for="ev-date-update-time">Date update time</label>
+                    <el-input
+                      id="ev-date-update-time"
+                      v-model.trim="form.evDateUpdateTime"
+                      placeholder="13:00"
+                      maxlength="5"
+                      class="field-control field-control--time"
+                    />
+                    <p class="field-hint">HKT. (HH:mm) Daily calendar roll-forward time.</p>
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label" for="ev-weekly-booking-limit">Weekly limit per user</label>
+                    <el-input-number
+                      id="ev-weekly-booking-limit"
+                      v-model="form.evWeeklyBookingLimit"
+                      :min="1"
+                      :max="7"
+                      :step="1"
+                      controls-position="right"
+                      class="field-control"
+                    />
+                    <p class="field-hint">Max active bookings per user per week.</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section
+              v-if="isCategoryVisible('venue')"
+              class="setting-card"
+            >
+              <div class="setting-card-header">
+                <div class="setting-card-title-row">
+                  <div class="setting-icon setting-icon--venue">
+                    <font-awesome-icon :icon="['fas', 'door-open']" />
+                  </div>
+                  <h3 class="setting-title">Venue Booking Gap</h3>
+                </div>
+                <span class="value-pill value-pill--green">
+                  <span class="value-pill-label">Current</span>
+                  <span class="value-pill-text">{{ saved.venueBookingMinGapMinutes }} min</span>
+                </span>
+              </div>
+
+              <div class="setting-card-body">
+                <label class="field-label" for="venue-booking-min-gap">Minimum gap (minutes)</label>
+                <el-input-number
+                  id="venue-booking-min-gap"
+                  v-model="form.venueBookingMinGapMinutes"
+                  :min="0"
+                  :max="120"
+                  :step="5"
+                  controls-position="right"
+                  class="field-control"
                 />
-                <p class="field-hint">HKT. (HH:mm)</p>
+                <p class="field-hint">Buffer between same-venue bookings. 0 = back-to-back.</p>
               </div>
-            </div>
+            </section>
 
-            <div class="backup-actions">
-              <el-button
-                type="default"
-                class="submit-btn"
-                :loading="sendingBackup"
-                :disabled="loading || saving || sendingBackup"
-                @click="handleSendBackupNow"
-              >
-                <font-awesome-icon :icon="['fas', 'paper-plane']" class="btn-icon" />
-                Send backup now
-              </el-button>
-              <p class="field-hint">Saves backup settings above, then emails the Excel report immediately.</p>
-            </div>
+            <section
+              v-if="isCategoryVisible('venue')"
+              class="setting-card"
+            >
+              <div class="setting-card-header">
+                <div class="setting-card-title-row">
+                  <div class="setting-icon setting-icon--title">
+                    <font-awesome-icon :icon="['fas', 'heading']" />
+                  </div>
+                  <h3 class="setting-title">Meeting / Event Title</h3>
+                </div>
+                <span class="value-pill value-pill--green">
+                  <span class="value-pill-label">Current</span>
+                  <span class="value-pill-text">{{ saved.venueMeetingEventTitleMaxLength }} units</span>
+                </span>
+              </div>
+
+              <div class="setting-card-body">
+                <label class="field-label" for="venue-meeting-event-title-max">Max length (units)</label>
+                <el-input-number
+                  id="venue-meeting-event-title-max"
+                  v-model="form.venueMeetingEventTitleMaxLength"
+                  :min="1"
+                  :max="500"
+                  :step="1"
+                  controls-position="right"
+                  class="field-control"
+                />
+                <p class="field-hint">
+                  Maximum units for Meeting / Event Title on venue bookings.
+                  Each Chinese character counts as <strong>2</strong> units; other characters count as <strong>1</strong>.
+                </p>
+              </div>
+            </section>
+
+            <section
+              v-if="isCategoryVisible('backup')"
+              class="setting-card"
+            >
+              <div class="setting-card-header">
+                <div class="setting-card-title-row">
+                  <div class="setting-icon setting-icon--backup">
+                    <font-awesome-icon :icon="['fas', 'database']" />
+                  </div>
+                  <h3 class="setting-title">Data Backup</h3>
+                </div>
+                <span class="value-pill value-pill--green">
+                  <span class="value-pill-label">Current</span>
+                  <span class="value-pill-text">{{ saved.dataBackupEmailSendTime }} HKT</span>
+                </span>
+              </div>
+
+              <div class="setting-card-body">
+                <div class="field-row field-row--backup">
+                  <div class="field-group field-group--email">
+                    <label class="field-label" for="data-backup-receiving-email">Receiving email</label>
+                    <el-input
+                      id="data-backup-receiving-email"
+                      v-model.trim="form.dataBackupReceivingEmail"
+                      type="email"
+                      placeholder="backup-recipient@example.com"
+                      clearable
+                      class="field-control field-control--full"
+                    />
+                    <p class="field-hint">Recipient for scheduled backup reports.</p>
+                  </div>
+                  <div class="field-group field-group--time">
+                    <label class="field-label" for="data-backup-email-send-time">Send time</label>
+                    <el-input
+                      id="data-backup-email-send-time"
+                      v-model.trim="form.dataBackupEmailSendTime"
+                      placeholder="09:00"
+                      maxlength="5"
+                      class="field-control field-control--time"
+                    />
+                    <p class="field-hint">HKT. (HH:mm)</p>
+                  </div>
+                </div>
+
+                <div class="backup-actions">
+                  <el-button
+                    type="default"
+                    class="submit-btn"
+                    :loading="sendingBackup"
+                    :disabled="loading || saving || sendingBackup"
+                    @click="handleSendBackupNow"
+                  >
+                    <font-awesome-icon :icon="['fas', 'paper-plane']" class="btn-icon" />
+                    Send backup now
+                  </el-button>
+                  <p class="field-hint">Saves backup settings above, then emails the Excel report immediately.</p>
+                </div>
+              </div>
+            </section>
           </div>
-        </section>
-      </div>
+          </div>
+        </div>
 
-      <footer v-if="updatedAt" class="settings-footer">
-        <span class="footer-meta">
-          <font-awesome-icon :icon="['fas', 'clock']" class="footer-meta-icon" />
-          Last updated {{ formatUpdatedAt(updatedAt) }}
-        </span>
-      </footer>
+        <footer v-if="updatedAt" class="settings-footer">
+          <span class="footer-meta">
+            <font-awesome-icon :icon="['fas', 'clock']" class="footer-meta-icon" />
+            Last updated {{ formatUpdatedAt(updatedAt) }}
+          </span>
+        </footer>
       </div>
     </div>
 
@@ -276,6 +345,19 @@ const updatedAt = ref(null)
 const showNoticeDialog = ref(false)
 const noticeTitle = ref('Notice')
 const noticeMessage = ref('')
+const activeCategory = ref('account')
+
+const categoryOptions = [
+  { id: 'account', label: 'User & Session' },
+  { id: 'backup', label: 'Data Backup' },
+  { id: 'ev', label: 'EV Booking' },
+  { id: 'venue', label: 'Venue Booking' },
+  { id: 'holidays', label: 'Public Holidays' }
+]
+
+function isCategoryVisible (categoryId) {
+  return activeCategory.value === categoryId
+}
 
 function showNotice (message, title = 'Notice') {
   noticeTitle.value = title
@@ -285,6 +367,7 @@ function showNotice (message, title = 'Notice') {
 
 const form = reactive({
   userInactiveAfterMonths: 6,
+  userAutoLogoutMinutes: 30,
   hkPublicHolidaysUrl: '',
   evDateUpdateTime: '13:00',
   evWeeklyBookingLimit: 1,
@@ -297,6 +380,7 @@ const form = reactive({
 /** Last saved values shown in Current pills (only refresh after load / Save). */
 const saved = reactive({
   userInactiveAfterMonths: 6,
+  userAutoLogoutMinutes: 30,
   evDateUpdateTime: '13:00',
   evWeeklyBookingLimit: 1,
   venueBookingMinGapMinutes: 15,
@@ -321,6 +405,7 @@ function formatUpdatedAt (value) {
 
 function applySavedFromForm () {
   saved.userInactiveAfterMonths = form.userInactiveAfterMonths
+  saved.userAutoLogoutMinutes = form.userAutoLogoutMinutes
   saved.evDateUpdateTime = form.evDateUpdateTime
   saved.evWeeklyBookingLimit = form.evWeeklyBookingLimit
   saved.venueBookingMinGapMinutes = form.venueBookingMinGapMinutes
@@ -330,6 +415,7 @@ function applySavedFromForm () {
 
 function applySettings (data) {
   form.userInactiveAfterMonths = Number(data?.userInactiveAfterMonths) || 6
+  form.userAutoLogoutMinutes = Number(data?.userAutoLogoutMinutes) || 30
   form.hkPublicHolidaysUrl = String(data?.hkPublicHolidaysUrl ?? '')
   form.evDateUpdateTime = String(data?.evDateUpdateTime ?? '13:00')
   form.evWeeklyBookingLimit = Number(data?.evWeeklyBookingLimit) || 1
@@ -365,6 +451,15 @@ async function loadSettings () {
 async function handleSave () {
   if (!form.hkPublicHolidaysUrl) {
     showNotice('Hong Kong public holidays URL is required', 'Warning')
+    return
+  }
+
+  if (
+    !Number.isInteger(form.userAutoLogoutMinutes) ||
+    form.userAutoLogoutMinutes < 1 ||
+    form.userAutoLogoutMinutes > 1440
+  ) {
+    showNotice('Auto logout idle timeout must be an integer between 1 and 1440', 'Warning')
     return
   }
 
@@ -410,6 +505,7 @@ async function handleSave () {
   try {
     const data = await saveSystemSettings({
       userInactiveAfterMonths: form.userInactiveAfterMonths,
+      userAutoLogoutMinutes: form.userAutoLogoutMinutes,
       hkPublicHolidaysUrl: form.hkPublicHolidaysUrl,
       evDateUpdateTime: form.evDateUpdateTime,
       evWeeklyBookingLimit: form.evWeeklyBookingLimit,
@@ -560,25 +656,87 @@ onMounted(() => {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 0.5rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  padding: 0.55rem 0.65rem 0.65rem;
+  overflow: hidden;
+}
+
+.settings-layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 0;
+  overflow: hidden;
+}
+
+.settings-sidebar {
+  padding: 1rem 0.85rem;
   overflow: auto;
+  border-right: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.sidebar-title {
+  margin: 0 0 0.75rem;
+  padding: 0 0.25rem;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.sidebar-filter-btn {
+  width: 100%;
+  appearance: none;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #374151;
+  border-radius: 0.65rem;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.sidebar-filter-btn:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.sidebar-filter-btn.is-active {
+  background: #dbeafe;
+  border-color: #2563eb;
+  color: #1e3a8a;
+}
+
+.settings-main {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  padding: 1rem 1.1rem;
+  background: #ffffff;
 }
 
 .settings-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: stretch;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  align-content: start;
 }
 
 .setting-card {
-  flex: 0 0 calc((100% - 1rem) / 3);
-  max-width: calc((100% - 1rem) / 3);
   box-sizing: border-box;
   background: #ffffff;
   border: 1px solid #e5e7eb;
@@ -622,6 +780,12 @@ onMounted(() => {
   background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
   color: #166534;
   border: 1px solid #86efac;
+}
+
+.setting-icon--logout {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
 }
 
 .setting-icon--calendar {
@@ -694,12 +858,6 @@ onMounted(() => {
   white-space: nowrap;
 }
 
-.value-pill-text--truncate {
-  max-width: 5rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .setting-card-body {
   display: flex;
   flex-direction: column;
@@ -712,13 +870,6 @@ onMounted(() => {
   flex-direction: row;
   flex-wrap: wrap;
   gap: 0.75rem 1.25rem;
-}
-
-.field-row--triple {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem 0.85rem;
-  align-items: start;
 }
 
 .field-row--backup {
@@ -742,11 +893,6 @@ onMounted(() => {
 .field-row--backup .field-group--time {
   width: 120px;
   flex-shrink: 0;
-}
-
-.field-row--triple .field-group {
-  width: 100%;
-  min-width: 0;
 }
 
 .field-group {
@@ -773,10 +919,6 @@ onMounted(() => {
 
 .field-control--time {
   width: 120px;
-}
-
-.field-control--select {
-  width: 150px;
 }
 
 .field-hint {
@@ -816,13 +958,12 @@ onMounted(() => {
 }
 
 .settings-footer {
-  margin-top: auto;
   flex-shrink: 0;
-  padding: 0.55rem 0.85rem;
+  padding: 0.65rem 1rem;
+  border-top: 1px solid #e5e7eb;
   background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  display: flex;
+  justify-content: center;
 }
 
 .notice-message {
@@ -854,29 +995,10 @@ onMounted(() => {
   padding-right: 0.5rem;
 }
 
-/* Data Backup 三列：强制与其它列同宽（覆盖上方固定 140px） */
-.setting-card-body .field-row--triple .field-control,
-.setting-card-body .field-row--triple .field-control--time,
-.setting-card-body .field-row--triple .field-control--select {
-  width: 100%;
-  max-width: none;
-}
-
 .setting-card-body .field-row--backup .field-group--email .field-control,
 .setting-card-body .field-row--backup .field-group--email :deep(.el-input) {
   width: 100%;
   max-width: none;
-}
-
-.setting-card-body .field-row--triple :deep(.el-input-number),
-.setting-card-body .field-row--triple :deep(.el-select),
-.setting-card-body .field-row--triple :deep(.el-input) {
-  width: 100%;
-  max-width: none;
-}
-
-.setting-card-body .field-row--triple :deep(.el-select .el-input) {
-  width: 100%;
 }
 
 .setting-card-body :deep(.el-input__wrapper) {
@@ -892,17 +1014,34 @@ onMounted(() => {
   box-shadow: 0 0 0 1px #00723a inset;
 }
 
-@media (max-width: 1280px) {
-  .setting-card {
-    flex: 0 0 calc((100% - 0.5rem) / 2);
-    max-width: calc((100% - 0.5rem) / 2);
+@media (max-width: 1100px) {
+  .settings-layout {
+    grid-template-columns: 190px minmax(0, 1fr);
+  }
+
+  .settings-grid {
+    grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 767px) {
-  .setting-card {
-    flex: 0 0 100%;
-    max-width: 100%;
+  .settings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-sidebar {
+    border-right: none;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .sidebar-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .sidebar-filter-btn {
+    width: auto;
+    flex: 0 0 auto;
   }
 
   .page-header {
@@ -919,23 +1058,12 @@ onMounted(() => {
     width: 100%;
   }
 
-  .setting-card-header {
-    min-height: 0;
-  }
-
   .field-row {
     flex-direction: column;
     gap: 0.65rem;
   }
 
-  .field-row--triple {
-    grid-template-columns: 1fr;
-  }
-
-  .field-row--backup {
-    grid-template-columns: 1fr;
-  }
-
+  .field-row--backup,
   .field-row--ev {
     grid-template-columns: 1fr;
   }
@@ -952,10 +1080,6 @@ onMounted(() => {
 
   .field-control--time {
     max-width: 120px;
-  }
-
-  .field-control--select {
-    width: 100%;
   }
 }
 </style>

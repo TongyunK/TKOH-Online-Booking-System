@@ -15,6 +15,7 @@ import {
 } from './system-setting.keys';
 
 const DEFAULT_INACTIVE_AFTER_MONTHS = 6;
+const DEFAULT_AUTO_LOGOUT_MINUTES = 30;
 
 type SettingsMap = Map<string, string>;
 
@@ -75,6 +76,14 @@ export class SystemSettingsService {
   private parseInactiveAfterMonths(raw: string): number | null {
     const months = Number.parseInt(String(raw ?? '').trim(), 10);
     if (Number.isFinite(months) && months > 0) return months;
+    return null;
+  }
+
+  private parseAutoLogoutMinutes(raw: string): number | null {
+    const minutes = Number.parseInt(String(raw ?? '').trim(), 10);
+    if (Number.isFinite(minutes) && minutes >= 1 && minutes <= 1440) {
+      return minutes;
+    }
     return null;
   }
 
@@ -343,6 +352,15 @@ export class SystemSettingsService {
     return this.resolveInactiveAfterMonthsFromEnv();
   }
 
+  async getUserAutoLogoutMinutes(): Promise<number> {
+    const map = await this.ensureDefaultSettings();
+    return (
+      this.parseAutoLogoutMinutes(
+        this.getSetting(map, SystemSettingKey.userAutoLogoutMinutes),
+      ) ?? DEFAULT_AUTO_LOGOUT_MINUTES
+    );
+  }
+
   async getDataRetentionMonths(): Promise<number> {
     const map = await this.ensureDefaultSettings();
     return (
@@ -374,6 +392,10 @@ export class SystemSettingsService {
       this.parseInactiveAfterMonths(
         this.getSetting(map, SystemSettingKey.userInactiveAfterMonths),
       ) ?? this.resolveInactiveAfterMonthsFromEnv();
+    const userAutoLogoutMinutes =
+      this.parseAutoLogoutMinutes(
+        this.getSetting(map, SystemSettingKey.userAutoLogoutMinutes),
+      ) ?? DEFAULT_AUTO_LOGOUT_MINUTES;
     const hkPublicHolidaysUrl = this.getSetting(
       map,
       SystemSettingKey.hkPublicHolidaysUrl,
@@ -442,6 +464,7 @@ export class SystemSettingsService {
 
     return {
       userInactiveAfterMonths,
+      userAutoLogoutMinutes,
       hkPublicHolidaysUrl,
       evDateUpdateTime,
       evWeeklyBookingLimit,
@@ -471,6 +494,25 @@ export class SystemSettingsService {
         },
         update: {
           setting_value: String(dto.userInactiveAfterMonths),
+          updated_at: now,
+        },
+      });
+    }
+
+    if (dto.userAutoLogoutMinutes != null) {
+      await this.prisma.system_settings.upsert({
+        where: { setting_key: SystemSettingKey.userAutoLogoutMinutes },
+        create: {
+          setting_key: SystemSettingKey.userAutoLogoutMinutes,
+          setting_value: String(dto.userAutoLogoutMinutes),
+          description:
+            SYSTEM_SETTING_DESCRIPTIONS[
+              SystemSettingKey.userAutoLogoutMinutes
+            ],
+          updated_at: now,
+        },
+        update: {
+          setting_value: String(dto.userAutoLogoutMinutes),
           updated_at: now,
         },
       });

@@ -10,10 +10,13 @@ import { onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from './stores/user'
 import { isPublicRoute } from './utils/publicRoutes'
+import { useIdleAutoLogout } from './composables/useIdleAutoLogout'
 import GlobalStatusDialog from './components/GlobalStatusDialog.vue'
 
 const userStore = useUserStore()
 const route = useRoute()
+
+useIdleAutoLogout()
 
 onMounted(async () => {
   userStore.initUserInfo()

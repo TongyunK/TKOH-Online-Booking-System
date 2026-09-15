@@ -1,4 +1,5 @@
 import request from './request'
+import { SILENT_ERROR } from '@/utils/requestOptions'
 
 // 登录
 export const login = (data) => {
@@ -23,6 +24,11 @@ export const getUserInfo = () => {
     url: '/auth/user',
     method: 'get'
   })
+}
+
+/** 任意已登录用户：空闲自动登出分钟数 */
+export const getSessionPolicy = (config = {}) => {
+  return request.get('/auth/session-policy', { ...SILENT_ERROR, ...config })
 }
 
 export const updateProfile = (data) => {

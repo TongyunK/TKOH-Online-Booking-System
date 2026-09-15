@@ -20,6 +20,12 @@ export class UpdateSystemSettingsDto {
   userInactiveAfterMonths?: number;
 
   @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(1440)
+  userAutoLogoutMinutes?: number;
+
+  @IsOptional()
   @IsString()
   @IsUrl({ require_protocol: true, protocols: ['http', 'https'] })
   hkPublicHolidaysUrl?: string;

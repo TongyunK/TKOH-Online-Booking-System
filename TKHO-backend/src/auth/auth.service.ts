@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -14,6 +15,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly systemSettingsService: SystemSettingsService,
   ) {}
 
   private canAccessAdminPortal(role: string | null): boolean {
@@ -107,6 +109,15 @@ export class AuthService {
     return {
       token,
       user: this.normalizeUser(user, dto.system),
+      userAutoLogoutMinutes:
+        await this.systemSettingsService.getUserAutoLogoutMinutes(),
+    };
+  }
+
+  async getSessionPolicy() {
+    return {
+      userAutoLogoutMinutes:
+        await this.systemSettingsService.getUserAutoLogoutMinutes(),
     };
   }
 
@@ -122,6 +133,8 @@ export class AuthService {
 
     return {
       user: this.normalizeUser(user, auth.system || 'room'),
+      userAutoLogoutMinutes:
+        await this.systemSettingsService.getUserAutoLogoutMinutes(),
     };
   }
 

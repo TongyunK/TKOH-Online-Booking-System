@@ -1,5 +1,7 @@
 export const SystemSettingKey = {
   userInactiveAfterMonths: 'user_inactive_after_months',
+  /** 无操作自动登出（分钟） */
+  userAutoLogoutMinutes: 'user_auto_logout_minutes',
   hkPublicHolidaysUrl: 'hk_public_holidays_url',
   evDateUpdateTime: 'EV_date_update_time',
   evWeeklyBookingLimit: 'EV_weekly_booking_limit',
@@ -38,6 +40,7 @@ export const SYSTEM_SETTING_HIDDEN_KEYS: SystemSettingKeyName[] = [
 
 export const SYSTEM_SETTING_DEFAULTS: Record<SystemSettingKeyName, string> = {
   [SystemSettingKey.userInactiveAfterMonths]: '6',
+  [SystemSettingKey.userAutoLogoutMinutes]: '30',
   [SystemSettingKey.hkPublicHolidaysUrl]:
     'https://www.1823.gov.hk/common/ical/en.json',
   [SystemSettingKey.evDateUpdateTime]: '13:00',
@@ -61,6 +64,8 @@ export const SYSTEM_SETTING_DESCRIPTIONS: Record<SystemSettingKeyName, string> =
   {
     [SystemSettingKey.userInactiveAfterMonths]:
       'Months without login before user status becomes Inactive',
+    [SystemSettingKey.userAutoLogoutMinutes]:
+      'Minutes of idle time without user activity before automatic logout',
     [SystemSettingKey.hkPublicHolidaysUrl]:
       'Hong Kong public holidays reference URL',
     [SystemSettingKey.evDateUpdateTime]:

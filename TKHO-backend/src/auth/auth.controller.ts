@@ -31,6 +31,14 @@ export class AuthController {
     return this.authService.getCurrentUser(req.user);
   }
 
+  /** 任意已登录用户可读：空闲自动登出分钟数（非 Admin 专属） */
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get('session-policy')
+  sessionPolicy() {
+    return this.authService.getSessionPolicy();
+  }
+
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Patch('profile')

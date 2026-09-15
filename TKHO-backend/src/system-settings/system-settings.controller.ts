@@ -7,7 +7,6 @@ import { SystemSettingsService } from './system-settings.service';
 
 @ApiTags('system-settings')
 @ApiBearerAuth()
-@UseGuards(AdminRoleGuard)
 @Controller('api/system-settings')
 export class SystemSettingsController {
   constructor(
@@ -15,7 +14,17 @@ export class SystemSettingsController {
     private readonly hkPublicHolidaysService: HkPublicHolidaysService,
   ) {}
 
+  /** 任意已登录用户可读：会话空闲自动登出策略 */
+  @Get('session-policy')
+  async getSessionPolicy() {
+    return {
+      userAutoLogoutMinutes:
+        await this.systemSettingsService.getUserAutoLogoutMinutes(),
+    };
+  }
+
   @Get()
+  @UseGuards(AdminRoleGuard)
   async getSettings() {
     const settings = await this.systemSettingsService.getSettings();
     return {
@@ -26,6 +35,7 @@ export class SystemSettingsController {
   }
 
   @Put()
+  @UseGuards(AdminRoleGuard)
   async saveSettings(@Body() dto: UpdateSystemSettingsDto) {
     const settings = await this.systemSettingsService.saveSettings(dto);
     if (dto.hkPublicHolidaysUrl != null) {
@@ -39,6 +49,7 @@ export class SystemSettingsController {
   }
 
   @Post('sync-hk-holidays')
+  @UseGuards(AdminRoleGuard)
   syncHkHolidays() {
     return this.hkPublicHolidaysService.syncFromRemote('manual');
   }
