@@ -763,7 +763,10 @@
             v-model="formData.role"
             placeholder="Select role"
             style="width: 100%"
-            :teleported="false"
+            placement="top-start"
+            :teleported="pendingApprovalSelectTeleported"
+            popper-class="pending-approval-select-popper"
+            :popper-style="pendingApprovalSelectTeleported ? { zIndex: 10100 } : {}"
           >
             <el-option v-for="r in roleOptions" :key="r" :label="r" :value="r" />
           </el-select>
@@ -795,7 +798,10 @@
           <el-select
             v-model="formData.status"
             style="width: 100%"
-            :teleported="false"
+            placement="top-start"
+            :teleported="pendingApprovalSelectTeleported"
+            popper-class="pending-approval-select-popper"
+            :popper-style="pendingApprovalSelectTeleported ? { zIndex: 10100 } : {}"
           >
             <el-option label="Active" value="active" />
             <el-option label="Inactive" value="inactive" />

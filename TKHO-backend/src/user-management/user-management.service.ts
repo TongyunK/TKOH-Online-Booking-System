@@ -102,7 +102,7 @@ export class UserManagementService {
 
   /** Set inactiveTime / inactivedBy when status becomes Inactive; clear when reactivated to Active. */
   private applyInactiveTimeForStatus(
-    data: Prisma.UserUpdateInput,
+    data: { inactiveTime?: Date | null; inactivedBy?: string | null },
     statusFe: string,
     inactivedBy?: string | null,
   ): void {
@@ -559,7 +559,7 @@ export class UserManagementService {
     const bid = BigInt(id);
     await this.assertTargetUserVisibleToActor(bid, auth);
 
-    const data: Prisma.UserUpdateInput = {};
+    const data: Prisma.UserUncheckedUpdateInput = {};
     if (dto.corpId !== undefined) data.corpId = dto.corpId.trim();
     if (dto.firstName !== undefined) data.firstName = dto.firstName.trim();
     if (dto.lastName !== undefined) data.lastName = dto.lastName.trim();
@@ -584,22 +584,12 @@ export class UserManagementService {
     }
     if (dto.department !== undefined) {
       const trimmed = dto.department?.trim();
-      if (!trimmed) {
-        data.department = { disconnect: true };
-      } else {
-        const depId = await this.resolveDepartmentId(trimmed);
-        data.department = { connect: { id: depId } };
-      }
+      data.departmentId = trimmed ? await this.resolveDepartmentId(trimmed) : null;
     }
     if (dto.role !== undefined) {
       const trimmed = dto.role?.trim();
       this.assertCanAssignRole(trimmed, auth);
-      if (!trimmed) {
-        data.access_roles = { disconnect: true };
-      } else {
-        const rid = await this.resolveAccessRoleId(trimmed);
-        data.access_roles = { connect: { id: rid } };
-      }
+      data.accessRoleId = trimmed ? await this.resolveAccessRoleId(trimmed) : null;
     }
 
     try {
