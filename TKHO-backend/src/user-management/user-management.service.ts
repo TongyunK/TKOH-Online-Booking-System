@@ -101,21 +101,21 @@ export class UserManagementService {
   }
 
   /** Set inactiveTime / inactivedBy when status becomes Inactive; clear when reactivated to Active. */
-  private applyInactiveTimeForStatus(
-    data: { inactiveTime?: Date | null; inactivedBy?: string | null },
+  private inactiveFieldsForStatus(
     statusFe: string,
     inactivedBy?: string | null,
-  ): void {
+  ): { inactiveTime?: Date | null; inactivedBy?: string | null } {
     const db = this.statusToDb(statusFe);
     if (db === 'Inactive') {
-      data.inactiveTime = new Date();
-      if (inactivedBy !== undefined) {
-        data.inactivedBy = inactivedBy;
-      }
-    } else if (db === 'Active') {
-      data.inactiveTime = null;
-      data.inactivedBy = null;
+      return {
+        inactiveTime: new Date(),
+        ...(inactivedBy !== undefined ? { inactivedBy } : {}),
+      };
     }
+    if (db === 'Active') {
+      return { inactiveTime: null, inactivedBy: null };
+    }
+    return {};
   }
 
   private async resolveActorDisplayName(
@@ -577,7 +577,7 @@ export class UserManagementService {
         this.statusToDb(dto.status) === 'Inactive'
           ? await this.resolveActorDisplayName(auth)
           : null;
-      this.applyInactiveTimeForStatus(data, dto.status, actorName);
+      Object.assign(data, this.inactiveFieldsForStatus(dto.status, actorName));
     }
     if (dto.password !== undefined && dto.password.trim() !== '') {
       data.password = bcrypt.hashSync(dto.password, 10);
@@ -654,7 +654,7 @@ export class UserManagementService {
       this.statusToDb(statusFe) === 'Inactive'
         ? await this.resolveActorDisplayName(auth)
         : null;
-    this.applyInactiveTimeForStatus(data, statusFe, actorName);
+    Object.assign(data, this.inactiveFieldsForStatus(statusFe, actorName));
     const updated = await this.prisma.user.update({
       where: { id: bid },
       data,
