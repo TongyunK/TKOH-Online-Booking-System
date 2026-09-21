@@ -563,9 +563,9 @@ export class UserManagementService {
     if (dto.corpId !== undefined) data.corpId = dto.corpId.trim();
     if (dto.firstName !== undefined) data.firstName = dto.firstName.trim();
     if (dto.lastName !== undefined) data.lastName = dto.lastName.trim();
-    if (dto.employeeNo !== undefined) data.employeeNo = dto.employeeNo.trim() || null;
-    if (dto.rank !== undefined) data.rank = dto.rank.trim() || null;
-    if (dto.contact !== undefined) data.contact = dto.contact.trim() || null;
+    if (dto.employeeNo !== undefined) data.employeeNo = String(dto.employeeNo ?? '').trim() || null;
+    if (dto.rank !== undefined) data.rank = String(dto.rank ?? '').trim() || null;
+    if (dto.contact !== undefined) data.contact = String(dto.contact ?? '').trim() || null;
     if (dto.email !== undefined) data.email = dto.email?.trim() || null;
     if (dto.annualQuotaEV !== undefined) data.annualQuotaEv = dto.annualQuotaEV;
     if (dto.annualQuotaVenue !== undefined) data.annualQuotaVenue = dto.annualQuotaVenue;
@@ -584,12 +584,18 @@ export class UserManagementService {
     }
     if (dto.department !== undefined) {
       const trimmed = dto.department?.trim();
-      data.departmentId = trimmed ? await this.resolveDepartmentId(trimmed) : null;
+      const departmentId = trimmed ? await this.resolveDepartmentId(trimmed) : null;
+      await this.prisma.$executeRaw`
+        UPDATE "user" SET "department_id" = ${departmentId} WHERE "id" = ${bid}
+      `;
     }
     if (dto.role !== undefined) {
-      const trimmed = dto.role?.trim();
+      const trimmed = dto.role?.trim() ?? '';
       this.assertCanAssignRole(trimmed, auth);
-      data.accessRoleId = trimmed ? await this.resolveAccessRoleId(trimmed) : null;
+      const accessRoleId = trimmed ? await this.resolveAccessRoleId(trimmed) : null;
+      await this.prisma.$executeRaw`
+        UPDATE "user" SET "access_role_id" = ${accessRoleId} WHERE "id" = ${bid}
+      `;
     }
 
     try {

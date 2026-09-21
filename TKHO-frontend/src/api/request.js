@@ -163,7 +163,7 @@ request.interceptors.response.use(
           break
         case 500:
           if (!skipGlobalDialog) {
-            showStatusDialog('Server error', 'error')
+            showStatusDialog(normalizeMessage(response.data, 'Server error'), 'error')
           }
           break
         default:
