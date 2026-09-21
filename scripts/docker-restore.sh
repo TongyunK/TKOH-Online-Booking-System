@@ -45,11 +45,13 @@ read -r -p "确认继续？输入 yes 继续: " confirm
 [ "$confirm" = "yes" ] || die "已取消"
 
 log "恢复 PostgreSQL ..."
-docker cp "$DUMP_FILE" "$POSTGRES_CONTAINER:/tmp/tkho_booking.dump"
+REMOTE_DUMP="/var/lib/postgresql/tkho_booking.dump"
+docker cp "$DUMP_FILE" "$POSTGRES_CONTAINER:$REMOTE_DUMP"
+docker exec -u root "$POSTGRES_CONTAINER" chmod 644 "$REMOTE_DUMP"
 docker exec "$POSTGRES_CONTAINER" \
-  pg_restore -U "$DB_USER" -d "$DB_NAME" --clean --if-exists /tmp/tkho_booking.dump \
+  pg_restore -U "$DB_USER" -d "$DB_NAME" --clean --if-exists "$REMOTE_DUMP" \
   || log "pg_restore 结束（部分 already exists 警告通常可忽略）"
-docker exec "$POSTGRES_CONTAINER" rm -f /tmp/tkho_booking.dump
+docker exec -u root "$POSTGRES_CONTAINER" rm -f "$REMOTE_DUMP"
 
 log "恢复上传文件卷 ..."
 docker run --rm \

@@ -48,12 +48,11 @@ log "数据库: $DB_USER@$DB_NAME  容器: $POSTGRES_CONTAINER"
 log "上传卷: $UPLOADS_VOLUME  保留天数: $KEEP_DAYS"
 
 # 1) PostgreSQL（自定义格式，便于 pg_restore）
+# 写到宿主机，不往容器 /tmp 落文件：postgres 镜像里该目录常只有 root 可写
 DUMP_FILE="$OUT_DIR/tkho_booking.dump"
 log "导出 PostgreSQL ..."
 docker exec "$POSTGRES_CONTAINER" \
-  pg_dump -U "$DB_USER" -d "$DB_NAME" -Fc -f /tmp/tkho_booking.dump
-docker cp "$POSTGRES_CONTAINER:/tmp/tkho_booking.dump" "$DUMP_FILE"
-docker exec "$POSTGRES_CONTAINER" rm -f /tmp/tkho_booking.dump
+  pg_dump -U "$DB_USER" -d "$DB_NAME" -Fc > "$DUMP_FILE"
 [ -s "$DUMP_FILE" ] || die "数据库 dump 为空: $DUMP_FILE"
 
 # 2) 上传文件卷
