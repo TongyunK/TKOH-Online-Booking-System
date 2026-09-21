@@ -17,5 +17,10 @@ test.vue
 # Docker 部署本地环境（含密钥）
 .env
 
+# 宿主机定时备份产物（含 dump / 上传包 / env.backup）
+backups/
+*.dump
+tkho_uploads.tgz
+
 # Nginx SSL 私钥与证书（在 docker/nginx/ssl 下自行生成）
 docker/nginx/ssl/*.pem

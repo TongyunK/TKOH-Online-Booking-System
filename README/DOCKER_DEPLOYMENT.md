@@ -159,7 +159,7 @@ docker exec tkho-booking-backend-blue npx prisma db seed
 **云端 Linux 服务器**（在项目目录执行，使用 `docker-compose` 或 `docker compose` 与现场一致即可）：
 
 ```bash
-cd /path/to/TKOH-Online-Booking-System
+cd ~/Documents/TKOH-Online-Booking-System
 
 # 1. 停掉所有 TKHO 栈
 docker-compose -f docker-compose.nginx.yml down
@@ -339,6 +339,55 @@ cd ..\..\..
 .\deploy.ps1 cleanup
 docker volume rm tkho_postgres_data_volumes tkho_redis_data_volumes tkho_uploads_data_volumes
 ```
+
+## 宿主机级定时备份（Linux）
+
+系统内 Admin「Data Backup」只发 Excel 业务报表，**不能**做整机恢复。生产建议用下面脚本备份 PostgreSQL + 上传卷。
+
+### 手动备份
+
+```bash
+cd ~/Documents/TKOH-Online-Booking-System
+chmod +x scripts/docker-backup.sh scripts/docker-restore.sh
+./scripts/docker-backup.sh
+```
+
+默认输出到项目下 `backups/YYYYMMDD_HHMMSS/`，内含：
+
+| 文件 | 说明 |
+|------|------|
+| `tkho_booking.dump` | `pg_dump -Fc` |
+| `tkho_uploads.tgz` | 上传图片卷 |
+| `env.backup` | 当时的 `.env`（含密钥，权限 600） |
+| `MANIFEST.txt` | 清单 |
+
+可选环境变量：`BACKUP_ROOT`（备份根目录）、`KEEP_DAYS`（默认保留 14 天）、`POSTGRES_CONTAINER`、`UPLOADS_VOLUME`。
+
+### 挂到 crontab（每天自动备份）
+
+```bash
+crontab -e
+```
+
+加入一行（crontab **不会展开 `~`**，请用绝对路径；用户名为 `deperp` 时如下）：
+
+```cron
+15 2 * * * /home/deperp/Documents/TKOH-Online-Booking-System/scripts/docker-backup.sh >> /var/log/tkho-backup.log 2>&1
+```
+
+含义：每天 **02:15** 自动备份，日志写入 `/var/log/tkho-backup.log`。
+
+若用户名不是 `deperp`，把 `/home/deperp` 换成 `echo $HOME` 的结果。
+
+建议定期把 `backups/` 拷到另一台机器或对象存储，不要只留在同一台服务器。
+
+### 从备份恢复（覆盖）
+
+```bash
+./scripts/docker-restore.sh backups/20260921_021500
+```
+
+会提示输入 `yes` 确认；会**覆盖**当前数据库与上传卷。恢复后请确认 `JWT_SECRET` 与备份时一致（可用目录中的 `env.backup`）。
 
 ## 前端 API 策略
 
