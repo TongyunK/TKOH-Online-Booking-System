@@ -1,78 +1,35 @@
 /**
  * EV 抢订并发压测（Node 18+，无需额外依赖）
+ * 单格热点：多用户同时对同一「日期 + 时段」POST /api/parking/bookings
  *
- * 环境变量：
- *   BASE_URL          默认 http://127.0.0.1:3210
- *   CONCURRENCY       并发请求数，默认 50
- *   BOOKING_DATE      预订日期 YYYY-MM-DD，默认明天
- *   PERIOD_ID         时段 id，默认 1
- *   USER_COUNT        参与用户数（循环 seed 账号），默认与 CONCURRENCY 相同
- *   USER_START        起始用户序号（对应 E001 的 1），默认 2（跳过 Admin-test）
- *   PASSWORD          默认 123456（seed 密码）
- *   DRY_RUN           1 时只登录不订位
+ * 环境变量：见 README.md
  */
+
+import {
+  corpIdForUserIndex,
+  login as loginCommon,
+  mapPool,
+  percentile,
+  requestJson as requestJsonCommon,
+  tomorrowYmd,
+} from './common.mjs';
 
 const BASE_URL = (process.env.BASE_URL || 'http://127.0.0.1:3210').replace(/\/$/, '');
 const CONCURRENCY = Math.max(1, Number(process.env.CONCURRENCY || 50));
 const USER_COUNT = Math.max(1, Number(process.env.USER_COUNT || CONCURRENCY));
 const USER_START = Math.max(1, Number(process.env.USER_START || 2));
+const MAX_SEED_USER = Math.max(USER_START, Number(process.env.MAX_SEED_USER || 25));
 const PERIOD_ID = String(process.env.PERIOD_ID || '1');
 const PASSWORD = process.env.PASSWORD || '123456';
 const DRY_RUN = process.env.DRY_RUN === '1';
-
-function tomorrowYmd() {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0, 10);
-}
-
 const BOOKING_DATE = process.env.BOOKING_DATE || tomorrowYmd();
 
-function corpIdForUserIndex(i) {
-  return i === 1 ? 'Admin-test' : `E${String(i).padStart(3, '0')}`;
-}
-
-async function requestJson(method, path, { token, body } = {}) {
-  const headers = { 'Content-Type': 'application/json' };
-  if (token) headers.Authorization = `Bearer ${token}`;
-
-  const started = performance.now();
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers,
-    body: body != null ? JSON.stringify(body) : undefined,
-  });
-  const elapsed = performance.now() - started;
-
-  let data = null;
-  const text = await res.text();
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = { raw: text };
-    }
-  }
-
-  return { status: res.status, data, elapsed };
+async function requestJson(method, path, opts = {}) {
+  return requestJsonCommon(BASE_URL, method, path, opts);
 }
 
 async function login(corpId) {
-  const { status, data } = await requestJson('POST', '/api/auth/login', {
-    body: {
-      account: corpId,
-      password: PASSWORD,
-      system: 'parking',
-    },
-  });
-  if (status !== 201 && status !== 200) {
-    throw new Error(`Login ${corpId} failed: HTTP ${status} ${JSON.stringify(data)}`);
-  }
-  const token = data?.token;
-  if (!token) {
-    throw new Error(`Login ${corpId}: no token in response`);
-  }
-  return { token };
+  return loginCommon(BASE_URL, corpId, { password: PASSWORD, system: 'parking' });
 }
 
 async function resolveLicensePlateId(token, userIndex) {
@@ -100,9 +57,9 @@ async function resolveLicensePlateId(token, userIndex) {
     }
     if (created.status === 400 && /already exists/i.test(JSON.stringify(created.data))) {
       const retryList = await requestJson('GET', '/api/account/vehicles', { token });
-      const vehicles = Array.isArray(retryList.data?.vehicles) ? retryList.data.vehicles : [];
-      const active = vehicles.filter((v) => String(v.status || 'active').toLowerCase() === 'active');
-      if (active.length) return String((active.find((v) => v.isDefault) || active[0]).id);
+      const list = Array.isArray(retryList.data?.vehicles) ? retryList.data.vehicles : [];
+      const act = list.filter((v) => String(v.status || 'active').toLowerCase() === 'active');
+      if (act.length) return String((act.find((v) => v.isDefault) || act[0]).id);
     }
   }
   throw new Error(`Create vehicle failed for user index ${userIndex}`);
@@ -142,63 +99,33 @@ function classifyResult({ status, data }) {
   return 'error';
 }
 
-function percentile(sorted, p) {
-  if (!sorted.length) return 0;
-  const idx = Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1);
-  return sorted[idx];
-}
-
-async function mapPool(items, limit, worker) {
-  const results = new Array(items.length);
-  let next = 0;
-
-  async function runner() {
-    while (true) {
-      const i = next++;
-      if (i >= items.length) break;
-      results[i] = await worker(items[i], i);
-    }
-  }
-
-  const runners = Array.from({ length: Math.min(limit, items.length) }, () => runner());
-  await Promise.all(runners);
-  return results;
-}
-
 async function main() {
-  console.log('=== EV Booking Load Test ===');
+  console.log('=== EV Booking Load Test (抢订 / 单格) ===');
   console.log({
     BASE_URL,
     CONCURRENCY,
     USER_COUNT,
     USER_START,
+    MAX_SEED_USER,
     BOOKING_DATE,
     PERIOD_ID,
     DRY_RUN,
   });
   console.log('');
 
-  const userIndexes = Array.from({ length: USER_COUNT }, (_, i) => {
-    const maxSeedUser = 25;
-    const idx = USER_START + (i % (maxSeedUser - USER_START + 1));
-    return idx;
-  });
+  const span = MAX_SEED_USER - USER_START + 1;
+  const userIndexes = Array.from({ length: USER_COUNT }, (_, i) => USER_START + (i % span));
 
-  console.log(`Logging in ${userIndexes.length} users...`);
+  console.log(`Logging in ${userIndexes.length} sessions (unique seed span=${span})...`);
   const sessionByUserIndex = new Map();
   const loginFailures = [];
 
-  await mapPool(userIndexes, 5, async (userIndex) => {
+  await mapPool([...new Set(userIndexes)], 8, async (userIndex) => {
     const corpId = corpIdForUserIndex(userIndex);
     try {
       const { token } = await login(corpId);
       const licensePlateId = await resolveLicensePlateId(token, userIndex);
-      sessionByUserIndex.set(userIndex, {
-        corpId,
-        userIndex,
-        token,
-        licensePlateId,
-      });
+      sessionByUserIndex.set(userIndex, { corpId, userIndex, token, licensePlateId });
     } catch (e) {
       loginFailures.push({ corpId, error: e.message });
     }
@@ -208,9 +135,7 @@ async function main() {
   if (loginFailures.length) {
     console.log('Login failures (first 5):', loginFailures.slice(0, 5));
   }
-  if (!sessionByUserIndex.size) {
-    process.exit(1);
-  }
+  if (!sessionByUserIndex.size) process.exit(1);
 
   const totalSpaces = await fetchTotalSpaces(sessionByUserIndex.values().next().value.token);
   if (totalSpaces != null) {
@@ -234,9 +159,7 @@ async function main() {
   const workers = Array.from({ length: CONCURRENCY }, (_, i) => {
     const userIndex = userIndexes[i];
     const session = sessionByUserIndex.get(userIndex);
-    if (!session) {
-      throw new Error(`No session for user index ${userIndex} (login failed)`);
-    }
+    if (!session) throw new Error(`No session for user index ${userIndex} (login failed)`);
     return session;
   });
 

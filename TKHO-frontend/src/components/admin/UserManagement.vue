@@ -718,7 +718,11 @@
     >
       <el-form :model="formData" label-width="140px">
         <el-form-item label="CORP User ID">
-          <el-input v-model="formData.corpId" />
+          <el-input
+            :model-value="formData.corpId"
+            placeholder="Capital letters and numbers only"
+            @input="onFormCorpIdInput"
+          />
         </el-form-item>
         <el-form-item label="Employee No.">
           <el-input v-model="formData.employeeNo" />
@@ -871,7 +875,11 @@
     >
       <el-form :model="pendingHandleForm" label-width="140px">
         <el-form-item label="CORP User ID">
-          <el-input v-model="pendingHandleForm.corpId" />
+          <el-input
+            :model-value="pendingHandleForm.corpId"
+            placeholder="Capital letters and numbers only"
+            @input="onPendingCorpIdInput"
+          />
         </el-form-item>
         <el-form-item label="Employee No.">
           <el-input v-model="pendingHandleForm.employeeNo" />
@@ -1177,8 +1185,19 @@ const sanitizePlateNumber = (raw) =>
     .slice(0, PLATE_MAX_LENGTH)
     .toUpperCase()
 
+/** 与登录页 / 用户注册一致：仅大写字母与数字 */
+const sanitizeCorpId = (raw) => String(raw ?? '').replace(/[^A-Za-z0-9]/g, '').toUpperCase()
+
 const onAddUserCarPlateInput = (val) => {
   formData.value.carPlateNo = sanitizePlateNumber(val)
+}
+
+const onFormCorpIdInput = (val) => {
+  formData.value.corpId = sanitizeCorpId(val)
+}
+
+const onPendingCorpIdInput = (val) => {
+  pendingHandleForm.value.corpId = sanitizeCorpId(val)
 }
 
 const resetPasswordForm = ref({
@@ -1987,6 +2006,12 @@ const handleEdit = (row) => {
 
 const handleSave = async () => {
   try {
+    const corpId = sanitizeCorpId(formData.value.corpId)
+    formData.value.corpId = corpId
+    if (!corpId) {
+      showNotice('CORP User ID is required (capital letters and numbers only)', 'Warning')
+      return
+    }
     if (!String(formData.value.lastName || '').trim()) {
       showNotice('Last Name is required', 'Warning')
       return
@@ -1994,7 +2019,7 @@ const handleSave = async () => {
     if (formMode.value === 'add') {
       const carPlateNo = sanitizePlateNumber(formData.value.carPlateNo)
       await createUser({
-        corpId: formData.value.corpId.trim(),
+        corpId,
         firstName: String(formData.value.firstName || '').trim(),
         lastName: String(formData.value.lastName || '').trim(),
         employeeNo: String(formData.value.employeeNo || '').trim(),
@@ -2017,7 +2042,7 @@ const handleSave = async () => {
       )
     } else {
       await updateUser(formData.value.id, {
-        corpId: formData.value.corpId,
+        corpId,
         firstName: String(formData.value.firstName || '').trim(),
         lastName: String(formData.value.lastName || '').trim(),
         employeeNo: String(formData.value.employeeNo || '').trim(),
@@ -2124,14 +2149,20 @@ const handlePending = (row) => {
 
 const confirmPendingApprove = async () => {
   const data = { ...pendingHandleForm.value }
+  const corpId = sanitizeCorpId(data.corpId)
+  pendingHandleForm.value.corpId = corpId
   const role = String(data.role || '').trim()
+  if (!corpId) {
+    showNotice('CORP User ID is required (capital letters and numbers only)', 'Warning')
+    return
+  }
   if (!role) {
     showNotice('Please select a role before approving.', 'Warning')
     return
   }
   try {
     await approvePendingUser(data.id, {
-      corpId: String(data.corpId || '').trim(),
+      corpId,
       firstName: String(data.firstName || '').trim(),
       lastName: String(data.lastName || '').trim(),
       employeeNo: String(data.employeeNo || '').trim(),

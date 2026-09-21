@@ -17,7 +17,8 @@
     "build:seed": "tsc prisma/seed.ts prisma/seed-data.ts --outDir prisma/seed-dist --rootDir prisma --module commonjs --esModuleInterop --skipLibCheck --target ES2021",
     "prisma:seed": "node prisma/seed-dist/seed.js",
     "load-test:ev": "node scripts/load-test/ev-booking-concurrent.mjs",
-    "load-test:ev-calendar": "node scripts/load-test/ev-booking-calendar-stress.mjs"
+    "load-test:ev-calendar": "node scripts/load-test/ev-booking-calendar-stress.mjs",
+    "load-test:browse": "node scripts/load-test/calendar-browse-stress.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.6",

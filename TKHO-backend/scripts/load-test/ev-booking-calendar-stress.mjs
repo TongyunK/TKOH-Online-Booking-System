@@ -1,28 +1,23 @@
 /**
- * 14 天 × 多时段 × 3 车位 — 日历级并发抢订压测
+ * 14 天 × 多时段 × N 车位 — 日历级并发抢订压测
  *
- * 场景：100 人同时对 booking window 内多日、多时段发起预订。
- * 每个 (日期, 时段) 最多成功数 = active 车位数（seed 默认 3）。
- *
- * 环境变量：
- *   BASE_URL          http://127.0.0.1:3210
- *   CONCURRENCY       并发订位数，默认 100
- *   USER_COUNT        登录用户数，默认 100
- *   USER_START        起始用户 id（2 = E002），默认 2
- *   DAYS              压测天数，默认 14
- *   START_DATE        起始日 YYYY-MM-DD；未设则从 booking-window 读取
- *   PERIOD_IDS        逗号分隔，默认 1,2,3
- *   TARGET_MODE       spread | hot | random（默认 spread：均匀打到各日期×时段）
- *   HOT_DATE          TARGET_MODE=hot 时指定日期
- *   HOT_PERIOD_ID     TARGET_MODE=hot 时指定时段
- *   PASSWORD          123456
- *   DRY_RUN           1 只登录
+ * 环境变量：见 README.md
  */
+
+import {
+  addDaysYmd,
+  corpIdForUserIndex,
+  login as loginCommon,
+  mapPool,
+  percentile,
+  requestJson as requestJsonCommon,
+} from './common.mjs';
 
 const BASE_URL = (process.env.BASE_URL || 'http://127.0.0.1:3210').replace(/\/$/, '');
 const CONCURRENCY = Math.max(1, Number(process.env.CONCURRENCY || 100));
 const USER_COUNT = Math.max(1, Number(process.env.USER_COUNT || CONCURRENCY));
 const USER_START = Math.max(1, Number(process.env.USER_START || 2));
+const MAX_SEED_USER = Math.max(USER_START, Number(process.env.MAX_SEED_USER || 25));
 const DAYS = Math.max(1, Number(process.env.DAYS || 14));
 const PERIOD_IDS = (process.env.PERIOD_IDS || '1,2,3')
   .split(',')
@@ -35,62 +30,12 @@ const PASSWORD = process.env.PASSWORD || '123456';
 const DRY_RUN = process.env.DRY_RUN === '1';
 const START_DATE_ENV = process.env.START_DATE || '';
 
-const MAX_SEED_USER = 25;
-
-function corpIdForUserIndex(i) {
-  return i === 1 ? 'Admin-test' : `E${String(i).padStart(3, '0')}`;
-}
-
-function addDaysYmd(startYmd, offset) {
-  const d = new Date(`${startYmd}T12:00:00`);
-  d.setDate(d.getDate() + offset);
-  return d.toISOString().slice(0, 10);
-}
-
-function buildDateRange(startYmd, dayCount, endYmd) {
-  const dates = [];
-  for (let i = 0; i < dayCount; i++) {
-    const ymd = addDaysYmd(startYmd, i);
-    if (endYmd && ymd > endYmd) break;
-    dates.push(ymd);
-  }
-  return dates;
-}
-
-async function requestJson(method, path, { token, body } = {}) {
-  const headers = { 'Content-Type': 'application/json' };
-  if (token) headers.Authorization = `Bearer ${token}`;
-
-  const started = performance.now();
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers,
-    body: body != null ? JSON.stringify(body) : undefined,
-  });
-  const elapsed = performance.now() - started;
-
-  let data = null;
-  const text = await res.text();
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = { raw: text };
-    }
-  }
-
-  return { status: res.status, data, elapsed };
+async function requestJson(method, path, opts = {}) {
+  return requestJsonCommon(BASE_URL, method, path, opts);
 }
 
 async function login(corpId) {
-  const { status, data } = await requestJson('POST', '/api/auth/login', {
-    body: { account: corpId, password: PASSWORD, system: 'parking' },
-  });
-  if (status !== 201 && status !== 200) {
-    throw new Error(`Login ${corpId} failed: HTTP ${status} ${JSON.stringify(data)}`);
-  }
-  if (!data?.token) throw new Error(`Login ${corpId}: no token`);
-  return { token: data.token };
+  return loginCommon(BASE_URL, corpId, { password: PASSWORD, system: 'parking' });
 }
 
 async function resolveLicensePlateId(token, userIndex) {
@@ -146,24 +91,14 @@ function classifyResult({ status, data }) {
   return 'error';
 }
 
-function percentile(sorted, p) {
-  if (!sorted.length) return 0;
-  const idx = Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1);
-  return sorted[idx];
-}
-
-async function mapPool(items, limit, worker) {
-  let next = 0;
-  async function runner() {
-    while (true) {
-      const i = next++;
-      if (i >= items.length) break;
-      await worker(items[i], i);
-    }
+function buildDateRange(startYmd, dayCount, endYmd) {
+  const dates = [];
+  for (let i = 0; i < dayCount; i++) {
+    const ymd = addDaysYmd(startYmd, i);
+    if (endYmd && ymd > endYmd) break;
+    dates.push(ymd);
   }
-  await Promise.all(
-    Array.from({ length: Math.min(limit, items.length) }, () => runner()),
-  );
+  return dates;
 }
 
 function buildCells(dates, periodIds) {
@@ -177,9 +112,7 @@ function buildCells(dates, periodIds) {
 }
 
 function pickTarget(cells, workerIndex) {
-  if (!cells.length) {
-    throw new Error('No booking cells (check dates / PERIOD_IDS)');
-  }
+  if (!cells.length) throw new Error('No booking cells (check dates / PERIOD_IDS)');
   if (TARGET_MODE === 'hot') {
     const date = HOT_DATE || cells[0].date;
     return { date, periodId: HOT_PERIOD_ID, key: `${date}-${HOT_PERIOD_ID}` };
@@ -199,37 +132,30 @@ async function createBooking(session, target) {
       bookingDate: target.date,
     },
   });
-  return {
-    status,
-    data,
-    elapsed,
-    corpId: session.corpId,
-    target,
-  };
+  return { status, data, elapsed, corpId: session.corpId, target };
 }
 
 async function main() {
-  console.log('=== EV Calendar Stress (multi-day × multi-period) ===\n');
+  console.log('=== EV Calendar Stress (抢订 / 多日×多时段) ===\n');
   console.log({
     BASE_URL,
     CONCURRENCY,
     USER_COUNT,
+    MAX_SEED_USER,
     DAYS,
     PERIOD_IDS,
     TARGET_MODE,
     DRY_RUN,
   });
 
-  const userIndexes = Array.from({ length: USER_COUNT }, (_, i) => {
-    const span = MAX_SEED_USER - USER_START + 1;
-    return USER_START + (i % span);
-  });
+  const span = MAX_SEED_USER - USER_START + 1;
+  const userIndexes = Array.from({ length: USER_COUNT }, (_, i) => USER_START + (i % span));
 
-  console.log(`\nLogging in ${userIndexes.length} users...`);
+  console.log(`\nLogging in unique users (span=${span}, sessions=${userIndexes.length})...`);
   const sessionByUserIndex = new Map();
   const loginFailures = [];
 
-  await mapPool(userIndexes, 8, async (userIndex) => {
+  await mapPool([...new Set(userIndexes)], 8, async (userIndex) => {
     const corpId = corpIdForUserIndex(userIndex);
     try {
       const { token } = await login(corpId);
@@ -248,16 +174,13 @@ async function main() {
 
   const token = sessionByUserIndex.values().next().value.token;
   const window = await fetchBookingWindow(token);
-  let startDate = START_DATE_ENV || window?.start || addDaysYmd(new Date().toISOString().slice(0, 10), 1);
+  const startDate =
+    START_DATE_ENV || window?.start || addDaysYmd(new Date().toISOString().slice(0, 10), 1);
   const endDate = window?.end || addDaysYmd(startDate, DAYS - 1);
   const dates = buildDateRange(startDate, DAYS, endDate);
   const cells = buildCells(dates, PERIOD_IDS);
 
-  const totalSpaces = await fetchTotalSpaces(
-    token,
-    dates[0],
-    dates[dates.length - 1],
-  );
+  const totalSpaces = await fetchTotalSpaces(token, dates[0], dates[dates.length - 1]);
   const slotsPerCell = totalSpaces ?? 3;
   const maxTheoreticalSuccess = cells.length * slotsPerCell;
 
@@ -281,9 +204,7 @@ async function main() {
   const workers = Array.from({ length: CONCURRENCY }, (_, i) => {
     const userIndex = userIndexes[i];
     const session = sessionByUserIndex.get(userIndex);
-    if (!session) {
-      throw new Error(`No session for user index ${userIndex} (login failed)`);
-    }
+    if (!session) throw new Error(`No session for user index ${userIndex} (login failed)`);
     return { session, target: pickTarget(cells, i) };
   });
 
@@ -315,9 +236,7 @@ async function main() {
     if (r.elapsed > 0) latencies.push(r.elapsed);
 
     const ck = r.target?.key || '?';
-    if (!cellStats.has(ck)) {
-      cellStats.set(ck, { success: 0, conflict: 0, error: 0 });
-    }
+    if (!cellStats.has(ck)) cellStats.set(ck, { success: 0, conflict: 0, error: 0 });
     cellStats.get(ck)[kind]++;
 
     if (kind === 'success') {

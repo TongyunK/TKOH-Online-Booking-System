@@ -1,4 +1,4 @@
-import { IsEmail, IsNumber, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsNumber, IsOptional, IsString, Matches, MinLength } from 'class-validator';
 
 export class ApprovePendingDto {
   @IsString()
@@ -7,6 +7,9 @@ export class ApprovePendingDto {
 
   @IsOptional()
   @IsString()
+  @Matches(/^[A-Z0-9]+$/, {
+    message: 'CORP User ID must contain capital letters and numbers only',
+  })
   corpId?: string;
 
   @IsOptional()
