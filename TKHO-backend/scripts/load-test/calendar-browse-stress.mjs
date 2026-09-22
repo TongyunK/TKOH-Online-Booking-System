@@ -294,14 +294,14 @@ async function main() {
 
   const verdict =
     totalFail === 0
-      ? '通过（fail=0）'
+      ? '通過（fail=0）'
       : failRate > 0.05
-        ? '需关注（失败率 > 5%）'
-        : '基本通过（有少量失败）';
+        ? '需關注（失敗率 > 5%）'
+        : '基本通過（有少量失敗）';
 
   writeLoadTestReport({
     scenario: 'browse',
-    title: '日历浏览压测结果',
+    title: '日曆瀏覽壓測結果',
     verdict,
     config: {
       BASE_URL,
@@ -330,15 +330,15 @@ async function main() {
     },
     tables: [
       {
-        title: '各接口延迟',
+        title: '各接口延遲',
         headers: ['endpoint', 'ok', 'fail', 'p50_ms', 'p95_ms', 'max_ms'],
         rows: table.map((r) => [r.endpoint, r.ok, r.fail, r.p50_ms, r.p95_ms, r.max_ms]),
       },
     ],
     notes: samples.length
-      ? samples.slice(0, 5).map((s) => `VU error sample: ${s}`)
-      : ['无 VU 异常样本'],
-    passHint: '建议：fail≈0；主要读接口 p95 < 2000–3000ms（视机器而定）。',
+      ? samples.slice(0, 5).map((s) => `VU 錯誤樣本: ${s}`)
+      : ['無 VU 異常樣本'],
+    passHint: '建議：fail≈0；主要讀接口 p95 < 2000–3000ms（視機器而定）。',
   });
 }
 

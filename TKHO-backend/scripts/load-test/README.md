@@ -5,8 +5,27 @@
 **服务器逐步操作（含健康检查 / 清表 SQL / 300–500 命令）→ [SERVER-CHECKLIST.md](./SERVER-CHECKLIST.md)**  
 **2026-09-21 实测结果总结 → [LOAD-TEST-RESULTS-2026-09-21.md](./LOAD-TEST-RESULTS-2026-09-21.md)**
 
-压测跑完后会**自动**在 `scripts/load-test/results/` 下生成 Markdown（例如 `LOAD-TEST-browse-20260922_111500.md`）。  
+压测跑完后会**自动**在 `scripts/load-test/results/` 下生成**繁体中文** Markdown（含 `wall_ms` 等参数说明）。  
 关闭：`WRITE_REPORT=0`；自定义目录：`REPORT_DIR=/path/to/dir`。
+
+### 快速切换环境变量（推荐）
+
+```bash
+cd ~/Documents/TKOH-Online-Booking-System/TKHO-backend
+
+# 查看全部场景
+bash scripts/load-test/env/list.sh
+
+# 必须用 source，变量才会留在当前终端
+source scripts/load-test/env/browse-smoke.sh && npm run load-test:browse
+source scripts/load-test/env/browse-300.sh   && npm run load-test:browse
+source scripts/load-test/env/browse-500.sh   && npm run load-test:browse
+
+source scripts/load-test/env/book-smoke.sh && npm run load-test:ev-calendar
+source scripts/load-test/env/book-300.sh   && npm run load-test:ev-calendar
+source scripts/load-test/env/book-500.sh   && npm run load-test:ev-calendar
+source scripts/load-test/env/book-hot.sh   && npm run load-test:ev
+```
 
 | 命令 | 脚本 | 场景 |
 |------|------|------|

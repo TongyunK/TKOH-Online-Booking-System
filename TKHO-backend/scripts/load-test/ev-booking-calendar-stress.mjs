@@ -308,14 +308,14 @@ async function main() {
 
   const verdict =
     duplicateSlot.count > 0
-      ? '未通过（疑似超卖 duplicateSlot>0）'
+      ? '未通過（疑似超賣 duplicateSlot>0）'
       : buckets.error > buckets.success + buckets.conflict
-        ? '需解读（error 较多，多为业务拒绝或系统问题，请看 Sample errors）'
-        : '倾向通过（请再跑 Verify SQL，期望 0 行）';
+        ? '需解讀（error 較多，多為業務拒絕或系統問題，請看錯誤樣本）'
+        : '傾向通過（請再跑校驗 SQL，期望 0 行）';
 
   writeLoadTestReport({
     scenario: 'ev-calendar',
-    title: 'EV 抢订压测结果（多日×多时段）',
+    title: 'EV 搶訂壓測結果（多日×多時段）',
     verdict,
     config: {
       BASE_URL,
@@ -341,7 +341,7 @@ async function main() {
     },
     tables: [
       {
-        title: 'Per cell（活动最高 12 格）',
+        title: '各格子活動（最高 12 格）',
         headers: ['key', 'success', 'conflict', 'error'],
         rows: hotCells.map((c) => [c.key, c.success, c.conflict, c.error]),
       },
@@ -349,13 +349,13 @@ async function main() {
     notes: [
       ...errorsSample.slice(0, 6).map(
         (e) =>
-          `error sample: ${e.corpId} status=${e.status} target=${e.target?.key} msg=${JSON.stringify(e.message)}`,
+          `錯誤樣本: ${e.corpId} status=${e.status} target=${e.target?.key} msg=${JSON.stringify(e.message)}`,
       ),
-      '403 EV booking quota exceeded 常为 User_Venue 无 EV 配额；400 weekend 为周末不可订。',
+      '403 EV booking quota exceeded 常為 User_Venue 無 EV 配額；400 weekend 為週末不可訂。',
     ],
     sql: [verifySql],
     passHint:
-      '建议：duplicateSlot=0；Verify SQL 0 行；success 不超过车位容量；error 以业务拒绝为主而非大量 5xx。',
+      '建議：duplicateSlot=0；校驗 SQL 0 行；success 不超過車位容量；error 以業務拒絕為主而非大量 5xx。',
   });
 }
 

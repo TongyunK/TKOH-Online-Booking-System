@@ -240,11 +240,11 @@ async function main() {
 
   writeLoadTestReport({
     scenario: 'ev-hot',
-    title: 'EV 抢订压测结果（单格热点）',
+    title: 'EV 搶訂壓測結果（單格熱點）',
     verdict:
       (buckets.duplicateSlot || 0) > 0
-        ? '未通过（duplicateSlot>0）'
-        : '倾向通过（请再跑 Verify SQL）',
+        ? '未通過（duplicateSlot>0）'
+        : '傾向通過（請再跑校驗 SQL）',
     config: {
       BASE_URL,
       CONCURRENCY,
@@ -264,10 +264,10 @@ async function main() {
       latency_ms: lat,
     },
     notes: errorsSample.slice(0, 8).map(
-      (e) => `error sample: ${e.corpId} status=${e.status} msg=${JSON.stringify(e.message)}`,
+      (e) => `錯誤樣本: ${e.corpId} status=${e.status} msg=${JSON.stringify(e.message)}`,
     ),
     sql: [verifySql],
-    passHint: '建议：success ≤ active 车位数；duplicateSlot=0；Verify SQL 0 行。',
+    passHint: '建議：success ≤ active 車位數；duplicateSlot=0；校驗 SQL 0 行。',
   });
 }
 
