@@ -38,8 +38,9 @@ const ROOM_NAMES = (process.env.ROOM_NAMES || SEED_VENUE_NAMES.join(','))
   .map((s) => s.trim())
   .filter(Boolean);
 
-/** 默认留出间隔，避免与 venue min-gap 设置冲突 */
-const TIME_SLOTS = (process.env.TIME_SLOTS || '09:00-10:00,10:30-11:30,14:00-15:00,15:30-16:30')
+/** 默认 10 段／房间／天（互不重叠，并预留约 15 分钟 gap） */
+const TIME_SLOTS = (process.env.TIME_SLOTS ||
+  '09:00-09:45,10:00-10:45,11:00-11:45,12:00-12:45,13:00-13:45,14:00-14:45,15:00-15:45,16:00-16:45,17:00-17:45,18:00-18:45')
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean)

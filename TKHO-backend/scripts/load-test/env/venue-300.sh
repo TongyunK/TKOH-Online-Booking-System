@@ -10,7 +10,7 @@ export USER_COUNT=300
 export DAYS=7
 export START_DATE="${START_DATE:-2026-09-23}"
 export TARGET_MODE=spread
-export TIME_SLOTS="${TIME_SLOTS:-09:00-10:00,10:30-11:30,14:00-15:00,15:30-16:30}"
+export TIME_SLOTS="${TIME_SLOTS:-09:00-09:45,10:00-10:45,11:00-11:45,12:00-12:45,13:00-13:45,14:00-14:45,15:00-15:45,16:00-16:45,17:00-17:45,18:00-18:45}"
 
 echo "[env] venue-300: BASE_URL=$BASE_URL CONCURRENCY=$CONCURRENCY START_DATE=$START_DATE DAYS=$DAYS TARGET_MODE=$TARGET_MODE"
-echo "[env] 搶訂前請先清表；下一步: npm run load-test:venue-calendar"
+echo "[env] TIME_SLOTS=10 slots/room/day → 理論上限≈7房間×7工作日×10=490；搶訂前請先清表；下一步: npm run load-test:venue-calendar"

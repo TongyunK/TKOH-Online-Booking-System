@@ -209,7 +209,7 @@ source scripts/load-test/env/venue-500.sh   && npm run load-test:venue-calendar
 | 变量 | 说明 | 默认 |
 |------|------|------|
 | `ROOM_NAMES` | 逗号分隔房间名 | seed 全部 7 间 |
-| `TIME_SLOTS` | `HH:mm-HH:mm,...` | `09:00-10:00,10:30-11:30,...` |
+| `TIME_SLOTS` | `HH:mm-HH:mm,...`（默認每房每日 **10** 段） | `09:00-09:45,10:00-10:45,…,18:00-18:45` |
 | `DAYS` | 工作日天数 | 7 |
 | `TARGET_MODE` | `spread` / `hot` / `random` | spread |
 
