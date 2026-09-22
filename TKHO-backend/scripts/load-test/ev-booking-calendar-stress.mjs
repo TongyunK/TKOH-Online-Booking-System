@@ -12,6 +12,7 @@ import {
   percentile,
   requestJson as requestJsonCommon,
 } from './common.mjs';
+import { writeLoadTestReport } from './report.mjs';
 
 const BASE_URL = (process.env.BASE_URL || 'http://127.0.0.1:3210').replace(/\/$/, '');
 const CONCURRENCY = Math.max(1, Number(process.env.CONCURRENCY || 100));
@@ -293,9 +294,69 @@ async function main() {
   }
 
   console.log('\nVerify SQL (no duplicate slot per date+period):');
-  console.log(
-    `SELECT slot_id, period_id, booking_date, COUNT(*) FROM ev_bookings WHERE status IN ('pending','confirmed') AND booking_date >= DATE '${dates[0]}' AND booking_date <= DATE '${dates[dates.length - 1]}' GROUP BY 1,2,3 HAVING COUNT(*)>1;`,
-  );
+  const verifySql = `SELECT slot_id, period_id, booking_date, COUNT(*) FROM ev_bookings WHERE status IN ('pending','confirmed') AND booking_date >= DATE '${dates[0]}' AND booking_date <= DATE '${dates[dates.length - 1]}' GROUP BY 1,2,3 HAVING COUNT(*)>1;`;
+  console.log(verifySql);
+
+  const lat = latencies.length
+    ? {
+        min: Math.round(latencies[0]),
+        p50: Math.round(percentile(latencies, 50)),
+        p95: Math.round(percentile(latencies, 95)),
+        max: Math.round(latencies[latencies.length - 1]),
+      }
+    : null;
+
+  const verdict =
+    duplicateSlot.count > 0
+      ? '未通过（疑似超卖 duplicateSlot>0）'
+      : buckets.error > buckets.success + buckets.conflict
+        ? '需解读（error 较多，多为业务拒绝或系统问题，请看 Sample errors）'
+        : '倾向通过（请再跑 Verify SQL，期望 0 行）';
+
+  writeLoadTestReport({
+    scenario: 'ev-calendar',
+    title: 'EV 抢订压测结果（多日×多时段）',
+    verdict,
+    config: {
+      BASE_URL,
+      CONCURRENCY,
+      USER_COUNT,
+      MAX_SEED_USER,
+      DAYS,
+      PERIOD_IDS: PERIOD_IDS.join(','),
+      TARGET_MODE,
+      date_range: `${dates[0]} → ${dates[dates.length - 1]}`,
+      cells: cells.length,
+      slots_per_cell: slotsPerCell,
+      max_theoretical_success: maxTheoreticalSuccess,
+    },
+    summary: {
+      wall_ms: wallMs,
+      success: buckets.success,
+      conflict: buckets.conflict,
+      error: buckets.error,
+      duplicateSlot: duplicateSlot.count,
+      cells_at_capacity: `${fullCells} / ${cells.length}`,
+      latency_ms: lat,
+    },
+    tables: [
+      {
+        title: 'Per cell（活动最高 12 格）',
+        headers: ['key', 'success', 'conflict', 'error'],
+        rows: hotCells.map((c) => [c.key, c.success, c.conflict, c.error]),
+      },
+    ],
+    notes: [
+      ...errorsSample.slice(0, 6).map(
+        (e) =>
+          `error sample: ${e.corpId} status=${e.status} target=${e.target?.key} msg=${JSON.stringify(e.message)}`,
+      ),
+      '403 EV booking quota exceeded 常为 User_Venue 无 EV 配额；400 weekend 为周末不可订。',
+    ],
+    sql: [verifySql],
+    passHint:
+      '建议：duplicateSlot=0；Verify SQL 0 行；success 不超过车位容量；error 以业务拒绝为主而非大量 5xx。',
+  });
 }
 
 main().catch((e) => {

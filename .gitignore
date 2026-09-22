@@ -22,5 +22,8 @@ backups/
 *.dump
 tkho_uploads.tgz
 
+# 压测自动生成的结果文档
+TKHO-backend/scripts/load-test/results/
+
 # Nginx SSL 私钥与证书（在 docker/nginx/ssl 下自行生成）
 docker/nginx/ssl/*.pem

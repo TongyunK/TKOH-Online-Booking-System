@@ -2,7 +2,11 @@
 
 脚本均在 `TKHO-backend` 下用 Node 18+ 运行，**无需额外依赖**。登录字段为 `corpId`（与后端 DTO 一致）。
 
-**服务器逐步操作（含健康检查 / 清表 SQL / 300–500 命令）→ [SERVER-CHECKLIST.md](./SERVER-CHECKLIST.md)**
+**服务器逐步操作（含健康检查 / 清表 SQL / 300–500 命令）→ [SERVER-CHECKLIST.md](./SERVER-CHECKLIST.md)**  
+**2026-09-21 实测结果总结 → [LOAD-TEST-RESULTS-2026-09-21.md](./LOAD-TEST-RESULTS-2026-09-21.md)**
+
+压测跑完后会**自动**在 `scripts/load-test/results/` 下生成 Markdown（例如 `LOAD-TEST-browse-20260922_111500.md`）。  
+关闭：`WRITE_REPORT=0`；自定义目录：`REPORT_DIR=/path/to/dir`。
 
 | 命令 | 脚本 | 场景 |
 |------|------|------|

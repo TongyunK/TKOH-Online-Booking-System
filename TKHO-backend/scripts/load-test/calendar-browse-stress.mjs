@@ -30,6 +30,7 @@ import {
   tomorrowYmd,
   weekStartYmd,
 } from './common.mjs';
+import { writeLoadTestReport } from './report.mjs';
 
 const BASE_URL = (process.env.BASE_URL || 'http://127.0.0.1:3210').replace(/\/$/, '');
 const VUS = Math.max(1, Number(process.env.VUS || 300));
@@ -284,11 +285,61 @@ async function main() {
 
   const totalFail = table.reduce((s, r) => s + r.fail, 0);
   const totalOk = table.reduce((s, r) => s + r.ok, 0);
+  const failRate = totalFail / Math.max(1, totalOk + totalFail);
   console.log('\nPass hint: fail≈0, p95 可接受（建议 < 2000–3000ms，视环境而定）');
   console.log(`Totals: ok=${totalOk}, fail=${totalFail}`);
-  if (totalFail > 0 && totalFail / Math.max(1, totalOk + totalFail) > 0.05) {
+  if (totalFail > 0 && failRate > 0.05) {
     console.log('WARNING: fail rate > 5%');
   }
+
+  const verdict =
+    totalFail === 0
+      ? '通过（fail=0）'
+      : failRate > 0.05
+        ? '需关注（失败率 > 5%）'
+        : '基本通过（有少量失败）';
+
+  writeLoadTestReport({
+    scenario: 'browse',
+    title: '日历浏览压测结果',
+    verdict,
+    config: {
+      BASE_URL,
+      VUS,
+      DURATION_SEC,
+      POLL_MS,
+      SYSTEM,
+      USER_COUNT,
+      MAX_SEED_USER,
+      DAYS,
+      EV_range: `${range.start} → ${range.end}`,
+      venue_weekStart: weekStart,
+    },
+    summary: {
+      wall_ms: wallMs,
+      total_ticks: totalTicks,
+      approx_rps: (
+        Object.values(merged).reduce((s, r) => s + r.ok + r.fail, 0) /
+        (wallMs / 1000)
+      ).toFixed(1),
+      ok: totalOk,
+      fail: totalFail,
+      login_parking_tokens: parkingByUser.size,
+      login_room_tokens: roomByUser.size,
+      login_failed: loginFailures.length,
+    },
+    tables: [
+      {
+        title: '各接口延迟',
+        headers: ['endpoint', 'ok', 'fail', 'p50_ms', 'p95_ms', 'max_ms'],
+        rows: table.map((r) => [r.endpoint, r.ok, r.fail, r.p50_ms, r.p95_ms, r.max_ms]),
+      },
+    ],
+    notes: samples.length
+      ? samples.slice(0, 5).map((s) => `VU error sample: ${s}`)
+      : ['无 VU 异常样本'],
+    passHint: '建议：fail≈0；主要读接口 p95 < 2000–3000ms（视机器而定）。',
+  });
 }
 
 main().catch((e) => {

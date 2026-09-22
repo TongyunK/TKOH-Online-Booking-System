@@ -13,6 +13,7 @@ import {
   requestJson as requestJsonCommon,
   tomorrowYmd,
 } from './common.mjs';
+import { writeLoadTestReport } from './report.mjs';
 
 const BASE_URL = (process.env.BASE_URL || 'http://127.0.0.1:3210').replace(/\/$/, '');
 const CONCURRENCY = Math.max(1, Number(process.env.CONCURRENCY || 50));
@@ -225,6 +226,49 @@ async function main() {
   }
 
   console.log('\nNext: run SQL in README to verify no duplicate active bookings per slot.');
+
+  const lat = latencies.length
+    ? {
+        min: Math.round(latencies[0]),
+        p50: Math.round(percentile(latencies, 50)),
+        p95: Math.round(percentile(latencies, 95)),
+        max: Math.round(latencies[latencies.length - 1]),
+      }
+    : null;
+
+  const verifySql = `SELECT slot_id, period_id, booking_date, COUNT(*) FROM ev_bookings WHERE status IN ('pending','confirmed') AND booking_date = DATE '${BOOKING_DATE}' AND period_id = ${PERIOD_ID} GROUP BY 1,2,3 HAVING COUNT(*)>1;`;
+
+  writeLoadTestReport({
+    scenario: 'ev-hot',
+    title: 'EV 抢订压测结果（单格热点）',
+    verdict:
+      (buckets.duplicateSlot || 0) > 0
+        ? '未通过（duplicateSlot>0）'
+        : '倾向通过（请再跑 Verify SQL）',
+    config: {
+      BASE_URL,
+      CONCURRENCY,
+      USER_COUNT,
+      USER_START,
+      MAX_SEED_USER,
+      BOOKING_DATE,
+      PERIOD_ID,
+    },
+    summary: {
+      wall_ms: totalMs,
+      success: buckets.success,
+      conflict: buckets.conflict,
+      error: buckets.error,
+      duplicateSlot: buckets.duplicateSlot || 0,
+      unique_slots: successSlots.size,
+      latency_ms: lat,
+    },
+    notes: errorsSample.slice(0, 8).map(
+      (e) => `error sample: ${e.corpId} status=${e.status} msg=${JSON.stringify(e.message)}`,
+    ),
+    sql: [verifySql],
+    passHint: '建议：success ≤ active 车位数；duplicateSlot=0；Verify SQL 0 行。',
+  });
 }
 
 main().catch((e) => {
