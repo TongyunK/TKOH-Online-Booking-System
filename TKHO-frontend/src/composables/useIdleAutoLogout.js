@@ -11,9 +11,12 @@ import {
   readIdleLastActivity,
   writeIdleLastActivity
 } from '@/utils/idleAutoLogout'
+import { onSystemSettingsUpdated } from '@/utils/systemSettingsSync'
 
 const DEFAULT_IDLE_MINUTES = 30
 const ACTIVITY_THROTTLE_MS = 1000
+/** 已打开页面也定期拉取最新 Idle timeout，避免只靠登录/刷新 */
+const POLICY_REFRESH_INTERVAL_MS = 60_000
 const ACTIVITY_EVENTS = [
   'mousemove',
   'mousedown',
@@ -44,15 +47,24 @@ export function useIdleAutoLogout () {
 
   let idleMinutes = DEFAULT_IDLE_MINUTES
   let logoutTimer = null
+  let policyRefreshTimer = null
   let lastThrottleAt = 0
   let listenersAttached = false
   let loggingOut = false
   let watchGeneration = 0
+  let unsubscribeSettings = null
 
   function clearLogoutTimer () {
     if (logoutTimer != null) {
       clearTimeout(logoutTimer)
       logoutTimer = null
+    }
+  }
+
+  function clearPolicyRefreshTimer () {
+    if (policyRefreshTimer != null) {
+      clearInterval(policyRefreshTimer)
+      policyRefreshTimer = null
     }
   }
 
@@ -123,9 +135,7 @@ export function useIdleAutoLogout () {
 
   function onVisibilityChange () {
     if (document.visibilityState !== 'visible') return
-    const base = resolveActivityBase()
-    writeIdleLastActivity(base)
-    scheduleLogoutFrom(base)
+    void refreshPolicyAndReschedule()
   }
 
   function onStorage (event) {
@@ -172,6 +182,27 @@ export function useIdleAutoLogout () {
     }
   }
 
+  /** 策略变更后按原活动时间重排计时器（不把用户操作重置为“刚动过”） */
+  async function refreshPolicyAndReschedule () {
+    if (!token.value || isPublicRoute(route.path) || loggingOut) return
+    await refreshPolicy()
+    if (!token.value || isPublicRoute(route.path) || loggingOut) return
+    const base = resolveActivityBase()
+    writeIdleLastActivity(base)
+    scheduleLogoutFrom(base)
+    if (Date.now() - base >= timeoutMs()) {
+      void handleIdleTimeout()
+    }
+  }
+
+  function startPolicyRefreshLoop () {
+    clearPolicyRefreshTimer()
+    if (typeof window === 'undefined') return
+    policyRefreshTimer = window.setInterval(() => {
+      void refreshPolicyAndReschedule()
+    }, POLICY_REFRESH_INTERVAL_MS)
+  }
+
   async function startWatching () {
     const generation = ++watchGeneration
     if (!token.value || isPublicRoute(route.path)) {
@@ -185,6 +216,7 @@ export function useIdleAutoLogout () {
       return
     }
     attachListeners()
+    startPolicyRefreshLoop()
     const base = resolveActivityBase()
     writeIdleLastActivity(base)
     scheduleLogoutFrom(base)
@@ -192,6 +224,7 @@ export function useIdleAutoLogout () {
 
   function stopWatching () {
     clearLogoutTimer()
+    clearPolicyRefreshTimer()
     detachListeners()
   }
 
@@ -203,8 +236,16 @@ export function useIdleAutoLogout () {
     { immediate: true }
   )
 
+  unsubscribeSettings = onSystemSettingsUpdated(() => {
+    void refreshPolicyAndReschedule()
+  })
+
   onUnmounted(() => {
     watchGeneration += 1
     stopWatching()
+    if (typeof unsubscribeSettings === 'function') {
+      unsubscribeSettings()
+      unsubscribeSettings = null
+    }
   })
 }

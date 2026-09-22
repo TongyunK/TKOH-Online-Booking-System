@@ -337,6 +337,7 @@ import BookingStyleModal from '@/components/BookingStyleModal.vue'
 import { getSystemSettings, saveSystemSettings, sendDataBackupNow } from '@/api/systemSettings'
 import { APP_TIMEZONE } from '@/utils/appTimezone'
 import { invalidateMeetingEventTitleMaxLengthCache } from '@/utils/meetingEventTitleMaxLength'
+import { notifySystemSettingsUpdated } from '@/utils/systemSettingsSync'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -516,6 +517,9 @@ async function handleSave () {
     })
     applySettings(data)
     invalidateMeetingEventTitleMaxLengthCache()
+    notifySystemSettingsUpdated({
+      userAutoLogoutMinutes: form.userAutoLogoutMinutes
+    })
     showNotice('System settings saved', 'Success')
   } catch (err) {
     const msg = err?.response?.data?.message
