@@ -339,6 +339,7 @@ async function main() {
       ? samples.slice(0, 5).map((s) => `VU 錯誤樣本: ${s}`)
       : ['無 VU 異常樣本'],
     passHint: '建議：fail≈0；主要讀接口 p95 < 2000–3000ms（視機器而定）。',
+    extras: {},
   });
 }
 

@@ -182,6 +182,7 @@ async function main() {
   const latencies = [];
   const successSlots = new Set();
   const errorsSample = [];
+  const errorByStatus = {};
 
   for (const r of results) {
     const kind = classifyResult(r);
@@ -195,12 +196,16 @@ async function main() {
         }
         successSlots.add(String(slotId));
       }
-    } else if (kind === 'error' && errorsSample.length < 8) {
-      errorsSample.push({
-        corpId: r.corpId,
-        status: r.status,
-        message: r.data?.message ?? r.data,
-      });
+    } else if (kind === 'error') {
+      const code = String(r.status || 0);
+      errorByStatus[code] = (errorByStatus[code] || 0) + 1;
+      if (errorsSample.length < 8) {
+        errorsSample.push({
+          corpId: r.corpId,
+          status: r.status,
+          message: r.data?.message ?? r.data,
+        });
+      }
     }
   }
 
@@ -253,6 +258,8 @@ async function main() {
       MAX_SEED_USER,
       BOOKING_DATE,
       PERIOD_ID,
+      slots_per_cell: totalSpaces ?? 3,
+      max_theoretical_success: totalSpaces ?? 3,
     },
     summary: {
       wall_ms: totalMs,
@@ -268,6 +275,16 @@ async function main() {
     ),
     sql: [verifySql],
     passHint: '建議：success ≤ active 車位數；duplicateSlot=0；校驗 SQL 0 行。',
+    extras: {
+      errorByStatus,
+      businessErrorHint: true,
+      sqlVerifiedZeroRows:
+        process.env.SQL_VERIFIED === '1'
+          ? true
+          : process.env.SQL_VERIFIED === '0'
+            ? false
+            : null,
+    },
   });
 }
 

@@ -230,6 +230,7 @@ async function main() {
   const slotKeys = new Set();
   const duplicateSlot = { count: 0 };
   const errorsSample = [];
+  const errorByStatus = {};
 
   for (const r of results) {
     const kind = classifyResult(r);
@@ -247,13 +248,17 @@ async function main() {
       const sk = `${bookingDate}-${periodId}-${slotId}`;
       if (slotKeys.has(sk)) duplicateSlot.count++;
       slotKeys.add(sk);
-    } else if (kind === 'error' && errorsSample.length < 6) {
-      errorsSample.push({
-        corpId: r.corpId,
-        target: r.target,
-        status: r.status,
-        message: r.data?.message ?? r.data,
-      });
+    } else if (kind === 'error') {
+      const code = String(r.status || 0);
+      errorByStatus[code] = (errorByStatus[code] || 0) + 1;
+      if (errorsSample.length < 8) {
+        errorsSample.push({
+          corpId: r.corpId,
+          target: r.target,
+          status: r.status,
+          message: r.data?.message ?? r.data,
+        });
+      }
     }
   }
 
@@ -306,12 +311,23 @@ async function main() {
       }
     : null;
 
+  const status5xx = Object.entries(errorByStatus).reduce((s, [k, v]) => {
+    const code = Number(k);
+    return code >= 500 && code < 600 ? s + v : s;
+  }, 0);
+  const businessHeavy =
+    (errorByStatus['403'] || 0) + (errorByStatus['400'] || 0) >= buckets.error * 0.5;
+
   const verdict =
     duplicateSlot.count > 0
       ? '未通過（疑似超賣 duplicateSlot>0）'
-      : buckets.error > buckets.success + buckets.conflict
-        ? '需解讀（error 較多，多為業務拒絕或系統問題，請看錯誤樣本）'
-        : '傾向通過（請再跑校驗 SQL，期望 0 行）';
+      : status5xx > 0
+        ? '需關注（存在 5xx）'
+        : buckets.error > buckets.success + buckets.conflict && businessHeavy
+          ? '系統穩定性傾向通過（高 error 多為業務拒絕；請確認校驗 SQL=0 行）'
+          : buckets.error > buckets.success + buckets.conflict
+            ? '需解讀（error 較多，請看狀態分佈與錯誤樣本）'
+            : '傾向通過（請再跑校驗 SQL，期望 0 行）';
 
   writeLoadTestReport({
     scenario: 'ev-calendar',
@@ -347,7 +363,7 @@ async function main() {
       },
     ],
     notes: [
-      ...errorsSample.slice(0, 6).map(
+      ...errorsSample.slice(0, 8).map(
         (e) =>
           `錯誤樣本: ${e.corpId} status=${e.status} target=${e.target?.key} msg=${JSON.stringify(e.message)}`,
       ),
@@ -355,7 +371,17 @@ async function main() {
     ],
     sql: [verifySql],
     passHint:
-      '建議：duplicateSlot=0；校驗 SQL 0 行；success 不超過車位容量；error 以業務拒絕為主而非大量 5xx。',
+      '建議：duplicateSlot=0；校驗 SQL 0 行；success 不超過車位容量；error 以業務拒絕為主而非大量 5xx。校驗通過後可將本報告判定為「系統穩定性通過」。',
+    extras: {
+      errorByStatus,
+      businessErrorHint: true,
+      sqlVerifiedZeroRows:
+        process.env.SQL_VERIFIED === '1'
+          ? true
+          : process.env.SQL_VERIFIED === '0'
+            ? false
+            : null,
+    },
   });
 }
 
