@@ -235,19 +235,38 @@ fs_mount="${fs_mount:-?}"
 if [[ "$fs_total_kib" =~ ^[0-9]+$ ]] && [ "$fs_total_kib" -gt 0 ]; then
   fs_total_bytes=$((fs_total_kib * 1024))
   fs_used_bytes=$((fs_used_kib * 1024))
+  fs_free_bytes=$((fs_total_bytes - fs_used_bytes))
+  if [ "$fs_free_bytes" -lt 0 ]; then fs_free_bytes=0; fi
 
-  echo "  项目所在分区:                   $fs_mount"
-  echo "  分区总容量:                     $(fmt_size "$fs_total_bytes")"
-  echo "  分区已用（全部进程／文件）:     $(fmt_size "$fs_used_bytes")  ($(pct "$fs_used_bytes" "$fs_total_bytes") of partition)"
-  echo "  本系统合计占该分区:             $(pct "$total" "$fs_total_bytes")"
-  echo "  本系统合计占分区「已用」:       $(pct "$total" "$fs_used_bytes")"
+  echo "  项目所在分区挂载点:             $fs_mount"
+  echo ""
+  echo "  【整盘有多大、已经用了多少】（与本系统无关，是整台机在该分区上的情况）"
+  echo "    分区总容量 A:                 $(fmt_size "$fs_total_bytes")"
+  echo "    分区已用 B（所有文件合计）:   $(fmt_size "$fs_used_bytes")"
+  echo "    分区剩余:                     $(fmt_size "$fs_free_bytes")"
+  echo "    → 整盘使用率 = B ÷ A = $(pct "$fs_used_bytes" "$fs_total_bytes")"
+  echo "      （例：9.5GB ÷ 193GB ≈ 4.9%，表示整盘才用了不到 5%）"
+  echo ""
+  echo "  【本系统占多大】（第三节合计，记为 C = $(fmt_size "$total")）"
+  echo "    占分区总容量 = C ÷ A = $(pct "$total" "$fs_total_bytes")"
+  echo "      → 在整块 ${fs_mount} 盘里，本系统约占 $(pct "$total" "$fs_total_bytes")"
+  echo "      （例：2.9GB ÷ 193GB ≈ 1.5%，盘还很空，本系统只占很小一块）"
+  echo ""
+  echo "    占「当前已用空间」 = C ÷ B = $(pct "$total" "$fs_used_bytes")"
+  echo "      → 在已经用掉的那些空间里，有约 $(pct "$total" "$fs_used_bytes") 是本系统"
+  echo "      （例：2.9GB ÷ 9.5GB ≈ 30%，说明该盘已用空间里约三成是本系统，其余是系统／其它软件）"
+  echo ""
+  echo "  一句话对照："
+  echo "    · $(pct "$fs_used_bytes" "$fs_total_bytes") = 整盘满了多少（大家共用）"
+  echo "    · $(pct "$total" "$fs_total_bytes") = 本系统相对整盘有多大"
+  echo "    · $(pct "$total" "$fs_used_bytes") = 本系统在「已用空间」里占多大比重"
 
   read -r root_total_kib _root_used root_mount <<<"$(read_df /)"
   root_mount="${root_mount:-/}"
   if [ "$root_mount" != "$fs_mount" ] && [[ "${root_total_kib:-0}" =~ ^[0-9]+$ ]] && [ "${root_total_kib:-0}" -gt 0 ]; then
     root_total_bytes=$((root_total_kib * 1024))
-    echo "  根分区 (/) 总容量:              $(fmt_size "$root_total_bytes")"
-    echo "  本系统合计占根分区:             $(pct "$total" "$root_total_bytes")"
+    echo ""
+    echo "  另：根分区 (/) 总容量 $(fmt_size "$root_total_bytes")；本系统占根分区 $(pct "$total" "$root_total_bytes")"
   fi
 else
   echo "  （无法解析 df 输出，跳过占比。可手动执行: df -h \"$PROJECT_ROOT\"）"
