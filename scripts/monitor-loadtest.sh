@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
 # TKOH 压力测试期间 — 内存 / 网络带宽采样
 #
-# 在「被测服务器」上另开一个终端，与压测脚本同时跑：
-#   ./scripts/monitor-loadtest.sh                 # 默认采 180 秒，每 2 秒一次
+# 用法：
+#   ./scripts/monitor-loadtest.sh
 #   DURATION_SEC=300 INTERVAL_SEC=2 ./scripts/monitor-loadtest.sh
-#   IFACE=ens3 ./scripts/monitor-loadtest.sh     # 指定网卡（本机常见 ens3）；勿用 docker0
+#   IFACE=ens3 ./scripts/monitor-loadtest.sh
 #
-# 依赖：bash、awk；有 docker 则额外采 tkho-booking 容器内存。无需 root（网卡统计读 /proc）。
-#
-# 说明：业务跑在 Docker 里，但「外网／压测带宽」仍走宿主机网卡（如 ens3）。
-#       docker0 只是默认网桥，compose 常用自定义 br-*，采 docker0 往往一直是 0。
+# 重要：
+#   - 业务在 Docker 里，但带宽看的是「宿主机网卡」，不是 docker0。
+#   - 压测 BASE_URL=http://127.0.0.1:3200（本机自己打自己）→ 流量在 lo
+#   - 从别的电脑打服务器 IP → 流量在 ens3
+#   - 本脚本默认同时采 ens3（或 IFACE）和 lo，避免采错网卡一直 0
 
 set -euo pipefail
 
@@ -27,16 +28,14 @@ CSV="$OUT_DIR/RESOURCE-sample-$STAMP.csv"
 MD="$OUT_DIR/RESOURCE-$STAMP.md"
 
 iface_exists() {
-  local ifc="$1"
-  [ -e "/sys/class/net/$ifc" ]
+  [ -e "/sys/class/net/$1" ]
 }
 
-pick_iface() {
+pick_ext_iface() {
   if [ -n "$IFACE" ]; then
     echo "$IFACE"
     return
   fi
-  # 1) 若存在常见主机网卡名，直接用（你这台机是 ens3）
   local cand
   for cand in ens3 eth0 enp0s3 eno1; do
     if iface_exists "$cand"; then
@@ -44,52 +43,41 @@ pick_iface() {
       return
     fi
   done
-  # 2) 在 /proc/net/dev 里找 ens*/eth*/enp*/eno*，按累计流量选
-  local preferred
-  preferred="$(awk -F'[: ]+' '
-    NR>2 {
-      gsub(/^ +/, "", $1);
-      name=$1;
-      if (name !~ /^(ens|eth|enp|eno)/) next;
-      rx=$2+0; tx=$10+0; t=rx+tx;
-      if (t >= best) { best=t; pick=name }
-    }
-    END { if (pick != "") print pick }
-  ' /proc/net/dev)"
-  if [ -n "$preferred" ]; then
-    echo "$preferred"
-    return
-  fi
-  # 3) 兜底：非 lo / 非 docker / 非 br / 非 veth
-  awk -F'[: ]+' '
-    NR>2 {
-      gsub(/^ +/, "", $1);
-      name=$1;
-      if (name == "lo" || name ~ /^docker/ || name ~ /^br-/ || name ~ /^veth/) next;
-      rx=$2+0; tx=$10+0; t=rx+tx;
-      if (t > best) { best=t; pick=name }
+  # /proc/net/dev：接口名在 $1，可能带冒号
+  awk '
+    NR > 2 {
+      name = $1
+      sub(/:$/, "", name)
+      if (name ~ /^(ens|eth|enp|eno)/) {
+        rx = $2 + 0; tx = $10 + 0
+        if (rx + tx >= best) { best = rx + tx; pick = name }
+      }
     }
     END { if (pick != "") print pick; else print "ens3" }
   ' /proc/net/dev
 }
 
+# 正确解析 /proc/net/dev（默认空白分词；$1 为 "ens3:"）
 iface_bytes() {
   local ifc="$1"
-  awk -F'[: ]+' -v ifc="$ifc" '
-    NR>2 {
-      gsub(/^ +/, "", $1);
-      if ($1 == ifc) { print $2, $10; exit }
+  awk -v ifc="$ifc" '
+    NR > 2 {
+      name = $1
+      sub(/:$/, "", name)
+      if (name == ifc) {
+        print $2 + 0, $10 + 0
+        exit
+      }
     }
   ' /proc/net/dev
 }
 
 host_mem() {
-  # 输出: total_kb used_kb（近似：MemTotal - MemAvailable）
   awk '
-    /^MemTotal:/ { t=$2 }
-    /^MemAvailable:/ { a=$2 }
+    /^MemTotal:/ { t = $2 }
+    /^MemAvailable:/ { a = $2 }
     END {
-      if (t+0 > 0) print t, (t-a);
+      if (t + 0 > 0) print t, (t - a)
       else print 0, 0
     }
   ' /proc/meminfo
@@ -100,58 +88,79 @@ docker_mem_mb() {
     echo "0"
     return
   fi
-  # 所有名称含 filter 的容器 MemUsage 第一段之和（MiB）
   docker stats --no-stream --format '{{.Name}} {{.MemUsage}}' 2>/dev/null \
     | awk -v f="$NAME_FILTER" '
       tolower($0) !~ tolower(f) { next }
       {
-        # 例: 123.4MiB / 7.7GiB  或 1.2GiB / 7.7GiB
-        u=$2;
-        if (u ~ /GiB/) { gsub(/GiB/,"",u); s+=u*1024 }
-        else if (u ~ /MiB/) { gsub(/MiB/,"",u); s+=u }
-        else if (u ~ /KiB/) { gsub(/KiB/,"",u); s+=u/1024 }
+        u = $2
+        if (u ~ /GiB/) { gsub(/GiB/, "", u); s += u * 1024 }
+        else if (u ~ /MiB/) { gsub(/MiB/, "", u); s += u }
+        else if (u ~ /KiB/) { gsub(/KiB/, "", u); s += u / 1024 }
       }
-      END { printf "%.1f", s+0 }
+      END { printf "%.1f", s + 0 }
     ' || echo "0"
 }
 
 fmt_mbps() {
-  # 参数: bytes_per_sec → Mbps（兆比特/秒，带宽常用）
-  awk -v b="$1" 'BEGIN{ printf "%.2f", (b*8)/1000/1000 }'
+  awk -v b="${1:-0}" 'BEGIN { if (b < 0) b = 0; printf "%.2f", (b * 8) / 1000 / 1000 }'
 }
 
 fmt_mib() {
-  awk -v kb="$1" 'BEGIN{ printf "%.0f", kb/1024 }'
+  awk -v kb="${1:-0}" 'BEGIN { printf "%.0f", kb / 1024 }'
 }
 
-IFACE="$(pick_iface)"
+rate_bps() {
+  # prev curr dt → bytes/sec，防回绕
+  local prev="$1" curr="$2" dt="$3"
+  if [ "$dt" -le 0 ]; then echo 0; return; fi
+  if [ "$curr" -lt "$prev" ]; then echo 0; return; fi
+  echo $(( (curr - prev) / dt ))
+}
+
+EXT_IFACE="$(pick_ext_iface)"
+LO_IFACE="lo"
+
 echo "=== TKOH 压测资源采样 ==="
-echo "时长 ${DURATION_SEC}s，间隔 ${INTERVAL_SEC}s，网卡 ${IFACE}"
+echo "时长 ${DURATION_SEC}s，间隔 ${INTERVAL_SEC}s"
+echo "外网网卡: ${EXT_IFACE}（远程压测看这个）"
+echo "本机回环: ${LO_IFACE}（BASE_URL=127.0.0.1 时看这个）"
 echo "CSV: $CSV"
-if [[ "$IFACE" == docker0 || "$IFACE" == lo || "$IFACE" == br-* || "$IFACE" == veth* ]]; then
-  echo "警告: 当前网卡 ${IFACE} 通常看不到外网压测流量，请改用: IFACE=ens3 $0"
-fi
-echo "提示: 业务虽在 Docker 内，外网带宽请采宿主机网卡 ens3（不要用 docker0）。"
-echo "请在另一终端开始压测；本脚本会采样到结束。"
+echo "请在另一终端开始压测；采样期间必须有请求，否则带宽为 0。"
 echo ""
 
-echo "ts,elapsed_s,mem_used_mib,mem_total_mib,mem_pct,docker_mem_mib,rx_Bps,tx_Bps,rx_Mbps,tx_Mbps" >"$CSV"
+echo "ts,elapsed_s,mem_used_mib,mem_total_mib,mem_pct,docker_mem_mib,ext_rx_Mbps,ext_tx_Mbps,lo_rx_Mbps,lo_tx_Mbps" >"$CSV"
 
-read -r rx0 tx0 <<<"$(iface_bytes "$IFACE")"
-rx0="${rx0:-0}"; tx0="${tx0:-0}"
-prev_rx="$rx0"; prev_tx="$tx0"
+read -r ext_rx0 ext_tx0 <<<"$(iface_bytes "$EXT_IFACE")"
+read -r lo_rx0 lo_tx0 <<<"$(iface_bytes "$LO_IFACE")"
+ext_rx0="${ext_rx0:-0}"; ext_tx0="${ext_tx0:-0}"
+lo_rx0="${lo_rx0:-0}"; lo_tx0="${lo_tx0:-0}"
+prev_ext_rx="$ext_rx0"; prev_ext_tx="$ext_tx0"
+prev_lo_rx="$lo_rx0"; prev_lo_tx="$lo_tx0"
+
+# 启动时打印累计字节，确认能读到网卡
+echo "自检 ${EXT_IFACE} 累计 RX/TX 字节: ${ext_rx0} / ${ext_tx0}"
+echo "自检 ${LO_IFACE} 累计 RX/TX 字节: ${lo_rx0} / ${lo_tx0}"
+if [ "$ext_rx0" = "0" ] && [ "$ext_tx0" = "0" ] && [ "$lo_rx0" = "0" ] && [ "$lo_tx0" = "0" ]; then
+  echo "警告: 读不到网卡计数，请检查 /proc/net/dev"
+fi
+echo ""
+
 start_ts="$(date +%s)"
 end_ts=$((start_ts + DURATION_SEC))
 n=0
 
 max_mem_pct=0
 max_docker=0
-max_rx_bps=0
-max_tx_bps=0
+max_ext_rx=0
+max_ext_tx=0
+max_lo_rx=0
+max_lo_tx=0
 sum_mem_pct=0
 sum_docker=0
-sum_rx=0
-sum_tx=0
+sum_ext_rx=0
+sum_ext_tx=0
+sum_lo_rx=0
+sum_lo_tx=0
 
 while [ "$(date +%s)" -lt "$end_ts" ]; do
   now="$(date +%s)"
@@ -165,38 +174,49 @@ while [ "$(date +%s)" -lt "$end_ts" ]; do
   mem_total_mib="$(fmt_mib "$mem_total_kb")"
   mem_pct="0"
   if [ "$mem_total_kb" -gt 0 ]; then
-    mem_pct="$(awk -v u="$mem_used_kb" -v t="$mem_total_kb" 'BEGIN{ printf "%.2f", (u*100)/t }')"
+    mem_pct="$(awk -v u="$mem_used_kb" -v t="$mem_total_kb" 'BEGIN { printf "%.2f", (u * 100) / t }')"
   fi
 
   dmem="$(docker_mem_mb)"
 
-  read -r rx1 tx1 <<<"$(iface_bytes "$IFACE")"
-  rx1="${rx1:-0}"; tx1="${tx1:-0}"
-  # 字节/秒（相对上一采样）
-  dt="$INTERVAL_SEC"
-  rx_bps=$(( (rx1 - prev_rx) / dt ))
-  tx_bps=$(( (tx1 - prev_tx) / dt ))
-  if [ "$rx_bps" -lt 0 ]; then rx_bps=0; fi
-  if [ "$tx_bps" -lt 0 ]; then tx_bps=0; fi
-  prev_rx="$rx1"; prev_tx="$tx1"
+  read -r ext_rx1 ext_tx1 <<<"$(iface_bytes "$EXT_IFACE")"
+  read -r lo_rx1 lo_tx1 <<<"$(iface_bytes "$LO_IFACE")"
+  ext_rx1="${ext_rx1:-0}"; ext_tx1="${ext_tx1:-0}"
+  lo_rx1="${lo_rx1:-0}"; lo_tx1="${lo_tx1:-0}"
 
-  rx_mbps="$(fmt_mbps "$rx_bps")"
-  tx_mbps="$(fmt_mbps "$tx_bps")"
+  dt="$INTERVAL_SEC"
+  ext_rx_bps="$(rate_bps "$prev_ext_rx" "$ext_rx1" "$dt")"
+  ext_tx_bps="$(rate_bps "$prev_ext_tx" "$ext_tx1" "$dt")"
+  lo_rx_bps="$(rate_bps "$prev_lo_rx" "$lo_rx1" "$dt")"
+  lo_tx_bps="$(rate_bps "$prev_lo_tx" "$lo_tx1" "$dt")"
+  prev_ext_rx="$ext_rx1"; prev_ext_tx="$ext_tx1"
+  prev_lo_rx="$lo_rx1"; prev_lo_tx="$lo_tx1"
+
+  ext_rx_mbps="$(fmt_mbps "$ext_rx_bps")"
+  ext_tx_mbps="$(fmt_mbps "$ext_tx_bps")"
+  lo_rx_mbps="$(fmt_mbps "$lo_rx_bps")"
+  lo_tx_mbps="$(fmt_mbps "$lo_tx_bps")"
 
   ts="$(date '+%Y-%m-%dT%H:%M:%S')"
-  echo "$ts,$elapsed,$mem_used_mib,$mem_total_mib,$mem_pct,$dmem,$rx_bps,$tx_bps,$rx_mbps,$tx_mbps" >>"$CSV"
-  printf "\r[%3ds] RAM %s/%s MiB (%s%%)  docker≈%s MiB  net %s↓/%s↑ Mbps   " \
-    "$elapsed" "$mem_used_mib" "$mem_total_mib" "$mem_pct" "$dmem" "$rx_mbps" "$tx_mbps"
+  echo "$ts,$elapsed,$mem_used_mib,$mem_total_mib,$mem_pct,$dmem,$ext_rx_mbps,$ext_tx_mbps,$lo_rx_mbps,$lo_tx_mbps" >>"$CSV"
+
+  printf "\r[%3ds] RAM %s/%s (%s%%) docker≈%s | %s %s↓/%s↑ | lo %s↓/%s↑ Mbps   " \
+    "$elapsed" "$mem_used_mib" "$mem_total_mib" "$mem_pct" "$dmem" \
+    "$EXT_IFACE" "$ext_rx_mbps" "$ext_tx_mbps" "$lo_rx_mbps" "$lo_tx_mbps"
 
   n=$((n + 1))
-  sum_mem_pct="$(awk -v a="$sum_mem_pct" -v b="$mem_pct" 'BEGIN{print a+b}')"
-  sum_docker="$(awk -v a="$sum_docker" -v b="$dmem" 'BEGIN{print a+b}')"
-  sum_rx=$((sum_rx + rx_bps))
-  sum_tx=$((sum_tx + tx_bps))
-  awk -v m="$mem_pct" -v M="$max_mem_pct" 'BEGIN{exit !(m>M)}' && max_mem_pct="$mem_pct"
-  awk -v m="$dmem" -v M="$max_docker" 'BEGIN{exit !(m+0>M+0)}' && max_docker="$dmem"
-  [ "$rx_bps" -gt "$max_rx_bps" ] && max_rx_bps="$rx_bps"
-  [ "$tx_bps" -gt "$max_tx_bps" ] && max_tx_bps="$tx_bps"
+  sum_mem_pct="$(awk -v a="$sum_mem_pct" -v b="$mem_pct" 'BEGIN { print a + b }')"
+  sum_docker="$(awk -v a="$sum_docker" -v b="$dmem" 'BEGIN { print a + b }')"
+  sum_ext_rx=$((sum_ext_rx + ext_rx_bps))
+  sum_ext_tx=$((sum_ext_tx + ext_tx_bps))
+  sum_lo_rx=$((sum_lo_rx + lo_rx_bps))
+  sum_lo_tx=$((sum_lo_tx + lo_tx_bps))
+  awk -v m="$mem_pct" -v M="$max_mem_pct" 'BEGIN { exit !(m > M) }' && max_mem_pct="$mem_pct"
+  awk -v m="$dmem" -v M="$max_docker" 'BEGIN { exit !(m + 0 > M + 0) }' && max_docker="$dmem"
+  [ "$ext_rx_bps" -gt "$max_ext_rx" ] && max_ext_rx="$ext_rx_bps"
+  [ "$ext_tx_bps" -gt "$max_ext_tx" ] && max_ext_tx="$ext_tx_bps"
+  [ "$lo_rx_bps" -gt "$max_lo_rx" ] && max_lo_rx="$lo_rx_bps"
+  [ "$lo_tx_bps" -gt "$max_lo_tx" ] && max_lo_tx="$lo_tx_bps"
 done
 
 echo ""
@@ -204,13 +224,17 @@ echo ""
 
 avg_mem_pct="n/a"
 avg_docker="n/a"
-avg_rx=0
-avg_tx=0
+avg_ext_rx=0
+avg_ext_tx=0
+avg_lo_rx=0
+avg_lo_tx=0
 if [ "$n" -gt 0 ]; then
-  avg_mem_pct="$(awk -v s="$sum_mem_pct" -v n="$n" 'BEGIN{ printf "%.2f", s/n }')"
-  avg_docker="$(awk -v s="$sum_docker" -v n="$n" 'BEGIN{ printf "%.1f", s/n }')"
-  avg_rx=$((sum_rx / n))
-  avg_tx=$((sum_tx / n))
+  avg_mem_pct="$(awk -v s="$sum_mem_pct" -v n="$n" 'BEGIN { printf "%.2f", s / n }')"
+  avg_docker="$(awk -v s="$sum_docker" -v n="$n" 'BEGIN { printf "%.1f", s / n }')"
+  avg_ext_rx=$((sum_ext_rx / n))
+  avg_ext_tx=$((sum_ext_tx / n))
+  avg_lo_rx=$((sum_lo_rx / n))
+  avg_lo_tx=$((sum_lo_tx / n))
 fi
 
 {
@@ -220,40 +244,45 @@ fi
   echo "|------|------|"
   echo "| 采样时间 | $(date -Iseconds) |"
   echo "| 时长 / 间隔 | ${DURATION_SEC}s / ${INTERVAL_SEC}s |"
-  echo "| 网卡 | ${IFACE} |"
+  echo "| 外网网卡 | ${EXT_IFACE} |"
+  echo "| 本机回环 | ${LO_IFACE} |"
   echo "| 样本数 | ${n} |"
   echo "| 明细 CSV | \`$(basename "$CSV")\` |"
   echo ""
-  echo "## 内存（宿主机）"
+  echo "## 内存"
   echo ""
   echo "| 指标 | 值 |"
   echo "|------|-----|"
-  echo "| 平均使用率 | ${avg_mem_pct}% |"
-  echo "| 峰值使用率 | ${max_mem_pct}% |"
-  echo "| 相关容器内存合计（峰值，约） | ${max_docker} MiB |"
-  echo "| 相关容器内存合计（平均，约） | ${avg_docker} MiB |"
+  echo "| 宿主机平均 / 峰值 | ${avg_mem_pct}% / ${max_mem_pct}% |"
+  echo "| tkho 容器内存平均 / 峰值 | ${avg_docker} / ${max_docker} MiB |"
   echo ""
-  echo "## 网络（网卡 ${IFACE}，相对宿主机）"
+  echo "## 网络"
   echo ""
-  echo "| 指标 | 下行 RX | 上行 TX |"
-  echo "|------|---------|---------|"
-  echo "| 平均 | $(fmt_mbps "$avg_rx") Mbps | $(fmt_mbps "$avg_tx") Mbps |"
-  echo "| 峰值 | $(fmt_mbps "$max_rx_bps") Mbps | $(fmt_mbps "$max_tx_bps") Mbps |"
+  echo "| 网卡 | 含义 | 下行平均 | 下行峰值 | 上行平均 | 上行峰值 |"
+  echo "|------|------|----------|----------|----------|----------|"
+  echo "| ${EXT_IFACE} | 外网／其它机器来压 | $(fmt_mbps "$avg_ext_rx") | $(fmt_mbps "$max_ext_rx") | $(fmt_mbps "$avg_ext_tx") | $(fmt_mbps "$max_ext_tx") |"
+  echo "| lo | 本机 127.0.0.1 压测 | $(fmt_mbps "$avg_lo_rx") | $(fmt_mbps "$max_lo_rx") | $(fmt_mbps "$avg_lo_tx") | $(fmt_mbps "$max_lo_tx") |"
   echo ""
-  echo "## 如何阅读"
+  echo "## 说明"
   echo ""
-  echo "- **宿主机 RAM%**：整机内存，含本系统 Docker 与其它进程。"
-  echo "- **docker≈MiB**：名称含 \`${NAME_FILTER}\` 的容器当前内存之和（约值）。"
-  echo "- **Mbps**：兆比特/秒，带宽常用单位；若要兆字节/秒 ≈ Mbps÷8。"
-  echo "- 压测机若在另一台电脑，请在**被测服务器**上跑本脚本才能反映服务端带宽；客户端带宽需在压测机另采。"
+  echo "- 若两边都接近 0：采样期间可能没有压测，或压测尚未开始。"
+  echo "- 本机 \`BASE_URL=http://127.0.0.1:3200\` → 看 **lo** 行。"
+  echo "- 远程打服务器 IP:3200 → 看 **${EXT_IFACE}** 行。"
+  echo "- 不要看 docker0；容器流量进出宿主机时仍会计入 ens3 或 lo。"
   echo ""
 } >"$MD"
 
 echo "=== 摘要 ==="
 echo "  宿主机 RAM 平均 ${avg_mem_pct}% / 峰值 ${max_mem_pct}%"
 echo "  tkho 容器内存 平均 ${avg_docker} MiB / 峰值 ${max_docker} MiB"
-echo "  网络 ${IFACE}  下行 平均 $(fmt_mbps "$avg_rx") / 峰值 $(fmt_mbps "$max_rx_bps") Mbps"
-echo "  网络 ${IFACE}  上行 平均 $(fmt_mbps "$avg_tx") / 峰值 $(fmt_mbps "$max_tx_bps") Mbps"
+echo "  ${EXT_IFACE}  下行 平均 $(fmt_mbps "$avg_ext_rx") / 峰值 $(fmt_mbps "$max_ext_rx") Mbps"
+echo "  ${EXT_IFACE}  上行 平均 $(fmt_mbps "$avg_ext_tx") / 峰值 $(fmt_mbps "$max_ext_tx") Mbps"
+echo "  lo     下行 平均 $(fmt_mbps "$avg_lo_rx") / 峰值 $(fmt_mbps "$max_lo_rx") Mbps"
+echo "  lo     上行 平均 $(fmt_mbps "$avg_lo_tx") / 峰值 $(fmt_mbps "$max_lo_tx") Mbps"
 echo ""
+if [ "$max_ext_rx" -eq 0 ] && [ "$max_ext_tx" -eq 0 ] && [ "$max_lo_rx" -eq 0 ] && [ "$max_lo_tx" -eq 0 ]; then
+  echo "提示: 带宽全程为 0 → 请确认采样同时另一终端正在跑压测。"
+  echo "      本机压测请看 lo；远程压测请看 ${EXT_IFACE}。"
+fi
 echo "报告: $MD"
 echo "完成。"
