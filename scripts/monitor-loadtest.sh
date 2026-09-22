@@ -4,11 +4,12 @@
 # 在「被测服务器」上另开一个终端，与压测脚本同时跑：
 #   ./scripts/monitor-loadtest.sh                 # 默认采 180 秒，每 2 秒一次
 #   DURATION_SEC=300 INTERVAL_SEC=2 ./scripts/monitor-loadtest.sh
-#   IFACE=eth0 ./scripts/monitor-loadtest.sh     # 指定网卡；不指定则自动选流量最大的非 lo
-#
-# 压测结束后看终端摘要，或打开 scripts/load-test/results/RESOURCE-*.md
+#   IFACE=ens3 ./scripts/monitor-loadtest.sh     # 指定网卡（本机常见 ens3）；勿用 docker0
 #
 # 依赖：bash、awk；有 docker 则额外采 tkho-booking 容器内存。无需 root（网卡统计读 /proc）。
+#
+# 说明：业务跑在 Docker 里，但「外网／压测带宽」仍走宿主机网卡（如 ens3）。
+#       docker0 只是默认网桥，compose 常用自定义 br-*，采 docker0 往往一直是 0。
 
 set -euo pipefail
 
@@ -25,22 +26,33 @@ STAMP="$(date +%Y%m%d_%H%M%S)"
 CSV="$OUT_DIR/RESOURCE-sample-$STAMP.csv"
 MD="$OUT_DIR/RESOURCE-$STAMP.md"
 
+iface_exists() {
+  local ifc="$1"
+  [ -e "/sys/class/net/$ifc" ]
+}
+
 pick_iface() {
   if [ -n "$IFACE" ]; then
     echo "$IFACE"
     return
   fi
-  # 优先：主机网卡 ens*/eth*/enp*（外网入口）；不要用 lo / docker0 / br-* / veth*
+  # 1) 若存在常见主机网卡名，直接用（你这台机是 ens3）
+  local cand
+  for cand in ens3 eth0 enp0s3 eno1; do
+    if iface_exists "$cand"; then
+      echo "$cand"
+      return
+    fi
+  done
+  # 2) 在 /proc/net/dev 里找 ens*/eth*/enp*/eno*，按累计流量选
   local preferred
   preferred="$(awk -F'[: ]+' '
     NR>2 {
       gsub(/^ +/, "", $1);
       name=$1;
-      if (name == "lo" || name ~ /^docker/ || name ~ /^br-/ || name ~ /^veth/) next;
+      if (name !~ /^(ens|eth|enp|eno)/) next;
       rx=$2+0; tx=$10+0; t=rx+tx;
-      score=t;
-      if (name ~ /^(ens|eth|enp|eno)/) score=t + 1e15;
-      if (score > best) { best=score; pick=name }
+      if (t >= best) { best=t; pick=name }
     }
     END { if (pick != "") print pick }
   ' /proc/net/dev)"
@@ -48,15 +60,16 @@ pick_iface() {
     echo "$preferred"
     return
   fi
-  # 兜底：非 lo 累计流量最大
+  # 3) 兜底：非 lo / 非 docker / 非 br / 非 veth
   awk -F'[: ]+' '
     NR>2 {
       gsub(/^ +/, "", $1);
-      if ($1 == "lo") next;
+      name=$1;
+      if (name == "lo" || name ~ /^docker/ || name ~ /^br-/ || name ~ /^veth/) next;
       rx=$2+0; tx=$10+0; t=rx+tx;
-      if (t > best) { best=t; name=$1 }
+      if (t > best) { best=t; pick=name }
     }
-    END { if (name != "") print name; else print "ens3" }
+    END { if (pick != "") print pick; else print "ens3" }
   ' /proc/net/dev
 }
 
@@ -115,6 +128,10 @@ IFACE="$(pick_iface)"
 echo "=== TKOH 压测资源采样 ==="
 echo "时长 ${DURATION_SEC}s，间隔 ${INTERVAL_SEC}s，网卡 ${IFACE}"
 echo "CSV: $CSV"
+if [[ "$IFACE" == docker0 || "$IFACE" == lo || "$IFACE" == br-* || "$IFACE" == veth* ]]; then
+  echo "警告: 当前网卡 ${IFACE} 通常看不到外网压测流量，请改用: IFACE=ens3 $0"
+fi
+echo "提示: 业务虽在 Docker 内，外网带宽请采宿主机网卡 ens3（不要用 docker0）。"
 echo "请在另一终端开始压测；本脚本会采样到结束。"
 echo ""
 
