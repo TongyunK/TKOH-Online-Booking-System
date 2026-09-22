@@ -18,6 +18,8 @@
     "prisma:seed": "node prisma/seed-dist/seed.js",
     "load-test:ev": "node scripts/load-test/ev-booking-concurrent.mjs",
     "load-test:ev-calendar": "node scripts/load-test/ev-booking-calendar-stress.mjs",
+    "load-test:venue": "node scripts/load-test/venue-booking-concurrent.mjs",
+    "load-test:venue-calendar": "node scripts/load-test/venue-booking-calendar-stress.mjs",
     "load-test:browse": "node scripts/load-test/calendar-browse-stress.mjs"
   },
   "dependencies": {

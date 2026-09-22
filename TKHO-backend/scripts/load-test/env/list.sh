@@ -19,6 +19,14 @@ cat <<EOF
   # EV 單格熱點
   source scripts/load-test/env/book-hot.sh && npm run load-test:ev
 
+  # Venue 搶訂（多日 spread）— 執行前請清表；需已發布 Venue Booking Date Range
+  source scripts/load-test/env/venue-smoke.sh && npm run load-test:venue-calendar
+  source scripts/load-test/env/venue-300.sh   && npm run load-test:venue-calendar
+  source scripts/load-test/env/venue-500.sh   && npm run load-test:venue-calendar
+
+  # Venue 單格熱點
+  source scripts/load-test/env/venue-hot.sh && npm run load-test:venue
+
 覆蓋預設入口範例：
   BASE_URL=http://127.0.0.1:3211 source scripts/load-test/env/browse-smoke.sh
 

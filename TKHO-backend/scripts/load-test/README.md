@@ -25,12 +25,19 @@ source scripts/load-test/env/book-smoke.sh && npm run load-test:ev-calendar
 source scripts/load-test/env/book-300.sh   && npm run load-test:ev-calendar
 source scripts/load-test/env/book-500.sh   && npm run load-test:ev-calendar
 source scripts/load-test/env/book-hot.sh   && npm run load-test:ev
+
+source scripts/load-test/env/venue-smoke.sh && npm run load-test:venue-calendar
+source scripts/load-test/env/venue-300.sh   && npm run load-test:venue-calendar
+source scripts/load-test/env/venue-500.sh   && npm run load-test:venue-calendar
+source scripts/load-test/env/venue-hot.sh   && npm run load-test:venue
 ```
 
 | 命令 | 脚本 | 场景 |
 |------|------|------|
-| `npm run load-test:ev` | `ev-booking-concurrent.mjs` | **抢订** — 单格热点（同一天+时段） |
-| `npm run load-test:ev-calendar` | `ev-booking-calendar-stress.mjs` | **抢订** — 多日×多时段分散 |
+| `npm run load-test:ev` | `ev-booking-concurrent.mjs` | **抢订** — EV 单格热点（同一天+时段） |
+| `npm run load-test:ev-calendar` | `ev-booking-calendar-stress.mjs` | **抢订** — EV 多日×多时段分散 |
+| `npm run load-test:venue` | `venue-booking-concurrent.mjs` | **抢订** — Venue 单格热点（同房间+时段） |
+| `npm run load-test:venue-calendar` | `venue-booking-calendar-stress.mjs` | **抢订** — Venue 多日×多房间×多时段 |
 | `npm run load-test:browse` | `calendar-browse-stress.mjs` | **日历浏览** — EV / Venue 读接口 |
 
 共用工具：`common.mjs`。
@@ -172,12 +179,84 @@ WHERE booking_date = DATE '2026-05-21' AND period_id = 1;
 
 ---
 
+## D. Venue 抢订 — 日历级分散
+
+`POST /api/venue-calendar/bookings`；每格容量为 **1**（同房间同日同时段）。冲突多为 **HTTP 400**（`Selected time slot is not available`），脚本计入 `conflict`。
+
+脚本会跳过 seed 中的 **User_EV**（Venue 配额=0），并用工作日日期。
+
+### 准备
+
+1. Admin 已发布 **Venue Booking Date Range** 覆盖测试日期  
+2. 清表（按日期改）：
+
+```sql
+DELETE FROM venue_bookings
+WHERE booking_date >= DATE '2026-09-23'
+  AND booking_date <= DATE '2026-10-01'
+  AND (status IS NULL OR LOWER(status) <> 'cancelled');
+```
+
+### 冒烟 / 300 / 500
+
+```bash
+cd TKHO-backend
+source scripts/load-test/env/venue-smoke.sh && npm run load-test:venue-calendar
+source scripts/load-test/env/venue-300.sh   && npm run load-test:venue-calendar
+source scripts/load-test/env/venue-500.sh   && npm run load-test:venue-calendar
+```
+
+| 变量 | 说明 | 默认 |
+|------|------|------|
+| `ROOM_NAMES` | 逗号分隔房间名 | seed 全部 7 间 |
+| `TIME_SLOTS` | `HH:mm-HH:mm,...` | `09:00-10:00,10:30-11:30,...` |
+| `DAYS` | 工作日天数 | 7 |
+| `TARGET_MODE` | `spread` / `hot` / `random` | spread |
+
+**通过标准**：`duplicateRoom = 0`；每格 `success ≤ 1`；重叠校验 SQL 0 行。
+
+```sql
+SELECT a.id AS id_a, b.id AS id_b, a.venue_id, a.booking_date::date, a.start_time, a.end_time
+FROM venue_bookings a
+JOIN venue_bookings b
+  ON a.venue_id = b.venue_id AND a.booking_date = b.booking_date AND a.id < b.id
+WHERE a.booking_date BETWEEN DATE '2026-09-23' AND DATE '2026-10-01'
+  AND (a.status IS NULL OR LOWER(a.status) <> 'cancelled')
+  AND (b.status IS NULL OR LOWER(b.status) <> 'cancelled')
+  AND a.start_time < b.end_time AND a.end_time > b.start_time;
+```
+
+---
+
+## E. Venue 抢订 — 单格热点
+
+多人同时抢同一房间同一时段（期望 `success ≤ 1`，其余多为 `conflict`）。
+
+```bash
+source scripts/load-test/env/venue-hot.sh && npm run load-test:venue
+```
+
+或：
+
+```powershell
+$env:BASE_URL = "http://127.0.0.1:3200"
+$env:CONCURRENCY = "100"
+$env:USER_COUNT = "100"
+$env:BOOKING_DATE = "2026-09-23"
+$env:ROOM_NAME = "Conference Room 1"
+$env:START_TIME = "10:00"
+$env:END_TIME = "11:00"
+npm run load-test:venue
+```
+
+---
+
 ## 推荐执行顺序（300–500）
 
 1. **健康检查**：`GET http://主机:3200/api/health`（或 `:3211/api/health`）  
 2. **浏览冒烟** → **浏览 300/500**（`load-test:browse`）  
-3. **抢订冒烟**（`CONCURRENCY=10`）→ **spread 100** → **spread 300/500**  
-4. （可选）`hot` 模式验证单格容量与无超卖  
+3. **EV 抢订冒烟** → **spread 300/500** → （可选）`hot`  
+4. **Venue 抢订冒烟** → **spread 300/500** → （可选）`venue-hot`  
 
 压测时盯：CPU、Postgres 连接、Redis、Nginx / 后端日志。
 

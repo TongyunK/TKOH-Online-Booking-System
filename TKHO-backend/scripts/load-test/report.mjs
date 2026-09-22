@@ -31,11 +31,15 @@ const FIELD_NOTES = {
   BOOKING_DATE: '單格搶訂日期 YYYY-MM-DD',
   START_DATE: '搶訂起始日',
   DRY_RUN: '1=只登入不訂位',
+  ROOM_NAME: 'Venue 單格熱點房間名（seed 如 Conference Room 1）',
+  START_TIME: 'Venue 開始時間 HH:mm',
+  END_TIME: 'Venue 結束時間 HH:mm',
+  rooms: '本次覆蓋的房間數',
   EV_range: 'EV 日曆可用性查詢日期區間',
   venue_weekStart: '場地週視圖起始日（週日）',
   date_range: '本次搶訂實際日期區間',
-  cells: '日×時段格子數',
-  slots_per_cell: '每格可用車位數（active）',
+  cells: '日×時段（或房間×日×時段）格子數',
+  slots_per_cell: '每格可用容量（EV=車位數；Venue=1）',
   max_theoretical_success: '理論最大成功筆數（空表時）',
 
   wall_ms: '牆鐘耗時（毫秒）：整輪從開始到結束的實際時間',
@@ -47,11 +51,13 @@ const FIELD_NOTES = {
   login_room_tokens: '成功登入 room 的帳號數',
   login_failed: '登入失敗次數',
   success: '預訂成功筆數',
-  conflict: '衝突／已滿等預期業務拒絕（多為 409）',
+  conflict: '衝突／已滿等預期業務拒絕（EV 多為 409；Venue 多為 400 not available）',
   error: '其他失敗（含配額不足、週末不可訂、5xx 等）',
   duplicateSlot: '回應中同一車位被重複訂走的次數（應為 0）',
+  duplicateRoom: '同一房間同一時段被重複訂走的次數（應為 0）',
   unique_slots: '成功回應中不重複的車位 ID 數',
-  cells_at_capacity: '已達車位上限的格子數 / 總格子數',
+  unique_bookings: '成功回應中的預訂筆數',
+  cells_at_capacity: '已達容量上限的格子數 / 總格子數',
   latency_ms: '延遲統計（min / p50 / p95 / max，毫秒）',
   p50_ms: '延遲中位數（50% 請求不快於此值）',
   p95_ms: '延遲 95 分位（95% 請求不快於此值）',
@@ -124,15 +130,18 @@ function buildInterpretation({ scenario, config, summary, extras = {} }) {
     sqlVerifiedZeroRows = null,
   } = extras;
 
+  const isVenue = String(scenario || '').startsWith('venue');
   const success = num(summary.success);
   const conflict = num(summary.conflict);
   const error = num(summary.error);
   const duplicateSlot = num(summary.duplicateSlot);
+  const duplicateRoom = num(summary.duplicateRoom);
+  const duplicateOversell = isVenue ? duplicateRoom : duplicateSlot;
   const ok = num(summary.ok);
   const fail = num(summary.fail);
   const wallMs = num(summary.wall_ms);
   const concurrency = num(config.CONCURRENCY || config.VUS);
-  const slotsPerCell = num(config.slots_per_cell, 3);
+  const slotsPerCell = num(config.slots_per_cell, isVenue ? 1 : 3);
   const maxTheo = num(config.max_theoretical_success);
   const p95 = latencyP95(summary);
 
@@ -182,11 +191,13 @@ function buildInterpretation({ scenario, config, summary, extras = {} }) {
       ]);
     }
   } else {
-    // 搶訂類
+    // 搶訂類（EV / Venue）
     lines.push('### 這次測的是什麼？');
     lines.push('');
     lines.push(
-      '模擬多人同時呼叫 **EV 搶訂** API。重點不是「全部都要訂成功」，而是：系統不被壓垮、**不超賣同一車位**、延遲仍可接受。',
+      isVenue
+        ? '模擬多人同時呼叫 **Venue 日曆搶訂** API（`POST /api/venue-calendar/bookings`）。重點不是「全部都要訂成功」，而是：系統不被壓垮、**同一房間同一時段不超賣**、延遲仍可接受。'
+        : '模擬多人同時呼叫 **EV 搶訂** API。重點不是「全部都要訂成功」，而是：系統不被壓垮、**不超賣同一車位**、延遲仍可接受。',
     );
     lines.push('');
     lines.push('### success / conflict / error 分別代表什麼？');
@@ -194,10 +205,14 @@ function buildInterpretation({ scenario, config, summary, extras = {} }) {
     lines.push('| 分類 | 含義 | 是否算系統故障？ |');
     lines.push('|------|------|------------------|');
     lines.push(
-      '| **success** | 預訂成功寫入資料庫 | 否；且每格成功數不應超過車位數 |',
+      isVenue
+        ? '| **success** | 預訂成功寫入資料庫 | 否；且每格（房間×時段）成功數不應超過 1 |'
+        : '| **success** | 預訂成功寫入資料庫 | 否；且每格成功數不應超過車位數 |',
     );
     lines.push(
-      '| **conflict** | 車位已滿／搶輸等（多為 HTTP 409） | **否**，這是搶訂的預期結果 |',
+      isVenue
+        ? '| **conflict** | 時段已被佔用／搶輸（多為 HTTP **400** not available） | **否**，這是搶訂的預期結果 |'
+        : '| **conflict** | 車位已滿／搶輸等（多為 HTTP 409） | **否**，這是搶訂的預期結果 |',
     );
     lines.push(
       '| **error** | 配額不足、週末不可訂、限流、或 5xx 等 | **要看原因**：業務規則 ≠ 系統故障；5xx／超賣才嚴重 |',
@@ -206,16 +221,24 @@ function buildInterpretation({ scenario, config, summary, extras = {} }) {
     lines.push('### 本次數字解讀');
     lines.push('');
     lines.push(
-      `- **success=${success}**：成功訂位筆數。理論上限約 **${maxTheo || '（見設定）'}**（格子數 × 每格車位）；實際常低於上限，因為帳號配額、週末、週限額、請求分佈不均。`,
+      isVenue
+        ? `- **success=${success}**：成功訂房筆數。理論上限約 **${maxTheo || '（見設定）'}**（格子數 × 1）；實際常低於上限，因為窗口未發布、假日、配額或請求分佈不均。`
+        : `- **success=${success}**：成功訂位筆數。理論上限約 **${maxTheo || '（見設定）'}**（格子數 × 每格車位）；實際常低於上限，因為帳號配額、週末、週限額、請求分佈不均。`,
     );
     lines.push(
-      `- **conflict=${conflict}**：車位已滿導致的衝突，代表「搶訂競爭」有發生，通常是健康訊號。`,
+      isVenue
+        ? `- **conflict=${conflict}**：時段不可用導致的衝突（常為 400），代表「搶訂競爭」有發生，通常是健康訊號。`
+        : `- **conflict=${conflict}**：車位已滿導致的衝突，代表「搶訂競爭」有發生，通常是健康訊號。`,
     );
     lines.push(
-      `- **error=${error}**：其餘拒絕。Seed 只有約 25 個帳號且部分為 **User_Venue（EV 配額=0）**，再循環打到 ${concurrency} 併發時，403 配額不足會很多；區間若含週末也會出現 400。`,
+      isVenue
+        ? `- **error=${error}**：其餘拒絕。腳本已跳過 seed 中的 **User_EV**（Venue 配額=0）；若仍見 403／400，多為窗口／假日／規則。`
+        : `- **error=${error}**：其餘拒絕。Seed 只有約 25 個帳號且部分為 **User_Venue（EV 配額=0）**，再循環打到 ${concurrency} 併發時，403 配額不足會很多；區間若含週末也會出現 400。`,
     );
     lines.push(
-      `- **duplicateSlot=${duplicateSlot}**：回應層面是否出現「同一車位被訂兩次」。必須為 **0**。`,
+      isVenue
+        ? `- **duplicateRoom=${duplicateRoom}**：回應層面是否出現「同一房間同一時段被訂兩次」。必須為 **0**。`
+        : `- **duplicateSlot=${duplicateSlot}**：回應層面是否出現「同一車位被訂兩次」。必須為 **0**。`,
     );
     if (p95 != null) {
       lines.push(
@@ -233,26 +256,37 @@ function buildInterpretation({ scenario, config, summary, extras = {} }) {
         (a, b) => Number(b[0]) - Number(a[0]),
       )) {
         let meaning = '其他／需對照錯誤樣本';
-        if (code === '403') meaning = '常為 EV 配額不足（如 User_Venue）→ 業務拒絕';
-        else if (code === '400') meaning = '常為週末不可訂或其他參數／規則 → 業務拒絕';
-        else if (code === '409') meaning = '衝突（若出現在 error 桶，亦屬業務）';
-        else if (code === '429') meaning = '限流過嚴 → 可提高 EV_BOOKING_RATE_LIMIT_PER_MIN';
-        else if (Number(code) >= 500) meaning = '伺服器錯誤 → 需查後端日誌';
+        if (code === '403') {
+          meaning = isVenue
+            ? '常為 Venue 配額不足 → 業務拒絕'
+            : '常為 EV 配額不足（如 User_Venue）→ 業務拒絕';
+        } else if (code === '400') {
+          meaning = isVenue
+            ? '常為週末／假日／窗口外／參數錯誤（時段衝突應已進 conflict）→ 業務拒絕'
+            : '常為週末不可訂或其他參數／規則 → 業務拒絕';
+        } else if (code === '409') meaning = '衝突（若出現在 error 桶，亦屬業務）';
+        else if (code === '429') {
+          meaning = isVenue
+            ? '限流過嚴 → 檢查閘道／全局限流設定'
+            : '限流過嚴 → 可提高 EV_BOOKING_RATE_LIMIT_PER_MIN';
+        } else if (Number(code) >= 500) meaning = '伺服器錯誤 → 需查後端日誌';
         lines.push(`| ${code} | ${count} | ${meaning} |`);
       }
       lines.push('');
       if (businessErrorHint && status5xx === 0 && (status403 > 0 || status400 > 0)) {
         lines.push(
-          '> **說明**：本次 error 樣本以業務規則（403／400）為主，且未見 5xx 時，**不宜把高 error 數直接判成壓測失敗**；應結合 duplicateSlot 與校驗 SQL。',
+          isVenue
+            ? '> **說明**：本次 error 樣本以業務規則（403／400）為主，且未見 5xx 時，**不宜把高 error 數直接判成壓測失敗**；應結合 duplicateRoom 與校驗 SQL。'
+            : '> **說明**：本次 error 樣本以業務規則（403／400）為主，且未見 5xx 時，**不宜把高 error 數直接判成壓測失敗**；應結合 duplicateSlot 與校驗 SQL。',
         );
         lines.push('');
       }
     }
 
     checklist.push([
-      '無超賣（duplicateSlot=0）',
-      duplicateSlot === 0 ? '✅ 通過' : '❌ 未通過',
-      `duplicateSlot=${duplicateSlot}`,
+      isVenue ? '無超賣（duplicateRoom=0）' : '無超賣（duplicateSlot=0）',
+      duplicateOversell === 0 ? '✅ 通過' : '❌ 未通過',
+      isVenue ? `duplicateRoom=${duplicateRoom}` : `duplicateSlot=${duplicateSlot}`,
     ]);
     checklist.push([
       '成功數不超過理論容量',
@@ -280,7 +314,7 @@ function buildInterpretation({ scenario, config, summary, extras = {} }) {
       ]);
     }
     checklist.push([
-      '每格成功 ≤ 車位數（見格子表）',
+      isVenue ? '每格成功 ≤ 1（見格子表）' : '每格成功 ≤ 車位數（見格子表）',
       '請人工核對上方格子表',
       `每格上限=${slotsPerCell}`,
     ]);
@@ -311,8 +345,12 @@ function buildInterpretation({ scenario, config, summary, extras = {} }) {
     } else {
       lines.push('讀壓測有失敗請求，請對照各接口表與後端日誌再判定。');
     }
-  } else if (duplicateSlot > 0) {
-    lines.push('**未通過**：出現疑似超賣（duplicateSlot>0），需立刻排查唯一約束與併發邏輯。');
+  } else if (duplicateOversell > 0) {
+    lines.push(
+      isVenue
+        ? '**未通過**：出現疑似超賣（duplicateRoom>0），需立刻排查併發校驗與資料庫約束。'
+        : '**未通過**：出現疑似超賣（duplicateSlot>0），需立刻排查唯一約束與併發邏輯。',
+    );
   } else if (status5xx > 0) {
     lines.push('**需關注**：無超賣跡象，但存在 5xx，請查後端／資料庫日誌。');
   } else if (error > success + conflict && (status403 > 0 || status400 > 0)) {

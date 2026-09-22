@@ -94,3 +94,32 @@ export function summarizeLatencies(latencies) {
     max: Math.round(sorted[sorted.length - 1]),
   };
 }
+
+/**
+ * Seed 中 User_EV：annualVenueQuota=0，无法订 Venue。
+ * Admin-test(i=1)、E016(i=16) 为 Admin；其余 i%3===2 为 User_EV（E002,E005,...）。
+ */
+export function seedUserCanBookVenue(userIndex) {
+  const i = Number(userIndex);
+  if (i === 1 || i === 16) return true;
+  return i % 3 !== 2;
+}
+
+/** 若为周六日则顺延到下一个周一（非 Admin 周末/假日规则仍可能拒绝） */
+export function ensureWeekdayYmd(ymd) {
+  const d = new Date(`${ymd}T12:00:00`);
+  const day = d.getDay();
+  if (day === 0) d.setDate(d.getDate() + 1);
+  else if (day === 6) d.setDate(d.getDate() + 2);
+  return d.toISOString().slice(0, 10);
+}
+
+export const SEED_VENUE_NAMES = [
+  'Conference Room 1',
+  'Conference Room 2',
+  'Conference Room 3',
+  'Discussion Room',
+  'Function Room',
+  'Lecture Theatre',
+  'Auditorium',
+];

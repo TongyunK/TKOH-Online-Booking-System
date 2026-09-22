@@ -257,6 +257,30 @@ SELECT
 
 ---
 
+## 8b. Venue 抢订（可选）
+
+需已发布 **Venue Booking Date Range**。脚本跳过 User_EV。
+
+清表示例：
+
+```sql
+DELETE FROM venue_bookings
+WHERE booking_date >= DATE '2026-09-23'
+  AND booking_date <= DATE '2026-10-01'
+  AND (status IS NULL OR LOWER(status) <> 'cancelled');
+```
+
+```bash
+source scripts/load-test/env/venue-smoke.sh && npm run load-test:venue-calendar
+source scripts/load-test/env/venue-300.sh   && npm run load-test:venue-calendar
+# 单格：
+source scripts/load-test/env/venue-hot.sh && npm run load-test:venue
+```
+
+通过：`duplicateRoom=0`；重叠校验 SQL 0 行；冲突多为 400 not available。
+
+---
+
 ## 9. 常见问题
 
 | 现象 | 处理 |
