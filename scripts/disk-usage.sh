@@ -213,29 +213,44 @@ echo "  注意: 镜像层可能与其它容器共享，合计可能略有重复�
 echo ""
 echo "--- 4. 相对磁盘／分区的占比 ---"
 
-# 项目所在分区
-df_line="$(df -BP "$PROJECT_ROOT" 2>/dev/null | tail -1)"
-# df -BP: Filesystem 1024-blocks Used Available Capacity Mounted
-fs_total_kib="$(echo "$df_line" | awk '{print $2}')"
-fs_used_kib="$(echo "$df_line" | awk '{print $3}')"
-fs_mount="$(echo "$df_line" | awk '{print $6}')"
-fs_total_bytes=$((fs_total_kib * 1024))
-fs_used_bytes=$((fs_used_kib * 1024))
+# 注意：不要用 df -BP —— GNU df 会把 -B P 当成「以 PB 为块大小」，触发 1P 算术错误。
+# 使用 POSIX + 1K 块：df -Pk
+read_df() {
+  local path="$1"
+  # 输出: total_kib used_kib mount
+  df -Pk "$path" 2>/dev/null | tail -1 | awk '{
+    if ($2 ~ /^[0-9]+$/ && $3 ~ /^[0-9]+$/) {
+      print $2, $3, $6
+    } else {
+      print "0", "0", "?"
+    }
+  }'
+}
 
-echo "  项目所在分区:                   $fs_mount"
-echo "  分区总容量:                     $(fmt_size "$fs_total_bytes")"
-echo "  分区已用（全部进程／文件）:     $(fmt_size "$fs_used_bytes")  ($(pct "$fs_used_bytes" "$fs_total_bytes") of partition)"
-echo "  本系统合计占该分区:             $(pct "$total" "$fs_total_bytes")"
-echo "  本系统合计占分区「已用」:       $(pct "$total" "$fs_used_bytes")"
+read -r fs_total_kib fs_used_kib fs_mount <<<"$(read_df "$PROJECT_ROOT")"
+fs_total_kib="${fs_total_kib:-0}"
+fs_used_kib="${fs_used_kib:-0}"
+fs_mount="${fs_mount:-?}"
 
-# 根分区（若与项目分区不同则再列一行）
-root_line="$(df -BP / 2>/dev/null | tail -1)"
-root_mount="$(echo "$root_line" | awk '{print $6}')"
-if [ "$root_mount" != "$fs_mount" ]; then
-  root_total_kib="$(echo "$root_line" | awk '{print $2}')"
-  root_total_bytes=$((root_total_kib * 1024))
-  echo "  根分区 (/) 总容量:              $(fmt_size "$root_total_bytes")"
-  echo "  本系统合计占根分区:             $(pct "$total" "$root_total_bytes")"
+if [[ "$fs_total_kib" =~ ^[0-9]+$ ]] && [ "$fs_total_kib" -gt 0 ]; then
+  fs_total_bytes=$((fs_total_kib * 1024))
+  fs_used_bytes=$((fs_used_kib * 1024))
+
+  echo "  项目所在分区:                   $fs_mount"
+  echo "  分区总容量:                     $(fmt_size "$fs_total_bytes")"
+  echo "  分区已用（全部进程／文件）:     $(fmt_size "$fs_used_bytes")  ($(pct "$fs_used_bytes" "$fs_total_bytes") of partition)"
+  echo "  本系统合计占该分区:             $(pct "$total" "$fs_total_bytes")"
+  echo "  本系统合计占分区「已用」:       $(pct "$total" "$fs_used_bytes")"
+
+  read -r root_total_kib _root_used root_mount <<<"$(read_df /)"
+  root_mount="${root_mount:-/}"
+  if [ "$root_mount" != "$fs_mount" ] && [[ "${root_total_kib:-0}" =~ ^[0-9]+$ ]] && [ "${root_total_kib:-0}" -gt 0 ]; then
+    root_total_bytes=$((root_total_kib * 1024))
+    echo "  根分区 (/) 总容量:              $(fmt_size "$root_total_bytes")"
+    echo "  本系统合计占根分区:             $(pct "$total" "$root_total_bytes")"
+  fi
+else
+  echo "  （无法解析 df 输出，跳过占比。可手动执行: df -h \"$PROJECT_ROOT\"）"
 fi
 
 echo ""
