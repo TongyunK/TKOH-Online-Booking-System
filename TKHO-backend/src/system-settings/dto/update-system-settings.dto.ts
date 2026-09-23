@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsEmail,
   IsIn,
   IsInt,
@@ -76,4 +77,8 @@ export class UpdateSystemSettingsDto {
     message: 'dataBackupEmailSendTime must be HH:mm in 24-hour format',
   })
   dataBackupEmailSendTime?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  dataBackupEmailEnabled?: boolean;
 }

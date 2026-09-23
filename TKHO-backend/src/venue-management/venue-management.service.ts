@@ -75,6 +75,9 @@ import {
 import { DisplayManagementService } from '../display-management/display-management.service';
 
 
+import { DisplayEventsService } from '../display-events/display-events.service';
+
+
 import { PrismaService } from '../prisma/prisma.service';
 
 
@@ -345,7 +348,19 @@ export class VenueManagementService {
     private readonly systemSettingsService: SystemSettingsService,
 
 
+    private readonly displayEvents: DisplayEventsService,
+
+
   ) {}
+
+
+  private notifyVenueDisplays(reason: string) {
+
+
+    this.displayEvents.notify(['venue', 'venue-merge', 'tea'], reason);
+
+
+  }
 
 
   private readonly uploadsBasePath = '/api/uploads/venues/';
@@ -768,6 +783,9 @@ export class VenueManagementService {
 
 
 
+    this.notifyVenueDisplays('venue-create');
+
+
     return this.mapVenue(created, []);
 
 
@@ -972,6 +990,9 @@ export class VenueManagementService {
 
 
 
+    this.notifyVenueDisplays('venue-update');
+
+
     return this.mapVenue(
 
 
@@ -1074,6 +1095,9 @@ export class VenueManagementService {
       }
       throw e;
     }
+
+    this.notifyVenueDisplays('venue-delete');
+
 
     return { ok: true };
   }
@@ -2407,6 +2431,9 @@ export class VenueManagementService {
     });
 
 
+    this.notifyVenueDisplays('venue-booking-toggle-cancel');
+
+
     return { booking: this.mapManageBookingRow(updated) };
 
 
@@ -2519,6 +2546,9 @@ export class VenueManagementService {
 
 
       });
+
+
+      this.notifyVenueDisplays('venue-booking-change');
 
 
       return { booking: this.mapManageBookingRow(updated) };
@@ -2815,6 +2845,9 @@ export class VenueManagementService {
     });
 
 
+    this.notifyVenueDisplays('venue-booking-update');
+
+
     return { booking: this.mapManageBookingRow(updated) };
 
 
@@ -2894,6 +2927,9 @@ export class VenueManagementService {
 
 
     });
+
+
+    this.notifyVenueDisplays('venue-booking-approve');
 
 
     return { booking: this.mapManageBookingRow(updated) };
@@ -2984,6 +3020,9 @@ export class VenueManagementService {
 
 
     });
+
+
+    this.notifyVenueDisplays('venue-booking-reject');
 
 
     return { booking: this.mapManageBookingRow(updated) };
@@ -3496,6 +3535,12 @@ export class VenueManagementService {
     const requests = rows.map((row) => this.mapTeaDisplayRequestRow(row));
 
 
+    const dataPollIntervalMs =
+
+
+      await this.systemSettingsService.getDisplayDataPollIntervalMs();
+
+
 
 
 
@@ -3524,6 +3569,9 @@ export class VenueManagementService {
 
 
       requests,
+
+
+      dataPollIntervalMs,
 
 
     };
@@ -3676,6 +3724,9 @@ export class VenueManagementService {
 
 
 
+    this.displayEvents.notify(['tea'], 'tea-completed');
+
+
     return {
 
 
@@ -3749,6 +3800,9 @@ export class VenueManagementService {
 
 
 
+
+
+    this.displayEvents.notify(['tea'], 'tea-no-request-completed');
 
 
     return {
@@ -4565,6 +4619,15 @@ export class VenueManagementService {
 
 
 
+    const dataPollIntervalMs =
+
+
+      await this.systemSettingsService.getDisplayDataPollIntervalMs();
+
+
+
+
+
     return {
 
 
@@ -4584,6 +4647,9 @@ export class VenueManagementService {
 
 
       events,
+
+
+      dataPollIntervalMs,
 
 
     };
@@ -4607,7 +4673,7 @@ export class VenueManagementService {
 
 
 
-    const [mergeDisplaySettings, venues, rules, bookingRows, rotateIntervalMs, tickerDurationSeconds] = await Promise.all([
+    const [mergeDisplaySettings, venues, rules, bookingRows, rotateIntervalMs, tickerDurationSeconds, dataPollIntervalMs] = await Promise.all([
 
 
       this.displayManagementService.getMergeDisplayPublicSettings(),
@@ -4698,6 +4764,9 @@ export class VenueManagementService {
 
 
       this.systemSettingsService.getMergeDisplayTickerDurationSeconds(),
+
+
+      this.systemSettingsService.getDisplayDataPollIntervalMs(),
 
 
     ]);
@@ -4931,6 +5000,9 @@ export class VenueManagementService {
       scheduleRows,
 
 
+      dataPollIntervalMs,
+
+
     };
 
 
@@ -4977,6 +5049,9 @@ export class VenueManagementService {
 
 
 
+
+
+    this.notifyVenueDisplays('venue-image');
 
 
     return {

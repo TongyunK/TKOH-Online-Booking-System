@@ -23,6 +23,7 @@ import { AdminPendingModule } from './admin-pending/admin-pending.module';
 import { VenueCalendarModule } from './venue-calendar/venue-calendar.module';
 import { DataBackupModule } from './data-backup/data-backup.module';
 import { DataRetentionModule } from './data-retention/data-retention.module';
+import { DisplayEventsModule } from './display-events/display-events.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { DataRetentionModule } from './data-retention/data-retention.module';
     UserManagementModule,
     LicensePlateManagementModule,
     DisplayManagementModule,
+    DisplayEventsModule,
     SystemSettingsModule,
     MeetingApprovalModule,
     AdminPendingModule,

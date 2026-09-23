@@ -74,6 +74,7 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getEvPublicDisplayData } from '@/api/evManagement'
+import { useDisplayLiveRefresh, useDisplayDataPollTimer } from '@/composables/useDisplayLiveRefresh'
 import evDisplayIcon from '@/assets/EVDisplay_icon.svg'
 import {
   getAppDisplayDateTimeParts,
@@ -145,6 +146,7 @@ function mapDisplayBooking (item) {
 
 async function refreshDisplayData () {
   const data = await getEvPublicDisplayData(todayYmdInAppTimeZone())
+  dataPoll.applyFromPayload(data?.dataPollIntervalMs)
   footerTickerText.value = data?.evDisplaySettings?.footerTickerText || ''
   timePeriods.value = Array.isArray(data?.timePeriods) ? data.timePeriods : []
   parkingSpaces.value = normalizeParkingSlots(data?.parkingSlots)
@@ -183,10 +185,7 @@ function setupTickerResizeObserver () {
   tickerResizeObserver.observe(container)
 }
 
-const DATA_POLL_MS = 20_000
-
 let clockTimer = null
-let dataPollTimer = null
 let dataPollInFlight = false
 
 function scheduleClockTick () {
@@ -224,12 +223,16 @@ async function pollDisplayDataFromServer () {
   }
 }
 
+const dataPoll = useDisplayDataPollTimer(pollDisplayDataFromServer)
+
 function onDocumentVisibilityChange () {
   if (document.visibilityState === 'visible') {
     startClock()
     void pollDisplayDataFromServer()
   }
 }
+
+useDisplayLiveRefresh(['ev'], pollDisplayDataFromServer)
 
 function getPlate (period, space) {
   const matched = bookings.value.find(item =>
@@ -288,7 +291,7 @@ onMounted(() => {
       })
     })
   startClock()
-  dataPollTimer = setInterval(pollDisplayDataFromServer, DATA_POLL_MS)
+  dataPoll.start()
   document.addEventListener('visibilitychange', onDocumentVisibilityChange)
   nextTick(() => {
     adaptFullscreen()
@@ -305,7 +308,7 @@ onUnmounted(() => {
   document.documentElement.classList.remove('ev-display-fullscreen')
   stopClock()
   tickerResizeObserver?.disconnect()
-  if (dataPollTimer) clearInterval(dataPollTimer)
+  dataPoll.stop()
   document.removeEventListener('visibilitychange', onDocumentVisibilityChange)
   window.removeEventListener('resize', adaptFullscreen)
   window.visualViewport?.removeEventListener('resize', adaptFullscreen)

@@ -105,6 +105,7 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getVenueMergePublicDisplay } from '@/api/venueManagement'
+import { useDisplayLiveRefresh, useDisplayDataPollTimer } from '@/composables/useDisplayLiveRefresh'
 import {
   getAppDisplayDateTimeParts,
   msUntilNextAppMinute,
@@ -114,7 +115,6 @@ import {
 /** 固定设计稿；任意分辨率用同一比例整体缩放 */
 const BASE_WIDTH = 1920
 const BASE_HEIGHT = 1080
-const DATA_POLL_MS = 20_000
 
 const displayViewport = ref(null)
 const displayRoot = ref(null)
@@ -200,6 +200,7 @@ function applyMergeDisplaySettings (settings) {
 async function refreshDisplayData () {
   const date = todayYmdInAppTimeZone()
   const data = await getVenueMergePublicDisplay(date)
+  dataPoll.applyFromPayload(data?.dataPollIntervalMs)
   applyMergeDisplaySettings(data?.mergeDisplaySettings)
   scheduleRows.value = Array.isArray(data?.scheduleRows) ? data.scheduleRows : []
   lastDisplayYmd = date
@@ -392,7 +393,6 @@ function startRotationLoop () {
 }
 
 let clockTimer = null
-let dataPollTimer = null
 let dataPollInFlight = false
 
 function scheduleClockTick () {
@@ -430,12 +430,16 @@ async function pollDisplayDataFromServer () {
   }
 }
 
+const dataPoll = useDisplayDataPollTimer(pollDisplayDataFromServer)
+
 function onDocumentVisibilityChange () {
   if (document.visibilityState === 'visible') {
     startClock()
     void pollDisplayDataFromServer()
   }
 }
+
+useDisplayLiveRefresh(['venue-merge'], pollDisplayDataFromServer)
 
 /** 设计稿等比缩放并居中；比例不同时留同色边条，不拉伸变形 */
 function adaptFullscreen () {
@@ -465,7 +469,7 @@ onMounted(() => {
   void refreshDisplayData().catch(() => { /* 首次失敗仍顯示框架 */ })
   currentVenuePage.value = 0
   startClock()
-  dataPollTimer = setInterval(pollDisplayDataFromServer, DATA_POLL_MS)
+  dataPoll.start()
   document.addEventListener('visibilitychange', onDocumentVisibilityChange)
   adaptFullscreen()
   startRotationLoop()
@@ -481,7 +485,7 @@ onMounted(() => {
 onUnmounted(() => {
   document.documentElement.classList.remove('merge-display-fullscreen')
   stopClock()
-  if (dataPollTimer) clearInterval(dataPollTimer)
+  dataPoll.stop()
   document.removeEventListener('visibilitychange', onDocumentVisibilityChange)
   if (rotationTimer) clearInterval(rotationTimer)
   window.removeEventListener('resize', adaptFullscreen)

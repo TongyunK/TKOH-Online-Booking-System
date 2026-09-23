@@ -13,6 +13,7 @@ import { UpdateVenueCalendarBookingDto } from './dto/update-venue-calendar-booki
 import { isSuperAdminAuth } from '../auth/super-admin.util';
 import { isAdminRole } from '../auth/admin-role.util';
 import { consumeVenueQuota, releaseVenueQuota } from '../common/user-quota';
+import { DisplayEventsService } from '../display-events/display-events.service';
 import {
   buildVenueTeaServiceJson,
   normalizeVenueTeaService,
@@ -49,7 +50,12 @@ export class VenueCalendarService {
     private readonly prisma: PrismaService,
     private readonly hkPublicHolidaysService: HkPublicHolidaysService,
     private readonly systemSettingsService: SystemSettingsService,
+    private readonly displayEvents: DisplayEventsService,
   ) {}
+
+  private notifyVenueDisplays(reason: string) {
+    this.displayEvents.notify(['venue', 'venue-merge', 'tea'], reason);
+  }
 
   private parseUserId(authSub: unknown): bigint {
     const raw = String(authSub ?? '').trim();
@@ -832,6 +838,7 @@ export class VenueCalendarService {
       });
     });
 
+    this.notifyVenueDisplays('venue-calendar-create');
     return this.mapCalendarBooking(created);
   }
 
@@ -860,6 +867,7 @@ export class VenueCalendarService {
         data: { notes },
         include: bookingInclude,
       });
+      this.notifyVenueDisplays('venue-calendar-update-remark');
       return this.mapCalendarBooking(updated);
     }
 
@@ -919,6 +927,7 @@ export class VenueCalendarService {
       include: bookingInclude,
     });
 
+    this.notifyVenueDisplays('venue-calendar-update');
     return this.mapCalendarBooking(updated);
   }
 
@@ -945,6 +954,7 @@ export class VenueCalendarService {
       });
     });
 
+    this.notifyVenueDisplays('venue-calendar-delete');
     return { ok: true };
   }
 }

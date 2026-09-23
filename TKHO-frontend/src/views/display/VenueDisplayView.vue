@@ -58,11 +58,11 @@ import {
   getVenueMergePublicDisplay,
   getVenuePublicDisplay
 } from '@/api/venueManagement'
+import { useDisplayLiveRefresh, useDisplayDataPollTimer } from '@/composables/useDisplayLiveRefresh'
 import { todayYmdInAppTimeZone } from '@/utils/appTimezone'
 import VenueDisplayClock from './VenueDisplayClock.vue'
 
 const route = useRoute()
-const DATA_POLL_MS = 20_000
 
 /** 竖向 9:16（与横屏 16:9 同比例，旋转 90°） */
 const BASE_WIDTH = 1080
@@ -258,6 +258,7 @@ async function refreshDisplayData () {
 
   if (displayType.value === 'merge') {
     const data = await getVenueMergePublicDisplay(date)
+    dataPoll.applyFromPayload(data?.dataPollIntervalMs)
     const settings = data?.mergeDisplaySettings || {}
     applyPanelTitleFooter(settings.panelTitleText)
     const nextQr = settings.qrCodeImage || ''
@@ -272,12 +273,12 @@ async function refreshDisplayData () {
   }
 
   const data = await getVenuePublicDisplay(venueId.value, date)
+  dataPoll.applyFromPayload(data?.dataPollIntervalMs)
   applyVenueInfo(data?.venue)
   if (qrCodeImage.value) qrCodeImage.value = ''
   replaceTodayEvents(data?.events)
 }
 
-let dataPollTimer = null
 let dataPollInFlight = false
 
 async function pollDisplayDataFromServer () {
@@ -295,11 +296,15 @@ async function pollDisplayDataFromServer () {
   }
 }
 
+const dataPoll = useDisplayDataPollTimer(pollDisplayDataFromServer)
+
 function onDocumentVisibilityChange () {
   if (document.visibilityState === 'visible') {
     void pollDisplayDataFromServer()
   }
 }
+
+useDisplayLiveRefresh(['venue', 'venue-merge'], pollDisplayDataFromServer)
 
 /** 设计稿等比缩放并居中；比例不同时留同色边条，不拉伸变形 */
 function adaptFullscreen () {
@@ -338,7 +343,7 @@ onMounted(() => {
       })
     })
 
-  dataPollTimer = setInterval(pollDisplayDataFromServer, DATA_POLL_MS)
+  dataPoll.start()
   document.addEventListener('visibilitychange', onDocumentVisibilityChange)
 
   nextTick(() => {
@@ -353,7 +358,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.documentElement.classList.remove('venue-display-fullscreen')
-  if (dataPollTimer) clearInterval(dataPollTimer)
+  dataPoll.stop()
   if (fitLayoutTimer) clearTimeout(fitLayoutTimer)
   document.removeEventListener('visibilitychange', onDocumentVisibilityChange)
   window.removeEventListener('resize', adaptFullscreen)

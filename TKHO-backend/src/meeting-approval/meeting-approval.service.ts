@@ -12,6 +12,7 @@ import {
   userDisplayNameSelect,
 } from '../common/user-display-name';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { DisplayEventsService } from '../display-events/display-events.service';
 
 const bookingInclude = {
   venue: { select: { id: true, name: true, color: true, userDefinedUploadEventTitle: true } },
@@ -36,6 +37,7 @@ export class MeetingApprovalService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly systemSettingsService: SystemSettingsService,
+    private readonly displayEvents: DisplayEventsService,
   ) {}
 
   private parseHandlerId(authSub: unknown): bigint {
@@ -271,6 +273,10 @@ export class MeetingApprovalService {
       include: bookingInclude,
     });
 
+    this.displayEvents.notify(
+      ['venue', 'venue-merge', 'tea'],
+      'meeting-approval-approve',
+    );
     return this.mapBookingRow(updated, 'approved');
   }
 
@@ -304,6 +310,10 @@ export class MeetingApprovalService {
       include: bookingInclude,
     });
 
+    this.displayEvents.notify(
+      ['venue', 'venue-merge', 'tea'],
+      'meeting-approval-reject',
+    );
     return this.mapBookingRow(updated, 'rejected');
   }
 }

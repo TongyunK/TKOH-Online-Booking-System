@@ -98,6 +98,7 @@ import {
   getTeaServicePublicDisplay,
   setTeaServiceRequestCompleted
 } from '@/api/venueManagement'
+import { useDisplayLiveRefresh, useDisplayDataPollTimer } from '@/composables/useDisplayLiveRefresh'
 import { formatTeaServiceDisplay } from '@/utils/venueTeaService'
 import {
   getAppDisplayDateTimeParts,
@@ -111,7 +112,6 @@ import {
  */
 const BASE_WIDTH = 1024
 const BASE_HEIGHT = 640
-const DATA_POLL_MS = 20_000
 
 const displayRoot = ref(null)
 
@@ -290,6 +290,7 @@ function mergePendingCompleted (requests) {
 async function refreshDisplayData () {
   const fromDate = todayYmdInAppTimeZone()
   const data = await getTeaServicePublicDisplay(fromDate)
+  dataPoll.applyFromPayload(data?.dataPollIntervalMs)
   const requests = Array.isArray(data?.requests) ? data.requests : []
   teaDisplayVenues.value = Array.isArray(data?.venues) ? data.venues : []
   displayDates.value = Array.isArray(data?.dates) && data.dates.length
@@ -339,7 +340,6 @@ function toggleRequest (request) {
 }
 
 let clockTimer = null
-let dataPollTimer = null
 let dataPollInFlight = false
 
 function scheduleClockTick () {
@@ -377,12 +377,16 @@ async function pollDisplayDataFromServer () {
   }
 }
 
+const dataPoll = useDisplayDataPollTimer(pollDisplayDataFromServer)
+
 function onDocumentVisibilityChange () {
   if (document.visibilityState === 'visible') {
     startClock()
     void pollDisplayDataFromServer()
   }
 }
+
+useDisplayLiveRefresh(['tea'], pollDisplayDataFromServer)
 
 function adaptFullscreen () {
   const root = displayRoot.value
@@ -418,7 +422,7 @@ onMounted(async () => {
     lastDisplayFromDate = todayYmdInAppTimeZone()
   }
   startClock()
-  dataPollTimer = setInterval(pollDisplayDataFromServer, DATA_POLL_MS)
+  dataPoll.start()
   document.addEventListener('visibilitychange', onDocumentVisibilityChange)
   await nextTick()
   adaptFullscreen()
@@ -433,7 +437,7 @@ onMounted(async () => {
 onUnmounted(() => {
   document.documentElement.classList.remove('tea-display-fullscreen')
   stopClock()
-  if (dataPollTimer) clearInterval(dataPollTimer)
+  dataPoll.stop()
   document.removeEventListener('visibilitychange', onDocumentVisibilityChange)
   window.removeEventListener('resize', adaptFullscreen)
   window.visualViewport?.removeEventListener('resize', adaptFullscreen)

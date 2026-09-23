@@ -11,6 +11,7 @@ import { formatDbTimeAsAppHm, getAppTodayYmd } from '../common/app-timezone';
 import { releaseEvQuota } from '../common/user-quota';
 import { assertEvWeeklyBookingLimit } from '../common/ev-weekly-booking-limit';
 import { DisplayManagementService } from '../display-management/display-management.service';
+import { DisplayEventsService } from '../display-events/display-events.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EvRedisCacheService } from '../redis/ev-redis-cache.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
@@ -50,7 +51,12 @@ export class EvManagementService {
     private readonly displayManagementService: DisplayManagementService,
     private readonly systemSettingsService: SystemSettingsService,
     private readonly hkPublicHolidaysService: HkPublicHolidaysService,
+    private readonly displayEvents: DisplayEventsService,
   ) {}
+
+  private notifyEvDisplay(reason: string) {
+    this.displayEvents.notify(['ev'], reason);
+  }
 
   private toDateOnly(date: Date) {
     return date.toISOString().slice(0, 10);
@@ -130,6 +136,7 @@ export class EvManagementService {
         status: dto.status || 'active',
       },
     });
+    this.notifyEvDisplay('ev-parking-create');
     return this.mapParking(created);
   }
 
@@ -159,6 +166,7 @@ export class EvManagementService {
       where: { id: slotId },
       data,
     });
+    this.notifyEvDisplay('ev-parking-update');
     return this.mapParking(updated);
   }
 
@@ -190,6 +198,7 @@ export class EvManagementService {
       }
       await tx.evParkingSlots.delete({ where: { id: slotId } });
     });
+    this.notifyEvDisplay('ev-parking-delete');
     return { ok: true };
   }
 
@@ -221,6 +230,7 @@ export class EvManagementService {
           status: dto.status || 'active',
         },
       });
+      this.notifyEvDisplay('ev-period-create');
       return this.mapTimePeriod(created);
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
@@ -257,6 +267,7 @@ export class EvManagementService {
         where: { id: periodId },
         data,
       });
+      this.notifyEvDisplay('ev-period-update');
       return this.mapTimePeriod(updated);
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
@@ -294,6 +305,7 @@ export class EvManagementService {
       }
       await tx.evTimePeriods.delete({ where: { id: periodId } });
     });
+    this.notifyEvDisplay('ev-period-delete');
     return { ok: true };
   }
 
@@ -704,12 +716,14 @@ export class EvManagementService {
 
   async getPublicDisplayData(dateYmd?: string) {
     const dateKey = this.resolveDisplayDateYmd(dateYmd);
-    const [bookingResult, timePeriods, evDisplaySettings, parkingSlots] = await Promise.all([
-      this.listDisplayBookings(dateKey),
-      this.listTimePeriods(),
-      this.displayManagementService.getEvDisplayPublicSettings(),
-      this.listActiveParkingSlots(),
-    ]);
+    const [bookingResult, timePeriods, evDisplaySettings, parkingSlots, dataPollIntervalMs] =
+      await Promise.all([
+        this.listDisplayBookings(dateKey),
+        this.listTimePeriods(),
+        this.displayManagementService.getEvDisplayPublicSettings(),
+        this.listActiveParkingSlots(),
+        this.systemSettingsService.getDisplayDataPollIntervalMs(),
+      ]);
 
     return {
       displayDate: dateKey,
@@ -721,6 +735,7 @@ export class EvManagementService {
         (item) => String(item.status || 'active').toLowerCase() === 'active',
       ),
       evDisplaySettings,
+      dataPollIntervalMs,
     };
   }
 
@@ -824,6 +839,7 @@ export class EvManagementService {
 
     const owners = await this.resolveBookingOwners([updated]);
 
+    this.notifyEvDisplay('ev-booking-cancel');
     return {
       message: 'Booking cancelled',
       booking: this.mapManageBookingRow(updated, owners),
@@ -938,6 +954,7 @@ export class EvManagementService {
     await this.evCache.bumpCalendarVersion();
 
     const owners = await this.resolveBookingOwners([updated]);
+    this.notifyEvDisplay('ev-booking-update');
     return {
       message: 'Booking updated',
       booking: this.mapManageBookingRow(updated, owners),

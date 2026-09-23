@@ -17,6 +17,7 @@ import { consumeEvQuota } from '../common/user-quota';
 import { assertEvWeeklyBookingLimit } from '../common/ev-weekly-booking-limit';
 import { HkPublicHolidaysService } from '../system-settings/hk-public-holidays.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
+import { DisplayEventsService } from '../display-events/display-events.service';
 
 const ACTIVE_BOOKING_STATUSES = ['pending', 'confirmed'] as const;
 const MAX_BOOKING_SLOT_ATTEMPTS = 5;
@@ -42,6 +43,7 @@ export class ParkingService {
     private readonly evCache: EvRedisCacheService,
     private readonly hkPublicHolidaysService: HkPublicHolidaysService,
     private readonly systemSettingsService: SystemSettingsService,
+    private readonly displayEvents: DisplayEventsService,
   ) {}
 
   private toDateOnlyString(date: Date): string {
@@ -613,6 +615,7 @@ export class ParkingService {
 
         await this.evCache.bumpCalendarVersion();
 
+        this.displayEvents.notify(['ev'], 'ev-booking-create');
         return {
           message: 'Booking created',
           booking: this.mapBooking(booking),

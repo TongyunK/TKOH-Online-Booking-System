@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { DisplayEventsService } from '../display-events/display-events.service';
 import { CreateLicensePlateDto } from './dto/create-license-plate.dto';
 import { UpdateLicensePlateDto } from './dto/update-license-plate.dto';
 import {
@@ -34,7 +35,14 @@ type OwnerUser = {
 
 @Injectable()
 export class LicensePlateManagementService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly displayEvents: DisplayEventsService,
+  ) {}
+
+  private notifyEvDisplay(reason: string) {
+    this.displayEvents.notify(['ev'], reason);
+  }
 
   private normalizePlateNumber(raw: string): string {
     const cleaned = String(raw ?? '')
@@ -199,6 +207,7 @@ export class LicensePlateManagementService {
         },
         select: plateSelect,
       });
+      this.notifyEvDisplay('license-plate-create');
       return this.mapPlate(created, this.ownerDisplay(owner));
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
@@ -248,6 +257,7 @@ export class LicensePlateManagementService {
         const map = await this.loadUsersByIds([userId]);
         user = map.get(userId.toString()) ?? null;
       }
+      this.notifyEvDisplay('license-plate-update');
       return this.mapPlate(updated, user);
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
@@ -279,6 +289,7 @@ export class LicensePlateManagementService {
       }
     });
 
+    this.notifyEvDisplay('license-plate-remove');
     return { ok: true };
   }
 }

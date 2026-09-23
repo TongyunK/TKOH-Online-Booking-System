@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { PrismaService } from '../prisma/prisma.service';
+import { DisplayEventsService } from '../display-events/display-events.service';
 import {
   DISPLAY_CONFIG_DEFAULTS,
   DisplayConfigKey,
@@ -22,7 +23,10 @@ type SettingsMap = Map<string, string>;
 export class DisplayManagementService {
   private readonly uploadsBasePath = '/api/uploads/display/';
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly displayEvents: DisplayEventsService,
+  ) {}
 
   private async unlinkDisplayUploadFile(imagePath: string | null | undefined) {
     const path = imagePath || '';
@@ -201,6 +205,7 @@ export class DisplayManagementService {
     const qrCodeImage = `${this.uploadsBasePath}${filename}`;
     await this.unlinkDisplayUploadFile(previous);
     await this.setSettingValue(DisplayConfigKey.mergeQrCodeImage, qrCodeImage);
+    this.displayEvents.notify(['venue-merge'], 'merge-qr-save');
     return { qrCodeImage };
   }
 
@@ -215,6 +220,7 @@ export class DisplayManagementService {
       DisplayConfigKey.metaUpdatedAt,
       new Date().toISOString(),
     );
+    this.displayEvents.notify(['venue-merge'], 'merge-qr-clear');
     return { qrCodeImage: '' };
   }
 
@@ -355,6 +361,10 @@ export class DisplayManagementService {
       }
     });
 
+    this.displayEvents.notify(
+      ['venue', 'venue-merge', 'ev'],
+      'display-config-save',
+    );
     return this.getConfig();
   }
 }

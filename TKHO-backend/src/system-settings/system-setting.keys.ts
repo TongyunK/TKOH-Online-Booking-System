@@ -14,6 +14,8 @@ export const SystemSettingKey = {
   dataBackupTimeSpan: 'data_backup_time_span',
   dataBackupEmailInterval: 'data_backup_email_interval',
   dataBackupEmailSendTime: 'data_backup_email_send_time',
+  /** 是否启用定时自动发送备份邮件（手动 Send now 不受此开关限制） */
+  dataBackupEmailEnabled: 'data_backup_email_enabled',
   /** 在线数据保留月数；超龄预订/Inactive 用户由月度 purge 清理 */
   dataRetentionMonths: 'data_retention_months',
   /** 数据保留清理结果/失败通知的运维邮箱 */
@@ -22,6 +24,8 @@ export const SystemSettingKey = {
   mergeDisplayRotateIntervalMs: 'merge_display_rotate_interval_ms',
   /** Merge 大屏：底部 ticker 一整轮滚动时长（秒） */
   mergeDisplayTickerDurationSeconds: 'merge_display_ticker_duration_seconds',
+  /** 大屏数据轮询兜底间隔（毫秒）；SSE 即时刷新之外的 HTTP 兜底 */
+  displayDataPollIntervalMs: 'display_data_poll_interval_ms',
 } as const;
 
 export type SystemSettingKeyName =
@@ -36,6 +40,7 @@ export const SYSTEM_SETTING_HIDDEN_KEYS: SystemSettingKeyName[] = [
   SystemSettingKey.dataRetentionOpsEmail,
   SystemSettingKey.mergeDisplayRotateIntervalMs,
   SystemSettingKey.mergeDisplayTickerDurationSeconds,
+  SystemSettingKey.displayDataPollIntervalMs,
 ];
 
 export const SYSTEM_SETTING_DEFAULTS: Record<SystemSettingKeyName, string> = {
@@ -54,10 +59,12 @@ export const SYSTEM_SETTING_DEFAULTS: Record<SystemSettingKeyName, string> = {
   [SystemSettingKey.dataBackupTimeSpan]: '14',
   [SystemSettingKey.dataBackupEmailInterval]: 'daily',
   [SystemSettingKey.dataBackupEmailSendTime]: '09:00',
+  [SystemSettingKey.dataBackupEmailEnabled]: 'true',
   [SystemSettingKey.dataRetentionMonths]: '24',
   [SystemSettingKey.dataRetentionOpsEmail]: '',
   [SystemSettingKey.mergeDisplayRotateIntervalMs]: '8000',
   [SystemSettingKey.mergeDisplayTickerDurationSeconds]: '40',
+  [SystemSettingKey.displayDataPollIntervalMs]: '60000',
 };
 
 export const SYSTEM_SETTING_DESCRIPTIONS: Record<SystemSettingKeyName, string> =
@@ -90,6 +97,8 @@ export const SYSTEM_SETTING_DESCRIPTIONS: Record<SystemSettingKeyName, string> =
       'How often backup emails are sent (daily, weekly, monthly)',
     [SystemSettingKey.dataBackupEmailSendTime]:
       'Time of day (HH:mm, Hong Kong) to send backup emails',
+    [SystemSettingKey.dataBackupEmailEnabled]:
+      'Whether scheduled data backup emails are sent automatically',
     [SystemSettingKey.dataRetentionMonths]:
       'Months to retain online booking/user data before monthly purge (admin UI hidden; bookings by created_at; inactive users by inactive_time)',
     [SystemSettingKey.dataRetentionOpsEmail]:
@@ -98,6 +107,8 @@ export const SYSTEM_SETTING_DESCRIPTIONS: Record<SystemSettingKeyName, string> =
       'Venue Merge display: interval in ms between venue/meeting page rotations (admin UI hidden)',
     [SystemSettingKey.mergeDisplayTickerDurationSeconds]:
       'Venue Merge display: footer ticker full-loop duration in seconds (admin UI hidden)',
+    [SystemSettingKey.displayDataPollIntervalMs]:
+      'Public display screens: HTTP data poll fallback interval in ms (admin UI hidden; used with SSE live refresh)',
   };
 
 export const DATA_BACKUP_EMAIL_INTERVALS = ['daily', 'weekly', 'monthly'] as const;

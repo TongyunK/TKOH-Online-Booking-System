@@ -261,13 +261,34 @@
                   </div>
                   <h3 class="setting-title">Data Backup</h3>
                 </div>
-                <span class="value-pill value-pill--green">
+                <span
+                  class="value-pill"
+                  :class="saved.dataBackupEmailEnabled ? 'value-pill--green' : 'value-pill--muted'"
+                >
                   <span class="value-pill-label">Current</span>
-                  <span class="value-pill-text">{{ saved.dataBackupEmailSendTime }} HKT</span>
+                  <span class="value-pill-text">
+                    {{ saved.dataBackupEmailEnabled ? 'Auto-send On' : 'Auto-send Off' }}
+                    · {{ saved.dataBackupEmailSendTime }} HKT
+                  </span>
                 </span>
               </div>
 
               <div class="setting-card-body">
+                <div class="field-group field-group--switch">
+                  <div class="switch-row">
+                    <div class="switch-copy">
+                      <label class="field-label" for="data-backup-email-enabled">Auto-send email</label>
+                      <p class="field-hint">When on, backup reports are emailed on schedule. Manual send still works when off.</p>
+                    </div>
+                    <el-switch
+                      id="data-backup-email-enabled"
+                      v-model="form.dataBackupEmailEnabled"
+                      :active-value="true"
+                      :inactive-value="false"
+                    />
+                  </div>
+                </div>
+
                 <div class="field-row field-row--backup">
                   <div class="field-group field-group--email">
                     <label class="field-label" for="data-backup-receiving-email">Receiving email</label>
@@ -375,7 +396,8 @@ const form = reactive({
   venueBookingMinGapMinutes: 15,
   venueMeetingEventTitleMaxLength: 80,
   dataBackupReceivingEmail: '',
-  dataBackupEmailSendTime: '09:00'
+  dataBackupEmailSendTime: '09:00',
+  dataBackupEmailEnabled: true
 })
 
 /** Last saved values shown in Current pills (only refresh after load / Save). */
@@ -386,7 +408,8 @@ const saved = reactive({
   evWeeklyBookingLimit: 1,
   venueBookingMinGapMinutes: 15,
   venueMeetingEventTitleMaxLength: 80,
-  dataBackupEmailSendTime: '09:00'
+  dataBackupEmailSendTime: '09:00',
+  dataBackupEmailEnabled: true
 })
 
 function formatUpdatedAt (value) {
@@ -412,6 +435,7 @@ function applySavedFromForm () {
   saved.venueBookingMinGapMinutes = form.venueBookingMinGapMinutes
   saved.venueMeetingEventTitleMaxLength = form.venueMeetingEventTitleMaxLength
   saved.dataBackupEmailSendTime = form.dataBackupEmailSendTime
+  saved.dataBackupEmailEnabled = form.dataBackupEmailEnabled
 }
 
 function applySettings (data) {
@@ -430,6 +454,7 @@ function applySettings (data) {
       : Number(data.venueMeetingEventTitleMaxLength)
   form.dataBackupReceivingEmail = String(data?.dataBackupReceivingEmail ?? '')
   form.dataBackupEmailSendTime = String(data?.dataBackupEmailSendTime ?? '09:00')
+  form.dataBackupEmailEnabled = data?.dataBackupEmailEnabled !== false
   updatedAt.value = data?.updatedAt ?? null
   applySavedFromForm()
 }
@@ -513,7 +538,8 @@ async function handleSave () {
       venueBookingMinGapMinutes: form.venueBookingMinGapMinutes,
       venueMeetingEventTitleMaxLength: form.venueMeetingEventTitleMaxLength,
       dataBackupReceivingEmail: receivingEmail,
-      dataBackupEmailSendTime: form.dataBackupEmailSendTime
+      dataBackupEmailSendTime: form.dataBackupEmailSendTime,
+      dataBackupEmailEnabled: form.dataBackupEmailEnabled
     })
     applySettings(data)
     invalidateMeetingEventTitleMaxLengthCache()
@@ -569,7 +595,8 @@ async function handleSendBackupNow () {
   try {
     const data = await saveSystemSettings({
       dataBackupReceivingEmail: receivingEmail,
-      dataBackupEmailSendTime: form.dataBackupEmailSendTime
+      dataBackupEmailSendTime: form.dataBackupEmailSendTime,
+      dataBackupEmailEnabled: form.dataBackupEmailEnabled
     })
     applySettings(data)
 
@@ -845,6 +872,19 @@ onMounted(() => {
   border: 1px solid #86efac;
 }
 
+.value-pill--muted {
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  border: 1px solid #d1d5db;
+}
+
+.value-pill--muted .value-pill-label {
+  background: #4b5563;
+}
+
+.value-pill--muted .value-pill-text {
+  color: #374151;
+}
+
 .value-pill-label {
   background: #166534;
   color: #ffffff;
@@ -897,6 +937,27 @@ onMounted(() => {
 .field-row--backup .field-group--time {
   width: 120px;
   flex-shrink: 0;
+}
+
+.switch-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.switch-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.switch-copy .field-hint {
+  margin-top: 0.2rem;
+}
+
+.field-group--switch {
+  padding-bottom: 0.15rem;
+  border-bottom: 1px solid #f3f4f6;
 }
 
 .field-group {

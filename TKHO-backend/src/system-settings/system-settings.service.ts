@@ -123,6 +123,14 @@ export class SystemSettingsService {
     return null;
   }
 
+  private parseDisplayDataPollIntervalMs(raw: string): number | null {
+    const value = Number.parseInt(String(raw ?? '').trim(), 10);
+    if (Number.isFinite(value) && value >= 10_000 && value <= 300_000) {
+      return value;
+    }
+    return null;
+  }
+
   private parseDataBackupTimeSpan(raw: string): number | null {
     const value = Number.parseInt(String(raw ?? '').trim(), 10);
     if (Number.isFinite(value) && value >= 1 && value <= 365) return value;
@@ -140,6 +148,13 @@ export class SystemSettingsService {
   private parseDataBackupEmailSendTime(raw: string): string | null {
     const value = String(raw ?? '').trim();
     if (/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) return value;
+    return null;
+  }
+
+  private parseDataBackupEmailEnabled(raw: string): boolean | null {
+    const value = String(raw ?? '').trim().toLowerCase();
+    if (value === 'true' || value === '1') return true;
+    if (value === 'false' || value === '0') return false;
     return null;
   }
 
@@ -329,6 +344,19 @@ export class SystemSettingsService {
     );
   }
 
+  async getDisplayDataPollIntervalMs(): Promise<number> {
+    const map = await this.ensureDefaultSettings();
+    return (
+      this.parseDisplayDataPollIntervalMs(
+        this.getSetting(map, SystemSettingKey.displayDataPollIntervalMs),
+      ) ??
+      Number.parseInt(
+        SYSTEM_SETTING_DEFAULTS[SystemSettingKey.displayDataPollIntervalMs],
+        10,
+      )
+    );
+  }
+
   async assertMeetingEventTitleLength(
     title: string | null | undefined,
   ): Promise<void> {
@@ -449,6 +477,12 @@ export class SystemSettingsService {
       this.parseDataBackupEmailSendTime(
         this.getSetting(map, SystemSettingKey.dataBackupEmailSendTime),
       ) ?? SYSTEM_SETTING_DEFAULTS[SystemSettingKey.dataBackupEmailSendTime];
+    const dataBackupEmailEnabled =
+      this.parseDataBackupEmailEnabled(
+        this.getSetting(map, SystemSettingKey.dataBackupEmailEnabled),
+      ) ??
+      SYSTEM_SETTING_DEFAULTS[SystemSettingKey.dataBackupEmailEnabled] ===
+        'true';
 
     const allKeys = Object.values(SystemSettingKey);
     const rows = await this.prisma.system_settings.findMany({
@@ -474,6 +508,7 @@ export class SystemSettingsService {
       dataBackupTimeSpan,
       dataBackupEmailInterval,
       dataBackupEmailSendTime,
+      dataBackupEmailEnabled,
       updatedAt: latestUpdatedAt,
     };
   }
@@ -687,6 +722,26 @@ export class SystemSettingsService {
         },
         update: {
           setting_value: sendTime,
+          updated_at: now,
+        },
+      });
+    }
+
+    if (dto.dataBackupEmailEnabled != null) {
+      const enabled = dto.dataBackupEmailEnabled ? 'true' : 'false';
+      await this.prisma.system_settings.upsert({
+        where: { setting_key: SystemSettingKey.dataBackupEmailEnabled },
+        create: {
+          setting_key: SystemSettingKey.dataBackupEmailEnabled,
+          setting_value: enabled,
+          description:
+            SYSTEM_SETTING_DESCRIPTIONS[
+              SystemSettingKey.dataBackupEmailEnabled
+            ],
+          updated_at: now,
+        },
+        update: {
+          setting_value: enabled,
           updated_at: now,
         },
       });
