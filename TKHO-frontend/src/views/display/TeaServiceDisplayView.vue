@@ -90,6 +90,7 @@
       </template>
     </main>
   </div>
+  <DisplayFullscreenHint />
 </template>
 
 <script setup>
@@ -99,6 +100,7 @@ import {
   setTeaServiceRequestCompleted
 } from '@/api/venueManagement'
 import { useDisplayLiveRefresh, useDisplayDataPollTimer } from '@/composables/useDisplayLiveRefresh'
+import DisplayFullscreenHint from '@/components/display/DisplayFullscreenHint.vue'
 import { formatTeaServiceDisplay } from '@/utils/venueTeaService'
 import {
   getAppDisplayDateTimeParts,

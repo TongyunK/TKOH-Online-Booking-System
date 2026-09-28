@@ -100,12 +100,14 @@
       </div>
     </div>
   </div>
+  <DisplayFullscreenHint />
 </template>
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getVenueMergePublicDisplay } from '@/api/venueManagement'
 import { useDisplayLiveRefresh, useDisplayDataPollTimer } from '@/composables/useDisplayLiveRefresh'
+import DisplayFullscreenHint from '@/components/display/DisplayFullscreenHint.vue'
 import {
   getAppDisplayDateTimeParts,
   msUntilNextAppMinute,

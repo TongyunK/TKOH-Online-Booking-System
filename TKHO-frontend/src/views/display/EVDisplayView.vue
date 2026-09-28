@@ -69,12 +69,14 @@
       </div>
     </div>
   </div>
+  <DisplayFullscreenHint />
 </template>
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getEvPublicDisplayData } from '@/api/evManagement'
 import { useDisplayLiveRefresh, useDisplayDataPollTimer } from '@/composables/useDisplayLiveRefresh'
+import DisplayFullscreenHint from '@/components/display/DisplayFullscreenHint.vue'
 import evDisplayIcon from '@/assets/EVDisplay_icon.svg'
 import {
   getAppDisplayDateTimeParts,

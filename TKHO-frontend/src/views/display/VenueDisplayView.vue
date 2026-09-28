@@ -49,6 +49,7 @@
       </div>
     </div>
   </div>
+  <DisplayFullscreenHint />
 </template>
 
 <script setup>
@@ -60,6 +61,7 @@ import {
 } from '@/api/venueManagement'
 import { useDisplayLiveRefresh, useDisplayDataPollTimer } from '@/composables/useDisplayLiveRefresh'
 import { todayYmdInAppTimeZone } from '@/utils/appTimezone'
+import DisplayFullscreenHint from '@/components/display/DisplayFullscreenHint.vue'
 import VenueDisplayClock from './VenueDisplayClock.vue'
 
 const route = useRoute()
