@@ -74,6 +74,7 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { getEvPublicDisplayData } from '@/api/evManagement'
 import { useDisplayLiveRefresh, useDisplayDataPollTimer } from '@/composables/useDisplayLiveRefresh'
 import DisplayFullscreenHint from '@/components/display/DisplayFullscreenHint.vue'
@@ -83,6 +84,13 @@ import {
   msUntilNextAppMinute,
   todayYmdInAppTimeZone
 } from '@/utils/appTimezone'
+import { pickRouteQueryDate } from '@/utils/routeQuery'
+
+const route = useRoute()
+
+function resolveDisplayDate () {
+  return pickRouteQueryDate(route.query, 'date', 'Date') || todayYmdInAppTimeZone()
+}
 
 const DEFAULT_FOOTER_TICKER = '請依照已預約之時段及車位泊車，並於離場前移走車輛。'
 
@@ -147,13 +155,14 @@ function mapDisplayBooking (item) {
 }
 
 async function refreshDisplayData () {
-  const data = await getEvPublicDisplayData(todayYmdInAppTimeZone())
+  const date = resolveDisplayDate()
+  const data = await getEvPublicDisplayData(date)
   dataPoll.applyFromPayload(data?.dataPollIntervalMs)
   footerTickerText.value = data?.evDisplaySettings?.footerTickerText || ''
   timePeriods.value = Array.isArray(data?.timePeriods) ? data.timePeriods : []
   parkingSpaces.value = normalizeParkingSlots(data?.parkingSlots)
   bookings.value = (Array.isArray(data?.bookings) ? data.bookings : []).map(mapDisplayBooking)
-  lastDisplayYmd = todayYmdInAppTimeZone()
+  lastDisplayYmd = date
   await nextTick()
   syncTickerScrollMode()
 }
@@ -163,7 +172,12 @@ function updateDateTime () {
   currentDateLabel.value = `${parts.day}/${parts.month}/${parts.year} ${parts.weekdayEn} ${parts.weekdayZh}`
   currentTimeLabel.value = `${parts.hour}:${parts.minute}`
 
-  if (lastDisplayYmd && parts.ymd !== lastDisplayYmd) {
+  // Only auto-roll to next business day when URL did not pin a date.
+  if (
+    !pickRouteQueryDate(route.query, 'date', 'Date') &&
+    lastDisplayYmd &&
+    parts.ymd !== lastDisplayYmd
+  ) {
     void refreshDisplayData()
   }
 }
@@ -235,6 +249,14 @@ function onDocumentVisibilityChange () {
 }
 
 useDisplayLiveRefresh(['ev'], pollDisplayDataFromServer)
+
+watch(
+  () => route.query,
+  () => {
+    void pollDisplayDataFromServer()
+  },
+  { deep: true }
+)
 
 function getPlate (period, space) {
   const matched = bookings.value.find(item =>

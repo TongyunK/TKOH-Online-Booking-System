@@ -105,6 +105,7 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { getVenueMergePublicDisplay } from '@/api/venueManagement'
 import { useDisplayLiveRefresh, useDisplayDataPollTimer } from '@/composables/useDisplayLiveRefresh'
 import DisplayFullscreenHint from '@/components/display/DisplayFullscreenHint.vue'
@@ -113,10 +114,17 @@ import {
   msUntilNextAppMinute,
   todayYmdInAppTimeZone
 } from '@/utils/appTimezone'
+import { pickRouteQueryDate } from '@/utils/routeQuery'
 
 /** 固定设计稿；任意分辨率用同一比例整体缩放 */
 const BASE_WIDTH = 1920
 const BASE_HEIGHT = 1080
+
+const route = useRoute()
+
+function resolveDisplayDate () {
+  return pickRouteQueryDate(route.query, 'date', 'Date') || todayYmdInAppTimeZone()
+}
 
 const displayViewport = ref(null)
 const displayRoot = ref(null)
@@ -169,7 +177,7 @@ function updateDateTime () {
   currentDate.value = `${parts.day}/${parts.month}/${parts.year} ${parts.weekdayEn}`
   currentTime.value = `${parts.hour}:${parts.minute}`
 
-  const ymd = todayYmdInAppTimeZone()
+  const ymd = resolveDisplayDate()
   if (lastDisplayYmd && ymd !== lastDisplayYmd) {
     void refreshDisplayData()
   }
@@ -200,7 +208,7 @@ function applyMergeDisplaySettings (settings) {
 }
 
 async function refreshDisplayData () {
-  const date = todayYmdInAppTimeZone()
+  const date = resolveDisplayDate()
   const data = await getVenueMergePublicDisplay(date)
   dataPoll.applyFromPayload(data?.dataPollIntervalMs)
   applyMergeDisplaySettings(data?.mergeDisplaySettings)
@@ -442,6 +450,14 @@ function onDocumentVisibilityChange () {
 }
 
 useDisplayLiveRefresh(['venue-merge'], pollDisplayDataFromServer)
+
+watch(
+  () => route.query,
+  () => {
+    void pollDisplayDataFromServer()
+  },
+  { deep: true }
+)
 
 /** 设计稿等比缩放并居中；比例不同时留同色边条，不拉伸变形 */
 function adaptFullscreen () {

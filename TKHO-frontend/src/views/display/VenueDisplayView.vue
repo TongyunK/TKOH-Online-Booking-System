@@ -13,7 +13,15 @@
         <div class="display-content" :style="contentLayoutStyle">
           <div class="events-section-title">TODAY'S EVENTS 今日活動</div>
           <div
-            v-if="sortedTodayEvents.length"
+            v-if="missingVenueId"
+            class="display-error"
+          >
+            <div class="display-error-en">Missing venueId</div>
+            <div class="display-error-zh">網址缺少 venueId 參數</div>
+            <div class="display-error-hint">Use ?displayType=single&amp;venueId=7</div>
+          </div>
+          <div
+            v-else-if="sortedTodayEvents.length"
             ref="eventsListRef"
             class="events-list"
           >
@@ -61,6 +69,7 @@ import {
 } from '@/api/venueManagement'
 import { useDisplayLiveRefresh, useDisplayDataPollTimer } from '@/composables/useDisplayLiveRefresh'
 import { todayYmdInAppTimeZone } from '@/utils/appTimezone'
+import { pickRouteQuery, pickRouteQueryDate } from '@/utils/routeQuery'
 import DisplayFullscreenHint from '@/components/display/DisplayFullscreenHint.vue'
 import VenueDisplayClock from './VenueDisplayClock.vue'
 
@@ -73,8 +82,28 @@ const BASE_HEIGHT = 1920
 const displayViewport = ref(null)
 const displayRoot = ref(null)
 
-const venueId = ref(route.query.venueId)
-const displayType = ref(route.query.displayType || 'single')
+function readDisplayQuery () {
+  return {
+    venueId: pickRouteQuery(route.query, 'venueId', 'venueID', 'venue_id'),
+    displayType: (
+      pickRouteQuery(route.query, 'displayType', 'DisplayType', 'display_type') ||
+      'single'
+    ).toLowerCase(),
+    date: pickRouteQueryDate(route.query, 'date', 'Date')
+  }
+}
+
+const initialQuery = readDisplayQuery()
+const venueId = ref(initialQuery.venueId)
+const displayType = ref(initialQuery.displayType === 'merge' ? 'merge' : 'single')
+const displayDate = ref(initialQuery.date)
+
+function resolveDisplayDate () {
+  return displayDate.value || todayYmdInAppTimeZone()
+}
+const missingVenueId = computed(
+  () => displayType.value !== 'merge' && !String(venueId.value || '').trim()
+)
 
 const venueName = ref('')
 const venueNameZh = ref('')
@@ -256,7 +285,7 @@ function replaceTodayEvents (nextEvents) {
 }
 
 async function refreshDisplayData () {
-  const date = todayYmdInAppTimeZone()
+  const date = resolveDisplayDate()
 
   if (displayType.value === 'merge') {
     const data = await getVenueMergePublicDisplay(date)
@@ -271,6 +300,10 @@ async function refreshDisplayData () {
 
   if (!venueId.value) {
     replaceTodayEvents([])
+    venueName.value = ''
+    venueNameZh.value = ''
+    venueLocation.value = ''
+    venueLocationZh.value = ''
     return
   }
 
@@ -307,6 +340,25 @@ function onDocumentVisibilityChange () {
 }
 
 useDisplayLiveRefresh(['venue', 'venue-merge'], pollDisplayDataFromServer)
+
+watch(
+  () => route.query,
+  () => {
+    const next = readDisplayQuery()
+    const nextType = next.displayType === 'merge' ? 'merge' : 'single'
+    const changed =
+      next.venueId !== String(venueId.value || '') ||
+      nextType !== displayType.value ||
+      next.date !== String(displayDate.value || '')
+    venueId.value = next.venueId
+    displayType.value = nextType
+    displayDate.value = next.date
+    if (changed) {
+      void pollDisplayDataFromServer()
+    }
+  },
+  { deep: true }
+)
 
 /** 设计稿等比缩放并居中；比例不同时留同色边条，不拉伸变形 */
 function adaptFullscreen () {
@@ -550,6 +602,37 @@ html.venue-display-fullscreen #app {
   font-weight: 600;
   line-height: 0.9;
   letter-spacing: 4px;
+}
+
+.display-error {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #111111;
+  gap: 18px;
+  padding: 0 40px;
+}
+
+.display-error-en {
+  font-size: 48px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.display-error-zh {
+  font-size: 44px;
+  font-weight: 600;
+}
+
+.display-error-hint {
+  margin-top: 12px;
+  font-size: 28px;
+  font-weight: 500;
+  word-break: break-all;
+  opacity: 0.85;
 }
 
 .display-footer {

@@ -94,7 +94,8 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   getTeaServicePublicDisplay,
   setTeaServiceRequestCompleted
@@ -107,6 +108,16 @@ import {
   msUntilNextAppMinute,
   todayYmdInAppTimeZone
 } from '@/utils/appTimezone'
+import { pickRouteQueryDate } from '@/utils/routeQuery'
+
+const route = useRoute()
+
+function resolveFromDate () {
+  return (
+    pickRouteQueryDate(route.query, 'fromDate', 'FromDate', 'from_date', 'date', 'Date') ||
+    todayYmdInAppTimeZone()
+  )
+}
 
 /** 设计基准尺寸：按视口等比缩放填满全屏
  * - BASE_WIDTH 与 iPad 横屏宽度一致（避免 iPad 进一步放大）
@@ -136,7 +147,7 @@ function updateDateTime () {
   currentDateSlash.value = `${parts.day}/${parts.month}/${parts.year}`
   currentTime.value = `${parts.hour}:${parts.minute}`
 
-  const fromDate = todayYmdInAppTimeZone()
+  const fromDate = resolveFromDate()
   if (lastDisplayFromDate && fromDate !== lastDisplayFromDate) {
     void refreshDisplayData()
   }
@@ -290,7 +301,7 @@ function mergePendingCompleted (requests) {
 }
 
 async function refreshDisplayData () {
-  const fromDate = todayYmdInAppTimeZone()
+  const fromDate = resolveFromDate()
   const data = await getTeaServicePublicDisplay(fromDate)
   dataPoll.applyFromPayload(data?.dataPollIntervalMs)
   const requests = Array.isArray(data?.requests) ? data.requests : []
@@ -389,6 +400,14 @@ function onDocumentVisibilityChange () {
 }
 
 useDisplayLiveRefresh(['tea'], pollDisplayDataFromServer)
+
+watch(
+  () => route.query,
+  () => {
+    void pollDisplayDataFromServer()
+  },
+  { deep: true }
+)
 
 function adaptFullscreen () {
   const root = displayRoot.value
