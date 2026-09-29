@@ -12,7 +12,9 @@ function getFullscreenElement () {
 function requestElFullscreen (el) {
   if (!el) return Promise.reject(new Error('no element'))
   if (typeof el.requestFullscreen === 'function') {
-    return el.requestFullscreen({ navigationUI: 'hide' }).catch(() => el.requestFullscreen())
+    return el.requestFullscreen({ navigationUI: 'hide' }).catch(() =>
+      el.requestFullscreen(),
+    )
   }
   if (typeof el.webkitRequestFullscreen === 'function') {
     return Promise.resolve(el.webkitRequestFullscreen())
@@ -37,22 +39,35 @@ function exitElFullscreen () {
   return Promise.resolve()
 }
 
+function isFullscreenApiSupported () {
+  const el = document.documentElement
+  return (
+    typeof el.requestFullscreen === 'function' ||
+    typeof el.webkitRequestFullscreen === 'function' ||
+    typeof el.msRequestFullscreen === 'function'
+  )
+}
+
 /**
  * Browser Fullscreen API for public display screens (Android Chrome / desktop).
- * Auto-try on mount; show tap-to-enter hint until fullscreen (or unsupported).
+ * Shows a tap-to-enter hint when not in fullscreen. Does NOT auto-enter on mount:
+ * SPA navigations often still carry a user gesture, which can silently enter
+ * fullscreen while the UI barely changes on Android TV / tablets.
  */
 export function useDisplayBrowserFullscreen () {
   const isFullscreen = ref(false)
   const supported = ref(true)
   const showHint = ref(false)
+  const syncTimers = []
 
   function syncState () {
-    isFullscreen.value = Boolean(getFullscreenElement())
-    if (isFullscreen.value) {
+    const fs = Boolean(getFullscreenElement())
+    isFullscreen.value = fs
+    if (!supported.value) {
       showHint.value = false
-    } else if (supported.value) {
-      showHint.value = true
+      return
     }
+    showHint.value = !fs
   }
 
   async function enterFullscreen () {
@@ -84,29 +99,28 @@ export function useDisplayBrowserFullscreen () {
     syncState()
   }
 
+  function scheduleResync () {
+    ;[0, 100, 400].forEach((ms) => {
+      syncTimers.push(window.setTimeout(syncState, ms))
+    })
+  }
+
   onMounted(() => {
-    const canRequest =
-      typeof document.documentElement.requestFullscreen === 'function' ||
-      typeof document.documentElement.webkitRequestFullscreen === 'function' ||
-      typeof document.documentElement.msRequestFullscreen === 'function'
-    supported.value = canRequest
+    supported.value = isFullscreenApiSupported()
     syncState()
-    if (supported.value && !isFullscreen.value) {
-      showHint.value = true
-      // May fail without gesture; hint covers Android/desktop then.
-      void enterFullscreen()
-    }
+    // Catch late fullscreenchange from a previous display page unmount.
+    scheduleResync()
 
     document.addEventListener('fullscreenchange', onFullscreenChange)
     document.addEventListener('webkitfullscreenchange', onFullscreenChange)
   })
 
   onUnmounted(() => {
+    syncTimers.forEach((id) => clearTimeout(id))
     document.removeEventListener('fullscreenchange', onFullscreenChange)
     document.removeEventListener('webkitfullscreenchange', onFullscreenChange)
-    if (getFullscreenElement()) {
-      void exitFullscreen()
-    }
+    // Keep fullscreen when switching between display routes; only the user
+    // (Esc / system UI) or a fresh non-display page should leave it.
   })
 
   return {
