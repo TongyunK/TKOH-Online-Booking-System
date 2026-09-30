@@ -40,60 +40,73 @@
         </div>
 
         <div class="schedule-body">
-          <div v-for="row in visibleScheduleRows" :key="row.id" class="schedule-row" :data-row-id="row.id">
-            <div class="room-col room-name">
-              <span class="room-name-text">{{ row.room }}</span>
-              <span class="room-indicator" :style="getArrowStyle(row.arrowDirection)" aria-hidden="true">➜</span>
-            </div>
-            <div class="slot-col">
-              <div class="meeting-carousel" :data-key="`${row.id}-am`">
-                <div class="meeting-track" :style="getMeetingTrackStyle(row.id, 'am')">
-                  <div
-                    v-for="item in row.am"
-                    :key="item.id"
-                    class="meeting-item"
-                    :data-item-id="String(item.id)"
-                  >
-                    <span class="meeting-time">{{ item.time }}</span>
-                    <span class="meeting-title-wrap">
-                      <span class="meeting-title">{{ item.title }}</span>
-                      <span
-                        v-if="getMeetingEllipsisStyle(row.id, 'am', item.id)"
-                        class="meeting-title-ellipsis"
-                        :style="getMeetingEllipsisStyle(row.id, 'am', item.id)"
-                        aria-hidden="true"
-                      >...</span>
-                    </span>
+          <template v-for="(row, index) in visibleScheduleRows" :key="row.id">
+            <!-- 真实 DOM 分隔线：伪元素 + transform:scale 在部分 Android WebView 上整条不绘制 -->
+            <div
+              v-if="index === 0"
+              class="schedule-divider"
+              aria-hidden="true"
+            ></div>
+            <div class="schedule-row" :data-row-id="row.id">
+              <div class="room-col room-name">
+                <span class="room-name-text">{{ row.room }}</span>
+                <span class="room-indicator" :style="getArrowStyle(row.arrowDirection)" aria-hidden="true">➜</span>
+              </div>
+              <div class="slot-col">
+                <div class="meeting-carousel" :data-key="`${row.id}-am`">
+                  <div class="meeting-track" :style="getMeetingTrackStyle(row.id, 'am')">
+                    <div
+                      v-for="item in row.am"
+                      :key="item.id"
+                      class="meeting-item"
+                      :data-item-id="String(item.id)"
+                    >
+                      <span class="meeting-time">{{ item.time }}</span>
+                      <span class="meeting-title-wrap">
+                        <span class="meeting-title">{{ item.title }}</span>
+                        <span
+                          v-if="getMeetingEllipsisStyle(row.id, 'am', item.id)"
+                          class="meeting-title-ellipsis"
+                          :style="getMeetingEllipsisStyle(row.id, 'am', item.id)"
+                          aria-hidden="true"
+                        >...</span>
+                      </span>
+                    </div>
                   </div>
+                  <div v-if="row.am.length === 0" class="meeting-placeholder">-</div>
                 </div>
-                <div v-if="row.am.length === 0" class="meeting-placeholder">-</div>
+              </div>
+              <div class="slot-col pm-col">
+                <div class="meeting-carousel" :data-key="`${row.id}-pm`">
+                  <div class="meeting-track" :style="getMeetingTrackStyle(row.id, 'pm')">
+                    <div
+                      v-for="item in row.pm"
+                      :key="item.id"
+                      class="meeting-item"
+                      :data-item-id="String(item.id)"
+                    >
+                      <span class="meeting-time">{{ item.time }}</span>
+                      <span class="meeting-title-wrap">
+                        <span class="meeting-title">{{ item.title }}</span>
+                        <span
+                          v-if="getMeetingEllipsisStyle(row.id, 'pm', item.id)"
+                          class="meeting-title-ellipsis"
+                          :style="getMeetingEllipsisStyle(row.id, 'pm', item.id)"
+                          aria-hidden="true"
+                        >...</span>
+                      </span>
+                    </div>
+                  </div>
+                  <div v-if="row.pm.length === 0" class="meeting-placeholder">-</div>
+                </div>
               </div>
             </div>
-            <div class="slot-col pm-col">
-              <div class="meeting-carousel" :data-key="`${row.id}-pm`">
-                <div class="meeting-track" :style="getMeetingTrackStyle(row.id, 'pm')">
-                  <div
-                    v-for="item in row.pm"
-                    :key="item.id"
-                    class="meeting-item"
-                    :data-item-id="String(item.id)"
-                  >
-                    <span class="meeting-time">{{ item.time }}</span>
-                    <span class="meeting-title-wrap">
-                      <span class="meeting-title">{{ item.title }}</span>
-                      <span
-                        v-if="getMeetingEllipsisStyle(row.id, 'pm', item.id)"
-                        class="meeting-title-ellipsis"
-                        :style="getMeetingEllipsisStyle(row.id, 'pm', item.id)"
-                        aria-hidden="true"
-                      >...</span>
-                    </span>
-                  </div>
-                </div>
-                <div v-if="row.pm.length === 0" class="meeting-placeholder">-</div>
-              </div>
-            </div>
-          </div>
+            <div
+              v-if="index < visibleScheduleRows.length - 1"
+              class="schedule-divider"
+              aria-hidden="true"
+            ></div>
+          </template>
         </div>
       </div>
 
@@ -805,10 +818,18 @@ html.merge-display-fullscreen #app {
   flex: 1 1 0;
   min-height: 96px;
   font-size: 38px;
-  /* 勿用 overflow:hidden：会裁掉 bottom/top 贴边的分隔线；
-     Android + transform:scale 时亚像素取整后整条线常直接消失。
-     会议内容裁切交给 .slot-col / .meeting-carousel。 */
   overflow: visible;
+}
+
+/* 占流式高度，不用 absolute/伪元素，避免 Android + scale 亚像素整条消失 */
+.schedule-divider {
+  flex: 0 0 auto;
+  height: 0;
+  margin-left: calc(310px + 20px);
+  border-top: 5px solid #ffffff;
+  box-sizing: border-box;
+  pointer-events: none;
+  transform: translateZ(0);
 }
 
 .room-name {
@@ -853,35 +874,6 @@ html.merge-display-fullscreen #app {
   min-height: 0;
   overflow: hidden;
   color: rgb(255, 212, 91);
-}
-
-.schedule-row::after {
-  content: '';
-  position: absolute;
-  left: calc(310px + 20px);
-  right: 0;
-  /* 略抬离底边，避免 scale 后仍被邻行/容器边界吃掉 */
-  bottom: 1px;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.9);
-  pointer-events: none;
-  z-index: 1;
-}
-
-.schedule-row:first-child::before {
-  content: '';
-  position: absolute;
-  left: calc(310px + 20px);
-  right: 0;
-  top: 1px;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.9);
-  pointer-events: none;
-  z-index: 1;
-}
-
-.schedule-row:last-child::after {
-  display: none;
 }
 
 .meeting-carousel {
