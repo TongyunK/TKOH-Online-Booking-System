@@ -3,8 +3,16 @@
   <div ref="displayViewport" class="merge-display-viewport">
     <div ref="displayRoot" class="merge-display-root">
       <div class="top-date-bar">
-        <span>{{ currentDate }}</span>
-        <span class="weekday-zh">{{ currentWeekdayZh }}</span>
+        <!-- 与下方 time-line 同列居中，日期左缘对齐大时钟左缘 -->
+        <div class="top-date-align">
+          <div class="top-date-cluster">
+            <span class="top-date-time-ghost" aria-hidden="true">{{ currentTime }}</span>
+            <div class="top-date-text">
+              <span>{{ currentDate }}</span>
+              <span class="weekday-zh">{{ currentWeekdayZh }}</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="main-panel">
@@ -618,14 +626,53 @@ html.merge-display-fullscreen #app {
   background: rgb(237, 125, 49);
   color: #ffffff;
   font-weight: 700;
+  /* 与 .main-panel 水平 padding 一致，便于与左侧时钟列对齐 */
   padding: 0 24px;
   font-size: 48px;
   display: flex;
   align-items: center;
-  gap: 14px;
   flex-shrink: 0;
   box-sizing: border-box;
   line-height: 1;
+}
+
+/* 宽度 = 左侧时钟列；内容居中，与 .time-line 同一水平起点 */
+.top-date-align {
+  width: 310px;
+  display: flex;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+/* 簇宽度由隐形时钟决定，日期绝对贴左 → 与 17:20 左缘对齐 */
+.top-date-cluster {
+  position: relative;
+  width: fit-content;
+}
+
+.top-date-time-ghost {
+  display: block;
+  visibility: hidden;
+  height: 0;
+  overflow: hidden;
+  font-size: 102px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.top-date-text {
+  position: absolute;
+  /* 相对时钟左缘再略右移一点 */
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  white-space: nowrap;
 }
 
 .weekday-zh {
@@ -758,7 +805,10 @@ html.merge-display-fullscreen #app {
   flex: 1 1 0;
   min-height: 96px;
   font-size: 38px;
-  overflow: hidden;
+  /* 勿用 overflow:hidden：会裁掉 bottom/top 贴边的分隔线；
+     Android + transform:scale 时亚像素取整后整条线常直接消失。
+     会议内容裁切交给 .slot-col / .meeting-carousel。 */
+  overflow: visible;
 }
 
 .room-name {
@@ -788,7 +838,7 @@ html.merge-display-fullscreen #app {
   width: 68px;
   height: 68px;
   border-radius: 999px;
-  background: rgb(255, 212, 91);
+  background: rgb(237, 125, 49);
   color: #ffffff;
   font-size: 58px;
   font-weight: 900;
@@ -810,9 +860,12 @@ html.merge-display-fullscreen #app {
   position: absolute;
   left: calc(310px + 20px);
   right: 0;
-  bottom: 0;
-  height: 3px;
-  background: rgba(255, 255, 255, 0.55);
+  /* 略抬离底边，避免 scale 后仍被邻行/容器边界吃掉 */
+  bottom: 1px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.9);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .schedule-row:first-child::before {
@@ -820,9 +873,11 @@ html.merge-display-fullscreen #app {
   position: absolute;
   left: calc(310px + 20px);
   right: 0;
-  top: 0;
-  height: 3px;
-  background: rgba(255, 255, 255, 0.55);
+  top: 1px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.9);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .schedule-row:last-child::after {

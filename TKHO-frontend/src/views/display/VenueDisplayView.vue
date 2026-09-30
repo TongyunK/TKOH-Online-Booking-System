@@ -42,14 +42,26 @@
         </div>
       </div>
 
-      <!-- Footer -->
-      <div class="display-footer">
-        <div class="venue-info-row">
+      <!-- Footer：英文/中文分行，各自 nowrap + 字号自适应 -->
+      <div
+        ref="displayFooterRef"
+        class="display-footer"
+        :style="footerLayoutStyle"
+      >
+        <div
+          v-if="venueName || venueLocation"
+          ref="footerEnRowRef"
+          class="venue-info-row venue-info-row-en"
+        >
           <span v-if="venueName" class="venue-name">{{ venueName }}</span>
           <span v-if="venueName && venueLocation" class="separator">|</span>
           <span v-if="venueLocation" class="venue-location">{{ venueLocation }}</span>
         </div>
-        <div v-if="venueNameZh || venueLocationZh" class="venue-info-row">
+        <div
+          v-if="venueNameZh || venueLocationZh"
+          ref="footerZhRowRef"
+          class="venue-info-row venue-info-row-zh"
+        >
           <span v-if="venueNameZh" class="venue-name-zh">{{ venueNameZh }}</span>
           <span v-if="venueNameZh && venueLocationZh" class="separator">|</span>
           <span v-if="venueLocationZh" class="venue-location-zh">{{ venueLocationZh }}</span>
@@ -113,15 +125,22 @@ const qrCodeImage = ref('')
 
 const allTodayEvents = ref([])
 const eventsListRef = ref(null)
+const displayFooterRef = ref(null)
+const footerEnRowRef = ref(null)
+const footerZhRowRef = ref(null)
 /** 当前进行中的会议 key；仅在成员变化时替换，避免每分钟整表重绘 */
 const activeEventKeys = ref(new Set())
 /** 活动区字号/间距缩放系数，保证列表不滚动完整显示 */
 const layoutScale = ref(1)
+/** footer 英文行 / 中文行各自缩放，互不影响 */
+const footerEnScale = ref(1)
+const footerZhScale = ref(1)
 /** 日常典型活动数量：少于此数时按此格数均分高度，避免单场活动卡片过高 */
 const TYPICAL_DAY_EVENT_COUNT = 4
 let lastClockTime = ''
 let activeEventKeysSig = ''
 let fitLayoutTimer = null
+let fitFooterTimer = null
 
 const contentLayoutStyle = computed(() => {
   const count = sortedTodayEvents.value.length
@@ -130,6 +149,11 @@ const contentLayoutStyle = computed(() => {
     '--event-slot-count': String(Math.max(count, TYPICAL_DAY_EVENT_COUNT) || TYPICAL_DAY_EVENT_COUNT)
   }
 })
+
+const footerLayoutStyle = computed(() => ({
+  '--footer-en-scale': String(footerEnScale.value),
+  '--footer-zh-scale': String(footerZhScale.value)
+}))
 
 function parseHmToMinutes (hm) {
   const m = String(hm || '').match(/^(\d{1,2}):(\d{2})$/)
@@ -263,10 +287,91 @@ function scheduleFitEventsLayout () {
   }, 40)
 }
 
+function rowOverflows (rowEl) {
+  if (!rowEl) return false
+  // 行宽 100% 约束后，nowrap 内容超出即 scrollWidth > clientWidth
+  return rowEl.scrollWidth > rowEl.clientWidth + 1
+}
+
+async function binarySearchRowScale (setScale, overflows, lo, hi) {
+  let low = lo
+  let high = hi
+  for (let i = 0; i < 12; i++) {
+    const mid = (low + high) / 2
+    setScale(mid)
+    await nextTick()
+    await waitPaint()
+    if (overflows()) {
+      high = mid
+    } else {
+      low = mid
+    }
+  }
+  return Math.max(0.35, Math.floor(low * 1000) / 1000)
+}
+
+async function fitOneFooterRow (rowEl, scaleRef) {
+  if (!rowEl || rowEl.clientWidth <= 0) {
+    if (scaleRef.value !== 1) scaleRef.value = 1
+    return
+  }
+
+  const overflows = () => rowOverflows(rowEl)
+  const current = scaleRef.value
+
+  if (overflows()) {
+    scaleRef.value = await binarySearchRowScale(
+      (v) => { scaleRef.value = v },
+      overflows,
+      0.35,
+      Math.max(current, 0.35)
+    )
+    return
+  }
+
+  if (current >= 0.999) {
+    scaleRef.value = 1
+    return
+  }
+
+  scaleRef.value = await binarySearchRowScale(
+    (v) => { scaleRef.value = v },
+    overflows,
+    current,
+    1
+  )
+}
+
+async function fitFooterLayout () {
+  await nextTick()
+  await waitPaint()
+
+  const footerEl = displayFooterRef.value
+  if (!footerEl || footerEl.clientWidth <= 0) return
+
+  await fitOneFooterRow(footerEnRowRef.value, footerEnScale)
+  await fitOneFooterRow(footerZhRowRef.value, footerZhScale)
+}
+
+function scheduleFitFooterLayout () {
+  if (fitFooterTimer) clearTimeout(fitFooterTimer)
+  fitFooterTimer = setTimeout(() => {
+    fitFooterTimer = null
+    void fitFooterLayout()
+  }, 40)
+}
+
 watch(sortedTodayEvents, () => {
   syncActiveEventKeys()
   scheduleFitEventsLayout()
 })
+
+watch(
+  [venueName, venueNameZh, venueLocation, venueLocationZh],
+  () => {
+    scheduleFitFooterLayout()
+  }
+)
 
 function applyPanelTitleFooter (panelTitleText) {
   const lines = String(panelTitleText || '').split('\n').map(s => s.trim()).filter(Boolean)
@@ -392,6 +497,7 @@ function adaptFullscreen () {
   root.style.left = `${offsetX}px`
   root.style.top = `${offsetY}px`
 
+  scheduleFitFooterLayout()
   scheduleFitEventsLayout()
 }
 
@@ -426,6 +532,7 @@ onUnmounted(() => {
   document.documentElement.classList.remove('venue-display-fullscreen')
   dataPoll.stop()
   if (fitLayoutTimer) clearTimeout(fitLayoutTimer)
+  if (fitFooterTimer) clearTimeout(fitFooterTimer)
   document.removeEventListener('visibilitychange', onDocumentVisibilityChange)
   window.removeEventListener('resize', adaptFullscreen)
   window.visualViewport?.removeEventListener('resize', adaptFullscreen)
@@ -659,6 +766,8 @@ html.venue-display-fullscreen #app {
   background: rgb(240, 240, 240);
   text-align: left;
   flex-shrink: 0;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .venue-info-row {
@@ -667,6 +776,10 @@ html.venue-display-fullscreen #app {
   color: #111111;
   margin-bottom: 8px;
   line-height: 1.15;
+  width: 100%;
+  min-width: 0;
+  white-space: nowrap;
+  box-sizing: border-box;
 }
 
 .venue-info-row:last-child {
@@ -675,25 +788,27 @@ html.venue-display-fullscreen #app {
 
 .venue-name,
 .venue-location {
-  font-size: 56px;
+  font-size: calc(52px * var(--footer-en-scale, 1));
   font-weight: 700;
   letter-spacing: 0.5px;
 }
 
 .venue-name-zh,
 .venue-location-zh {
-  font-size: 56px;
+  font-size: calc(48px * var(--footer-zh-scale, 1));
   font-weight: 600;
   letter-spacing: 0.5px;
 }
 
-.separator {
-  margin: 0 16px;
-  font-size: 52px;
+.venue-info-row-en .separator {
+  margin: 0 calc(16px * var(--footer-en-scale, 1));
+  font-size: calc(48px * var(--footer-en-scale, 1));
   font-weight: 700;
 }
 
-.venue-info-row:last-child .separator {
-  font-size: 48px;
+.venue-info-row-zh .separator {
+  margin: 0 calc(14px * var(--footer-zh-scale, 1));
+  font-size: calc(44px * var(--footer-zh-scale, 1));
+  font-weight: 700;
 }
 </style>
