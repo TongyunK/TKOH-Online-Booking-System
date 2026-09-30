@@ -90,14 +90,23 @@ onUnmounted(() => {
 }
 
 .date {
-  font-size: 44px;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 52px;
   font-weight: 700;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.2px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .time {
-  font-size: 44px;
+  flex: 0 0 auto;
+  font-size: 52px;
   font-weight: 700;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 </style>

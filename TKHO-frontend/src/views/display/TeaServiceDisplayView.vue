@@ -513,7 +513,7 @@ html.tea-display-fullscreen #app {
   flex-direction: column;
   overflow: hidden;
   font-family: var(--display-font-family);
-  font-size: calc(23px * var(--ui-scale, 1));
+  font-size: calc(24.5px * var(--ui-scale, 1));
   user-select: none;
   -webkit-user-select: none;
   touch-action: none;
@@ -726,6 +726,7 @@ html.tea-display-fullscreen #app {
 
 .entry-time {
   white-space: nowrap;
+  font-size: 1.42rem;
   font-weight: 600;
   color: rgb(255, 212, 91);
   line-height: 1.2;
@@ -736,6 +737,7 @@ html.tea-display-fullscreen #app {
   justify-self: start;
   text-align: left;
   overflow-wrap: anywhere;
+  font-size: 1.42rem;
   font-weight: 600;
   line-height: 1.2;
 }

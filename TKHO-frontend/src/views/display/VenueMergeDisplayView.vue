@@ -12,15 +12,15 @@
           class="panel-qr"
           :src="qrCodeImage"
           alt=""
-          width="108"
-          height="108"
+          width="110"
+          height="110"
           decoding="async"
         />
         <div class="panel-top-row">
           <div class="time-line">{{ currentTime }}</div>
           <div class="panel-header">
             <div class="panel-title-wrap">
-              <div class="panel-title-line">{{ panelTitleText }}</div>
+              <div class="panel-title-line" v-html="panelTitleHtml"></div>
             </div>
           </div>
         </div>
@@ -142,6 +142,22 @@ const panelTitleText = ref(defaultPanelTitleText)
 const defaultTicker = '請在會議期間佩戴外科口罩並保持安靜。For enquiries regarding Conference Rooms, please contact General Office.'
 const tickerText = ref(defaultTicker)
 
+function escapeHtml (value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+/** 与参考大屏一致：英文行 Conference / Room 首字母高亮 */
+const panelTitleHtml = computed(() => {
+  return escapeHtml(panelTitleText.value || '')
+    .replace(/\n/g, '<br>')
+    .replace(/\bConference\b/g, '<span class="title-accent">C</span>onference')
+    .replace(/\bRoom\b/g, '<span class="title-accent">R</span>oom')
+})
+
 const scheduleRows = ref([])
 let lastDisplayYmd = ''
 const VENUE_PAGE_SIZE = 3
@@ -251,7 +267,7 @@ function getMeetingEllipsisStyle (rowId, period, itemId) {
   return { top: `${info.topPx}px` }
 }
 
-function readLineHeightPx (el, fallback = 40) {
+function readLineHeightPx (el, fallback = 48) {
   if (!el) return fallback
   const raw = window.getComputedStyle(el).lineHeight
   const parsed = Number.parseFloat(raw)
@@ -595,20 +611,21 @@ html.merge-display-fullscreen #app {
   touch-action: manipulation;
 }
 
-/* 顶栏 / 底栏等高，样式保持橙底白字 */
+/* 顶栏 / 底栏保持原高度占比；字号按图2层级 */
 .top-date-bar {
   height: 72px;
   min-height: 72px;
   background: rgb(237, 125, 49);
   color: #ffffff;
   font-weight: 700;
-  padding: 0 18px;
-  font-size: 36px;
+  padding: 0 24px;
+  font-size: 48px;
   display: flex;
   align-items: center;
   gap: 14px;
   flex-shrink: 0;
   box-sizing: border-box;
+  line-height: 1;
 }
 
 .weekday-zh {
@@ -621,7 +638,7 @@ html.merge-display-fullscreen #app {
   min-height: 0;
   background: rgb(0, 32, 96);
   /* 底部留白用同色 padding，避免与底栏之间出现异色缝 */
-  padding: 18px 18px 20px;
+  padding: 16px 24px 12px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -630,11 +647,11 @@ html.merge-display-fullscreen #app {
 
 .panel-qr {
   position: absolute;
-  top: 18px;
-  right: 18px;
+  top: 16px;
+  right: 24px;
   z-index: 2;
-  width: 108px;
-  height: 108px;
+  width: 110px;
+  height: 110px;
   box-sizing: border-box;
   object-fit: contain;
   background: #fff;
@@ -644,21 +661,24 @@ html.merge-display-fullscreen #app {
 }
 
 .panel-top-row {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  gap: 36px;
+  /* 与日程表同一套三列，保证右侧标题与 AM 左对齐 */
+  display: grid;
+  grid-template-columns: minmax(0, 310px) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0;
+  align-items: stretch;
   margin-bottom: 0;
   min-width: 0;
-  padding-right: 140px;
 }
 
 .panel-header {
-  flex: 1;
+  grid-column: 2 / -1;
   min-width: 0;
   display: flex;
   align-items: center;
+  align-self: stretch;
+  /* 为右上角二维码留空，避免标题压到码上 */
+  padding-right: 140px;
+  box-sizing: border-box;
 }
 
 .panel-title-wrap {
@@ -668,32 +688,45 @@ html.merge-display-fullscreen #app {
 }
 
 .panel-title-line {
-  font-size: 48px;
+  font-size: 50px;
   font-weight: 700;
-  line-height: 1.2;
-  white-space: pre-line;
+  line-height: 1.22;
+  white-space: normal;
+  color: #ffffff;
+}
+
+.panel-title-line :deep(.title-accent) {
+  color: rgb(237, 125, 49);
 }
 
 .time-line {
-  flex-shrink: 0;
-  font-size: 78px;
+  min-width: 0;
+  font-size: 102px;
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0.02em;
   color: rgb(255, 212, 91);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  box-sizing: border-box;
 }
 
 .schedule-header,
 .schedule-row {
   display: grid;
-  grid-template-columns: minmax(0, 234px) minmax(0, 1fr) minmax(0, 1fr);
-  gap: 2px;
+  grid-template-columns: minmax(0, 310px) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0;
   align-items: stretch;
 }
 
 .pm-col {
-  padding-left: 28px;
+  padding-left: 48px;
 }
 
 .schedule-header .slot-col,
@@ -707,8 +740,8 @@ html.merge-display-fullscreen #app {
   flex-shrink: 0;
   font-size: 54px;
   font-weight: 700;
-  margin-top: 28px;
-  margin-bottom: 10px;
+  margin-top: 80px;
+  margin-bottom: 20px;
 }
 
 .schedule-body {
@@ -723,18 +756,24 @@ html.merge-display-fullscreen #app {
 .schedule-row {
   position: relative;
   flex: 1 1 0;
-  min-height: 72px;
-  font-size: 34px;
+  min-height: 96px;
+  font-size: 38px;
   overflow: hidden;
 }
 
 .room-name {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  font-size: 66px;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  font-size: 84px;
   font-weight: 700;
-  padding-top: 8px;
+  /* 与右侧会议第一行顶对齐（对应 .meeting-track padding-top） */
+  padding-top: 10px;
+  align-self: flex-start;
+  width: 100%;
+  height: auto;
+  box-sizing: border-box;
 }
 
 .room-name-text {
@@ -746,10 +785,10 @@ html.merge-display-fullscreen #app {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 66px;
-  height: 66px;
+  width: 68px;
+  height: 68px;
   border-radius: 999px;
-  background: rgb(237, 125, 49);
+  background: rgb(255, 212, 91);
   color: #ffffff;
   font-size: 58px;
   font-weight: 900;
@@ -769,21 +808,21 @@ html.merge-display-fullscreen #app {
 .schedule-row::after {
   content: '';
   position: absolute;
-  left: calc(234px + 16px);
+  left: calc(310px + 20px);
   right: 0;
   bottom: 0;
-  height: 1px;
-  background: rgba(255, 255, 255, 0.35);
+  height: 3px;
+  background: rgba(255, 255, 255, 0.55);
 }
 
 .schedule-row:first-child::before {
   content: '';
   position: absolute;
-  left: calc(234px + 16px);
+  left: calc(310px + 20px);
   right: 0;
   top: 0;
-  height: 1px;
-  background: rgba(255, 255, 255, 0.35);
+  height: 3px;
+  background: rgba(255, 255, 255, 0.55);
 }
 
 .schedule-row:last-child::after {
@@ -803,35 +842,42 @@ html.merge-display-fullscreen #app {
   flex-direction: column;
   justify-content: flex-start;
   align-items: flex-start;
-  gap: 18px;
+  gap: 12px;
   width: 100%;
-  padding-top: 8px;
+  padding-top: 10px;
   transition: transform 450ms ease;
 }
 
 .meeting-item {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  column-gap: 32px;
+  display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
+  column-gap: 18px;
+  row-gap: 4px;
   width: 100%;
-  line-height: 1.2;
+  line-height: 1.25;
+  font-size: 38px;
 }
 
 .meeting-time {
+  flex: 0 0 auto;
   white-space: nowrap;
+  color: rgb(255, 212, 91);
+  font-weight: 700;
 }
 
 .meeting-title-wrap {
   position: relative;
+  flex: 1 1 160px;
   min-width: 0;
-  width: 100%;
 }
 
 .meeting-title {
   min-width: 0;
   overflow-wrap: break-word;
   word-break: break-word;
+  color: rgb(255, 212, 91);
+  font-weight: 600;
 }
 
 /* 落在被裁切预订「当前页最后一行」行末，不另起一行、不遮挡其它记录 */
@@ -842,7 +888,7 @@ html.merge-display-fullscreen #app {
   padding-left: 6px;
   font-weight: 700;
   letter-spacing: 0.04em;
-  line-height: 1.2;
+  line-height: 1.25;
   color: rgb(255, 212, 91);
   background: rgb(0, 32, 96);
   pointer-events: none;
@@ -850,7 +896,9 @@ html.merge-display-fullscreen #app {
 
 .meeting-placeholder {
   opacity: 0.9;
-  padding-top: 8px;
+  padding-top: 10px;
+  color: rgb(255, 212, 91);
+  font-size: 38px;
 }
 
 .footer-ticker {
@@ -860,13 +908,14 @@ html.merge-display-fullscreen #app {
   background: rgb(237, 125, 49);
   color: rgb(0, 32, 96);
   overflow: hidden;
-  font-size: 28px;
-  font-weight: 600;
-  padding: 0 18px;
+  font-size: 48px;
+  font-weight: 700;
+  padding: 0 24px;
   display: flex;
   align-items: center;
   flex-shrink: 0;
   box-sizing: border-box;
+  line-height: 1;
 }
 
 .ticker-track {

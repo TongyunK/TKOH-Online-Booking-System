@@ -8,25 +8,25 @@
         </div>
 
         <div class="main-board">
-          <div class="board-header">
-            <div class="board-title-line">
-              <span class="board-title-en">Today's Reservation</span>
-              <span class="board-title-zh">今日預約車牌</span>
-            </div>
-            <div class="board-subtitle-line">
-              <span class="board-subtitle-en">EV Charging Station</span>
-              <span class="board-subtitle-zh">電動車叉電位</span>
-            </div>
-          </div>
-
           <div class="board-content" :style="boardContentStyle">
+            <div class="board-header">
+              <div class="board-title-line">
+                <span class="board-title-en">Today's Reservation</span>
+                <span class="board-title-zh">今日預約車牌</span>
+              </div>
+              <div class="board-subtitle-line">
+                <span class="board-subtitle-en">EV Charging Station</span>
+                <span class="board-subtitle-zh">電動車叉電位</span>
+              </div>
+            </div>
+
             <div class="current-time">{{ currentTimeLabel }}</div>
 
             <div
               v-for="(period, index) in timePeriods"
               :key="period.period"
               class="period-card"
-              :style="{ gridRow: index + 2 }"
+              :style="{ gridRow: index + 3 }"
             >
               <div class="period-label-line">
                 <span class="period-name">{{ period.period }}</span>
@@ -128,7 +128,8 @@ const boardRowCount = computed(() => Math.max(timePeriods.value.length, 1) + 1)
 const boardContentStyle = computed(() => ({
   '--space-count': String(Math.max(spaces.value.length, 1)),
   '--board-rows': String(boardRowCount.value),
-  gridTemplateRows: `repeat(${boardRowCount.value}, minmax(0, 1fr))`
+  /* 首行给右侧标题，其后为时间/车位表头 + 各时段行 */
+  gridTemplateRows: `auto repeat(${boardRowCount.value}, minmax(0, 1fr))`
 }))
 
 function normalizeParkingSlots (rows) {
@@ -404,9 +405,9 @@ html.ev-display-fullscreen #app {
   min-height: 88px;
   background: #8fce4c;
   padding: 0 24px;
-  font-size: 40px;
+  font-size: 52px;
   line-height: 1;
-  font-weight: 600;
+  font-weight: 700;
   color: #f3ffe2;
   display: flex;
   align-items: center;
@@ -425,22 +426,26 @@ html.ev-display-fullscreen #app {
   flex: 1;
   min-height: 0;
   display: grid;
-  /* 标题区 / 表格 / 底栏；间距用各块 margin 分开控制（红区小、蓝区大） */
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  /* 主表（含右侧居中标题） / 底栏 */
+  grid-template-rows: minmax(0, 1fr) auto;
   background: #08b145;
   padding: 0 24px;
   box-sizing: border-box;
 }
 
 .board-header {
+  grid-column: 2;
+  grid-row: 1;
   min-height: 0;
-  height: 148px;
+  height: auto;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 8px;
-  padding-block: 8px 4px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0 20px;
   box-sizing: border-box;
+  text-align: center;
 }
 
 .board-title-line,
@@ -451,6 +456,7 @@ html.ev-display-fullscreen #app {
   flex-wrap: wrap;
   gap: 18px;
   text-align: center;
+  width: 100%;
 }
 
 .board-title-en {
@@ -476,17 +482,16 @@ html.ev-display-fullscreen #app {
 .board-content {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
-  grid-template-rows: repeat(var(--board-rows, 4), minmax(0, 1fr));
   column-gap: 4px;
   min-height: 0;
   align-items: stretch;
-  /* 红区：标题与表格更贴 */
-  margin-top: 0;
+  margin-top: 12px;
+  margin-bottom: 12px;
 }
 
 .current-time {
   grid-column: 1;
-  grid-row: 1;
+  grid-row: 2;
   font-size: 112px;
   color: #ffd84f;
   font-weight: 700;
@@ -542,11 +547,11 @@ html.ev-display-fullscreen #app {
 
 .right-grid-panel {
   grid-column: 2;
-  grid-row: 1 / -1;
+  grid-row: 2 / -1;
   display: grid;
   grid-template-rows: subgrid;
   border: 6px solid #9ccf62;
-  border-radius: 72px;
+  border-radius: 120px;
   padding: 8px 20px;
   min-height: 0;
   box-sizing: border-box;
@@ -589,14 +594,14 @@ html.ev-display-fullscreen #app {
 }
 
 .space-name {
-  font-size: 104px;
+  font-size: 112px;
   line-height: 1;
   font-weight: 700;
 }
 
 .space-icon {
-  width: 96px;
-  height: 96px;
+  width: 108px;
+  height: 108px;
   object-fit: contain;
   flex: 0 0 auto;
 }
@@ -609,25 +614,35 @@ html.ev-display-fullscreen #app {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-inline: 2px;
+  padding-inline: 4px;
   box-sizing: border-box;
   color: #ffff00;
-  /* 抬高上限，吃掉格子内留白；仍受列宽/行高约束防裁切 */
-  font-size: min(
-    80px,
-    calc(
-      (
-        100cqw
-        - 16px * (var(--space-count, 3) - 1)
-        - 24px
-      )
-      / var(--space-count, 3)
-      / 5.5
-    ),
-    62cqh
-  );
+  /*
+   * 先给固定回退字号：部分大屏 WebView 不支持 cqw/cqh 时，
+   * 原先 min(80px, 100cqw…) 整段失效，会落到极小的继承字号。
+   */
+  font-size: 100px;
   font-weight: 800;
   line-height: 1;
+}
+
+@supports (width: 1cqw) {
+  .plate-cell {
+    /* 列宽/行高自适应；上限抬高，避免相对 B1/B2 标题过小 */
+    font-size: min(
+      140px,
+      calc(
+        (
+          100cqw
+          - 16px * (var(--space-count, 3) - 1)
+          - 24px
+        )
+        / var(--space-count, 3)
+        / 4.8
+      ),
+      72cqh
+    );
+  }
 }
 
 .plate-text {
@@ -643,13 +658,13 @@ html.ev-display-fullscreen #app {
 }
 
 .ev-footer-ticker {
-  /* 与顶部日期栏等高；上边距拉开与表格的间距 */
+  /* 与顶部日期栏等高；上边距略收，配合上方把间距让给标题与方框 */
   height: 88px;
   min-height: 88px;
-  margin: 28px -24px 0;
+  margin: 16px -24px 0;
   background: #8fce4c;
   color: #111111;
-  font-size: 40px;
+  font-size: 52px;
   line-height: 1.2;
   font-weight: 700;
   overflow: hidden;

@@ -117,13 +117,19 @@ const eventsListRef = ref(null)
 const activeEventKeys = ref(new Set())
 /** 活动区字号/间距缩放系数，保证列表不滚动完整显示 */
 const layoutScale = ref(1)
+/** 日常典型活动数量：少于此数时按此格数均分高度，避免单场活动卡片过高 */
+const TYPICAL_DAY_EVENT_COUNT = 4
 let lastClockTime = ''
 let activeEventKeysSig = ''
 let fitLayoutTimer = null
 
-const contentLayoutStyle = computed(() => ({
-  '--layout-scale': String(layoutScale.value)
-}))
+const contentLayoutStyle = computed(() => {
+  const count = sortedTodayEvents.value.length
+  return {
+    '--layout-scale': String(layoutScale.value),
+    '--event-slot-count': String(Math.max(count, TYPICAL_DAY_EVENT_COUNT) || TYPICAL_DAY_EVENT_COUNT)
+  }
+})
 
 function parseHmToMinutes (hm) {
   const m = String(hm || '').match(/^(\d{1,2}):(\d{2})$/)
@@ -183,7 +189,13 @@ function waitPaint () {
 }
 
 function listOverflows (listEl) {
-  return listEl.scrollHeight > listEl.clientHeight + 1
+  if (listEl.scrollHeight > listEl.clientHeight + 1) return true
+  // 卡片均分高度后，也可能在卡内裁切内容，需一并检测
+  const cards = listEl.querySelectorAll('.event-card')
+  for (const card of cards) {
+    if (card.scrollHeight > card.clientHeight + 1) return true
+  }
+  return false
 }
 
 function getEventsSignature (events) {
@@ -494,11 +506,13 @@ html.venue-display-fullscreen #app {
 .display-header {
   flex-shrink: 0;
   z-index: 1;
-  padding: 24px 28px;
+  padding: 28px 36px 20px;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 20px;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .header-qr {
@@ -525,11 +539,12 @@ html.venue-display-fullscreen #app {
 .events-section-title {
   flex-shrink: 0;
   text-align: center;
-  font-size: calc(48px * var(--layout-scale, 1));
+  font-size: calc(64px * var(--layout-scale, 1));
   font-weight: 700;
   color: #111111;
   letter-spacing: 0.04em;
-  margin: calc(36px * var(--layout-scale, 1)) 0 calc(28px * var(--layout-scale, 1));
+  /* 下边距：标题与活动列表之间的行间距 */
+  margin: calc(36px * var(--layout-scale, 1)) 0 calc(72px * var(--layout-scale, 1));
 }
 
 .events-list {
@@ -537,20 +552,24 @@ html.venue-display-fullscreen #app {
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  /* 按典型 4 场（或实际更多场次）均分高度，少于此数时底部留白 */
+  grid-template-rows: repeat(var(--event-slot-count, 4), minmax(0, 1fr));
   gap: calc(24px * var(--layout-scale, 1));
   padding: 0 6px;
+  box-sizing: border-box;
 }
 
 .event-card {
   width: 100%;
   box-sizing: border-box;
   padding: calc(28px * var(--layout-scale, 1)) calc(32px * var(--layout-scale, 1));
-  flex-shrink: 0;
+  min-height: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  justify-content: center;
   text-align: left;
   border-radius: 10px;
   /* 比页面底色更深一档的橙色块 */
@@ -563,17 +582,17 @@ html.venue-display-fullscreen #app {
 
 .event-topic {
   width: 100%;
-  font-size: calc(52px * var(--layout-scale, 1));
+  font-size: calc(72px * var(--layout-scale, 1));
   font-weight: 700;
   color: #111111;
   line-height: 1.25;
-  margin-bottom: calc(14px * var(--layout-scale, 1));
+  margin-bottom: calc(18px * var(--layout-scale, 1));
   word-break: break-word;
 }
 
 .event-time {
   width: 100%;
-  font-size: calc(48px * var(--layout-scale, 1));
+  font-size: calc(66px * var(--layout-scale, 1));
   font-weight: 500;
   color: #111111;
   letter-spacing: 0.02em;
@@ -590,7 +609,7 @@ html.venue-display-fullscreen #app {
 }
 
 .no-events-text-en {
-  font-size: 56px;
+  font-size: 64px;
   font-weight: 700;
   line-height: 0.9;
   letter-spacing: 2px;
@@ -598,7 +617,7 @@ html.venue-display-fullscreen #app {
 }
 
 .no-events-text-zh {
-  font-size: 56px;
+  font-size: 64px;
   font-weight: 600;
   line-height: 0.9;
   letter-spacing: 4px;
@@ -656,25 +675,25 @@ html.venue-display-fullscreen #app {
 
 .venue-name,
 .venue-location {
-  font-size: 44px;
+  font-size: 56px;
   font-weight: 700;
   letter-spacing: 0.5px;
 }
 
 .venue-name-zh,
 .venue-location-zh {
-  font-size: 44px;
+  font-size: 56px;
   font-weight: 600;
   letter-spacing: 0.5px;
 }
 
 .separator {
   margin: 0 16px;
-  font-size: 40px;
+  font-size: 52px;
   font-weight: 700;
 }
 
 .venue-info-row:last-child .separator {
-  font-size: 36px;
+  font-size: 48px;
 }
 </style>
