@@ -48,20 +48,44 @@ function isFullscreenApiSupported () {
   )
 }
 
+function matchesDisplayMode (mode) {
+  return typeof window.matchMedia === 'function' &&
+    window.matchMedia(`(display-mode: ${mode})`).matches
+}
+
+/**
+ * Chrome --kiosk / --start-fullscreen fills the monitor without using the
+ * Fullscreen API, so document.fullscreenElement stays null. Detect that case
+ * so the tap-to-enter overlay does not cover an already-kiosk window.
+ */
+function isKioskLikeWindow () {
+  if (matchesDisplayMode('fullscreen') || matchesDisplayMode('standalone')) {
+    return true
+  }
+  const uiChrome = Math.max(0, window.outerHeight - window.innerHeight)
+  const fillsWidth = window.outerWidth >= screen.width - 16
+  const fillsHeight = window.outerHeight >= screen.height - 16
+  const viewportFillsScreen =
+    window.innerWidth >= screen.width - 16 &&
+    window.innerHeight >= screen.height - 16
+  return (fillsWidth && fillsHeight && uiChrome <= 32) || viewportFillsScreen
+}
+
 /**
  * Browser Fullscreen API for public display screens (Android Chrome / desktop).
- * Shows a tap-to-enter hint when not in fullscreen. Does NOT auto-enter on mount:
- * SPA navigations often still carry a user gesture, which can silently enter
- * fullscreen while the UI barely changes on Android TV / tablets.
+ * Shows a tap-to-enter hint when not in fullscreen and not already in kiosk.
+ * Auto-enter from a timer is not possible: requestFullscreen requires a real
+ * user gesture. Synthetic clicks / dispatchEvent are ignored by the browser.
  */
 export function useDisplayBrowserFullscreen () {
   const isFullscreen = ref(false)
   const supported = ref(true)
   const showHint = ref(false)
   const syncTimers = []
+  let displayModeMql = null
 
   function syncState () {
-    const fs = Boolean(getFullscreenElement())
+    const fs = Boolean(getFullscreenElement()) || isKioskLikeWindow()
     isFullscreen.value = fs
     if (!supported.value) {
       showHint.value = false
@@ -108,17 +132,33 @@ export function useDisplayBrowserFullscreen () {
   onMounted(() => {
     supported.value = isFullscreenApiSupported()
     syncState()
-    // Catch late fullscreenchange from a previous display page unmount.
     scheduleResync()
 
     document.addEventListener('fullscreenchange', onFullscreenChange)
     document.addEventListener('webkitfullscreenchange', onFullscreenChange)
+    window.addEventListener('resize', syncState)
+    if (typeof window.matchMedia === 'function') {
+      displayModeMql = window.matchMedia('(display-mode: fullscreen)')
+      if (displayModeMql.addEventListener) {
+        displayModeMql.addEventListener('change', syncState)
+      } else if (displayModeMql.addListener) {
+        displayModeMql.addListener(syncState)
+      }
+    }
   })
 
   onUnmounted(() => {
     syncTimers.forEach((id) => clearTimeout(id))
     document.removeEventListener('fullscreenchange', onFullscreenChange)
     document.removeEventListener('webkitfullscreenchange', onFullscreenChange)
+    window.removeEventListener('resize', syncState)
+    if (displayModeMql) {
+      if (displayModeMql.removeEventListener) {
+        displayModeMql.removeEventListener('change', syncState)
+      } else if (displayModeMql.removeListener) {
+        displayModeMql.removeListener(syncState)
+      }
+    }
     // Keep fullscreen when switching between display routes; only the user
     // (Esc / system UI) or a fresh non-display page should leave it.
   })

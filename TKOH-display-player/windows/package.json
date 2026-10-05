@@ -1,0 +1,54 @@
+{
+  "name": "tkoh-display-player",
+  "version": "1.0.2",
+  "description": "TKOH hospital display kiosk player for Windows",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --win nsis"
+  },
+  "author": "TKOH",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "electron": "^35.7.5",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "hk.org.ha.tkoh.displayplayer",
+    "productName": "TKOH Display Player",
+    "files": [
+      "main.js",
+      "displayUrl.js",
+      "settings.html",
+      "settingsPreload.js",
+      "config.json",
+      "icon.ico"
+    ],
+    "directories": {
+      "buildResources": "build"
+    },
+    "extraFiles": [
+      {
+        "from": "config.json",
+        "to": "config.json"
+      },
+      {
+        "from": "icon.ico",
+        "to": "icon.ico"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "icon.ico"
+    },
+    "nsis": {
+      "runAfterFinish": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "TKOH Display Player",
+      "include": "installer.nsh",
+      "installerIcon": "icon.ico",
+      "uninstallerIcon": "icon.ico"
+    }
+  }
+}

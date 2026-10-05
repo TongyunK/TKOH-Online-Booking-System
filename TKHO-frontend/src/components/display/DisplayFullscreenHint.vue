@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <button
-      v-if="showHint"
+      v-if="showOverlay"
       type="button"
       class="display-fs-hint"
       aria-label="Enter fullscreen"
@@ -16,9 +16,19 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { useDisplayBrowserFullscreen } from '@/composables/useDisplayBrowserFullscreen'
 
+const route = useRoute()
 const { showHint, enterFullscreen } = useDisplayBrowserFullscreen()
+
+const inPlayerShell = computed(() => {
+  if (route.query.player === '1' || route.query.player === 'true') return true
+  return typeof navigator !== 'undefined' && /TKOHDisplayPlayer/i.test(navigator.userAgent)
+})
+
+const showOverlay = computed(() => showHint.value && !inPlayerShell.value)
 
 async function onEnter () {
   await enterFullscreen()

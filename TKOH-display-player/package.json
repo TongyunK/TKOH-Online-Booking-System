@@ -1,0 +1,10 @@
+{
+  "name": "tkoh-display-player",
+  "private": true,
+  "description": "Run npm install / npm start from this folder; Windows player lives in ./windows",
+  "scripts": {
+    "start": "npm start --prefix windows",
+    "pack": "npm run pack --prefix windows",
+    "postinstall": "npm install --prefix windows"
+  }
+}

@@ -27,3 +27,15 @@ TKHO-backend/scripts/load-test/results/
 
 # Nginx SSL 私钥与证书（在 docker/nginx/ssl 下自行生成）
 docker/nginx/ssl/*.pem
+
+# Display player 本地产物
+TKOH-display-player/windows/node_modules/
+TKOH-display-player/windows/dist/
+TKOH-display-player/android/.gradle/
+TKOH-display-player/android/.idea/
+TKOH-display-player/android/**/build/
+*.apk
+*.aab
+
+# 仓库根目录误生成的 lock（播放器依赖在 windows/ 内）
+/package-lock.json

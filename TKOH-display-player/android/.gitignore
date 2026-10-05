@@ -1,0 +1,14 @@
+# Android build / IDE
+.gradle/
+.idea/
+**/build/
+local.properties
+*.iml
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Captures / logs
+captures/
+*.log

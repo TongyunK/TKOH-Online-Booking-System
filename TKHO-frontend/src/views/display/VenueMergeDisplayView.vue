@@ -785,8 +785,14 @@ html.merge-display-fullscreen #app {
   align-items: stretch;
 }
 
+/* AM / PM 各留一半间距，保证两侧会议文字可用宽度一致，避免同文案左右换行不同 */
+.schedule-header > .slot-col:nth-child(2),
+.schedule-row > .slot-col:nth-child(2) {
+  padding-right: 24px;
+}
+
 .pm-col {
-  padding-left: 48px;
+  padding-left: 24px;
 }
 
 .schedule-header .slot-col,
@@ -825,7 +831,8 @@ html.merge-display-fullscreen #app {
 .schedule-divider {
   flex: 0 0 auto;
   height: 0;
-  margin-left: calc(310px + 20px);
+  /* 略小于房间列宽，让白线起点超出上方 AM 左缘 */
+  margin-left: calc(310px - 10px);
   border-top: 5px solid #ffffff;
   box-sizing: border-box;
   pointer-events: none;
