@@ -1,6 +1,6 @@
 {
   "name": "tkoh-display-player",
-  "version": "1.0.2",
+  "version": "1.0.4",
   "description": "TKOH hospital display kiosk player for Windows",
   "main": "main.js",
   "scripts": {

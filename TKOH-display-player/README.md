@@ -97,6 +97,8 @@ App 已声明 `HOME`，部分设备首次按 Home 键时可选「始终」用本
 
 HTTP 内网地址已允许（cleartext）。首次启动会把 `assets/config.json` 复制到 App 私有目录；之后可在设备上 **连续点击右上角 5 次** 打开设置面板修改 `link`，无需重装 APK。
 
+屏幕方向跟随设备（`fullSensor`）：单场地请装竖屏机，Merge / Tea / EV 请装横屏机。
+
 ## 注意
 
 - 内容仍由现有前端服务器更新，播放器只负责全屏和锁引擎（Windows 锁 Electron 自带 Chromium；Android 仍用系统 WebView，需统一机型）

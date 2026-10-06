@@ -3,22 +3,40 @@ package hk.org.ha.tkoh.displayplayer;
 import android.app.Activity;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import org.json.JSONObject;
 
 public class SettingsActivity extends Activity {
+  private static final String DEFAULT_ORIGIN = "http://103.68.62.241:3200";
+  private static final String[][] PRESETS = {
+    { "Discussion Room", "/VenueBooking/Display?displayType=single&venueId=4" },
+    { "Function Room", "/VenueBooking/Display?displayType=single&venueId=5" },
+    { "Lecture Theatre", "/VenueBooking/Display?displayType=single&venueId=6" },
+    { "Auditorium", "/VenueBooking/Display?displayType=single&venueId=7" },
+    { "Tea Service", "/VenueBooking/Display/TeaService" },
+    { "Venue Merge Screen", "/VenueBooking/Display/Merge" },
+    { "EV Display", "/evBooking/Display" }
+  };
+
   private ConfigStore configStore;
   private EditText linkInput;
   private EditText reloadHoursInput;
+  private final java.util.ArrayList<Button> presetButtons = new java.util.ArrayList<>();
+  private final java.util.ArrayList<String> presetPaths = new java.util.ArrayList<>();
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -29,14 +47,10 @@ public class SettingsActivity extends Activity {
     int pad = dp(20);
     int gap = dp(10);
 
-    LinearLayout root = new LinearLayout(this);
-    root.setOrientation(LinearLayout.VERTICAL);
-    root.setPadding(pad, pad, pad, pad);
-    root.setBackground(gradient(0xFF111827, 0xFF0B1220));
-    root.setLayoutParams(new ViewGroup.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT,
-        ViewGroup.LayoutParams.WRAP_CONTENT
-    ));
+    LinearLayout card = new LinearLayout(this);
+    card.setOrientation(LinearLayout.VERTICAL);
+    card.setPadding(pad, pad, pad, pad);
+    card.setBackground(gradient(0xFF111827, 0xFF0B1220));
 
     LinearLayout header = new LinearLayout(this);
     header.setOrientation(LinearLayout.HORIZONTAL);
@@ -75,6 +89,37 @@ public class SettingsActivity extends Activity {
     linkInput = input(config.optString("link", ""),
         "http://host:port/VenueBooking/Display/Merge",
         android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
+    linkInput.addTextChangedListener(new TextWatcher() {
+      @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+      @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+      @Override public void afterTextChanged(Editable s) {
+        markActivePreset();
+      }
+    });
+
+    LinearLayout presets = new LinearLayout(this);
+    presets.setOrientation(LinearLayout.VERTICAL);
+    presets.setPadding(0, dp(8), 0, dp(4));
+
+    LinearLayout row = null;
+    for (int i = 0; i < PRESETS.length; i++) {
+      if (i % 2 == 0) {
+        row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        presets.addView(row, fieldLp());
+      }
+      Button chip = presetButton(PRESETS[i][0], PRESETS[i][1]);
+      presetButtons.add(chip);
+      presetPaths.add(PRESETS[i][1]);
+      LinearLayout.LayoutParams chipLp = new LinearLayout.LayoutParams(
+          0,
+          ViewGroup.LayoutParams.WRAP_CONTENT,
+          1
+      );
+      chipLp.rightMargin = (i % 2 == 0) ? dp(8) : 0;
+      chipLp.bottomMargin = dp(8);
+      row.addView(chip, chipLp);
+    }
 
     TextView reloadLabel = label("Reload hours (0 = off)");
     LinearLayout.LayoutParams reloadLabelLp = new LinearLayout.LayoutParams(
@@ -89,7 +134,7 @@ public class SettingsActivity extends Activity {
         android.text.InputType.TYPE_CLASS_NUMBER);
 
     TextView hint = new TextView(this);
-    hint.setText("Saved to app config.json on this device.");
+    hint.setText("Tap a shortcut to fill the link, or type any URL.");
     hint.setTextColor(0xFF94A3B8);
     hint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
     hint.setPadding(0, dp(10), 0, dp(14));
@@ -112,15 +157,88 @@ public class SettingsActivity extends Activity {
     buttons.addView(cancel, cancelLp);
     buttons.addView(save);
 
-    root.addView(header);
-    root.addView(linkLabel);
-    root.addView(linkInput, fieldLp());
-    root.addView(reloadLabel);
-    root.addView(reloadHoursInput, fieldLp());
-    root.addView(hint);
-    root.addView(buttons);
+    card.addView(header);
+    card.addView(linkLabel);
+    card.addView(linkInput, fieldLp());
+    card.addView(presets);
+    card.addView(reloadLabel);
+    card.addView(reloadHoursInput, fieldLp());
+    card.addView(hint);
+    card.addView(buttons);
 
-    setContentView(root);
+    ScrollView scroll = new ScrollView(this);
+    scroll.setFillViewport(false);
+    scroll.addView(card, new ViewGroup.LayoutParams(
+        ViewGroup.LayoutParams.MATCH_PARENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT
+    ));
+
+    FrameLayout overlay = new FrameLayout(this);
+    overlay.setBackgroundColor(0xCC020617);
+    overlay.setOnClickListener(v -> finish());
+
+    int maxWidth = dp(720);
+    int screenWidth = getResources().getDisplayMetrics().widthPixels;
+    int cardWidth = Math.min(maxWidth, screenWidth - dp(48));
+    FrameLayout.LayoutParams cardLp = new FrameLayout.LayoutParams(
+        cardWidth,
+        ViewGroup.LayoutParams.WRAP_CONTENT,
+        Gravity.CENTER
+    );
+    scroll.setOnClickListener(v -> { /* keep panel open */ });
+    overlay.addView(scroll, cardLp);
+
+    setContentView(overlay);
+    markActivePreset();
+  }
+
+  private Button presetButton(String label, String path) {
+    Button button = new Button(this);
+    button.setText(label);
+    button.setAllCaps(false);
+    button.setTextColor(Color.WHITE);
+    button.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+    button.setBackground(rounded(0xFF1E293B, dp(999)));
+    button.setPadding(dp(8), dp(8), dp(8), dp(8));
+    button.setOnClickListener(v -> {
+      linkInput.setText(originFromLink() + path);
+      markActivePreset();
+    });
+    return button;
+  }
+
+  private void markActivePreset() {
+    String current = linkInput.getText().toString().trim().toLowerCase();
+    for (int i = 0; i < presetButtons.size(); i++) {
+      boolean active = current.contains(presetPaths.get(i).toLowerCase());
+      applyPresetStyle(presetButtons.get(i), active);
+    }
+  }
+
+  private void applyPresetStyle(Button button, boolean active) {
+    if (active) {
+      GradientDrawable bg = rounded(0xFF166534, dp(999));
+      bg.setStroke(dp(1), 0xFF22C55E);
+      button.setBackground(bg);
+    } else {
+      GradientDrawable bg = rounded(0xFF1E293B, dp(999));
+      bg.setStroke(dp(1), 0xFF334155);
+      button.setBackground(bg);
+    }
+  }
+
+  private String originFromLink() {
+    try {
+      Uri uri = Uri.parse(linkInput.getText().toString().trim());
+      String scheme = uri.getScheme();
+      String host = uri.getHost();
+      int port = uri.getPort();
+      if (scheme == null || host == null) return DEFAULT_ORIGIN;
+      if (port > 0) return scheme + "://" + host + ":" + port;
+      return scheme + "://" + host;
+    } catch (Exception e) {
+      return DEFAULT_ORIGIN;
+    }
   }
 
   private TextView label(String text) {

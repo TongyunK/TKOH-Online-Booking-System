@@ -8,7 +8,7 @@
       html, body {
         margin: 0;
         height: 100%;
-        overflow: hidden;
+        overflow: auto;
         font-family: "Segoe UI", system-ui, sans-serif;
         background: #0b1220;
         color: #e2e8f0;
@@ -17,7 +17,7 @@
       .shell {
         height: 100%;
         box-sizing: border-box;
-        padding: 22px 24px 28px;
+        padding: 20px 24px 24px;
         display: flex;
         flex-direction: column;
         background:
@@ -29,7 +29,8 @@
         display: flex;
         align-items: center;
         gap: 12px;
-        margin-bottom: 18px;
+        margin-bottom: 14px;
+        flex-shrink: 0;
       }
 
       .badge {
@@ -60,7 +61,8 @@
       }
 
       .field {
-        margin-bottom: 12px;
+        margin-bottom: 10px;
+        flex-shrink: 0;
       }
 
       label {
@@ -88,11 +90,42 @@
         box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
       }
 
+      .presets {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 0 0 12px;
+        flex-shrink: 0;
+      }
+
+      .preset {
+        min-width: 0;
+        padding: 7px 12px;
+        border: 1px solid #334155;
+        border-radius: 999px;
+        background: #1e293b;
+        color: #e2e8f0;
+        font-size: 0.78rem;
+        font-weight: 650;
+        cursor: pointer;
+      }
+
+      .preset:hover {
+        background: #334155;
+      }
+
+      .preset.active {
+        background: #166534;
+        border-color: #22c55e;
+        color: #fff;
+      }
+
       .hint {
-        margin: 0 0 14px;
+        margin: 0 0 12px;
         color: #94a3b8;
         font-size: 0.78rem;
         line-height: 1.35;
+        flex-shrink: 0;
       }
 
       .actions {
@@ -100,9 +133,10 @@
         display: flex;
         justify-content: flex-end;
         gap: 10px;
+        flex-shrink: 0;
       }
 
-      button {
+      .actions button {
         min-width: 96px;
         padding: 10px 16px;
         border: 0;
@@ -146,12 +180,14 @@
         <input id="link" type="url" spellcheck="false" />
       </div>
 
+      <div class="presets" id="presets"></div>
+
       <div class="field">
         <label for="reloadHours">Reload hours (0 = off)</label>
         <input id="reloadHours" type="number" min="0" step="1" />
       </div>
 
-      <p class="hint">Saved to config.json next to the app.</p>
+      <p class="hint">Tap a shortcut to fill the link, or type any URL. Saved to config.json.</p>
 
       <div class="actions">
         <button class="cancel" type="button" id="cancel">Cancel</button>
@@ -160,10 +196,65 @@
     </div>
 
     <script>
+      const DEFAULT_ORIGIN = 'http://103.68.62.241:3200'
+      const PRESETS = [
+        { label: 'Discussion Room', path: '/VenueBooking/Display?displayType=single&venueId=4' },
+        { label: 'Function Room', path: '/VenueBooking/Display?displayType=single&venueId=5' },
+        { label: 'Lecture Theatre', path: '/VenueBooking/Display?displayType=single&venueId=6' },
+        { label: 'Auditorium', path: '/VenueBooking/Display?displayType=single&venueId=7' },
+        { label: 'Tea Service', path: '/VenueBooking/Display/TeaService' },
+        { label: 'Venue Merge Screen', path: '/VenueBooking/Display/Merge' },
+        { label: 'EV Display', path: '/evBooking/Display' }
+      ]
+
+      const linkInput = document.getElementById('link')
+      const presetsEl = document.getElementById('presets')
+
+      function originFromLink (link) {
+        try {
+          return new URL(String(link || '').trim()).origin
+        } catch {
+          return DEFAULT_ORIGIN
+        }
+      }
+
+      function presetUrl (preset) {
+        return originFromLink(linkInput.value) + preset.path
+      }
+
+      function normalize (url) {
+        return String(url || '').trim().replace(/\/+$/, '').toLowerCase()
+      }
+
+      function markActive () {
+        const current = normalize(linkInput.value)
+        presetsEl.querySelectorAll('.preset').forEach((btn, index) => {
+          const url = normalize(presetUrl(PRESETS[index]))
+          const path = PRESETS[index].path.toLowerCase()
+          btn.classList.toggle('active', current.includes(path))
+        })
+      }
+
+      PRESETS.forEach((preset) => {
+        const btn = document.createElement('button')
+        btn.type = 'button'
+        btn.className = 'preset'
+        btn.textContent = preset.label
+        btn.addEventListener('click', () => {
+          linkInput.value = presetUrl(preset)
+          markActive()
+          linkInput.focus()
+        })
+        presetsEl.appendChild(btn)
+      })
+
+      linkInput.addEventListener('input', markActive)
+
       async function init () {
         const config = await window.tkohSettings.getConfig()
-        document.getElementById('link').value = config.link || ''
+        linkInput.value = config.link || ''
         document.getElementById('reloadHours').value = config.reloadHours ?? 6
+        markActive()
       }
 
       document.getElementById('cancel').addEventListener('click', () => {
@@ -171,7 +262,7 @@
       })
 
       document.getElementById('save').addEventListener('click', async () => {
-        const link = document.getElementById('link').value.trim()
+        const link = linkInput.value.trim()
         const reloadHours = Number(document.getElementById('reloadHours').value)
         if (!link) {
           alert('Link is required')

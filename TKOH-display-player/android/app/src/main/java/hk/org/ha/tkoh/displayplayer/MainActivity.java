@@ -47,6 +47,8 @@ public class MainActivity extends Activity {
     settings.setMediaPlaybackRequiresUserGesture(false);
     settings.setUserAgentString(settings.getUserAgentString() + " TKOHDisplayPlayer/1.0");
     settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+    settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
+    webView.clearCache(true);
 
     webView.setWebViewClient(new WebViewClient() {
       @Override

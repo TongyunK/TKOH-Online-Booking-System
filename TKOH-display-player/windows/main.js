@@ -3,7 +3,7 @@ const fs = require('fs')
 const path = require('path')
 const { buildDisplayUrl, allowedHostFromLink } = require('./displayUrl')
 
-const USER_AGENT = 'TKOHDisplayPlayer/1.0 Electron'
+const USER_AGENT_SUFFIX = ' TKOHDisplayPlayer/1.0'
 const FAIL_RELOAD_MS = 15000
 const SETTINGS_PROTOCOL = 'tkoh-player://settings'
 const SECRET_TAPS = 5
@@ -13,6 +13,7 @@ let settingsWindow = null
 let failTimer = null
 let periodicTimer = null
 let currentTargetUrl = ''
+let allowedHost = ''
 
 function configPath () {
   if (app.isPackaged) {
@@ -45,11 +46,20 @@ function schedulePeriodicReload (reloadHours) {
   }, reloadHours * 60 * 60 * 1000)
 }
 
+function loadDisplayUrl (url) {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  currentTargetUrl = url
+  // Bypass Chromium HTTP cache so player always matches latest cloud frontend.
+  mainWindow.webContents.loadURL(url, {
+    extraHeaders: 'Cache-Control: no-cache\nPragma: no-cache\n'
+  })
+}
+
 function reloadDisplay () {
   if (!mainWindow || mainWindow.isDestroyed()) return
   const config = readConfig()
-  currentTargetUrl = buildDisplayUrl(config)
-  mainWindow.loadURL(currentTargetUrl)
+  allowedHost = allowedHostFromLink(config.link)
+  loadDisplayUrl(buildDisplayUrl(config))
   schedulePeriodicReload(Number(config.reloadHours) || 0)
 }
 
@@ -83,12 +93,12 @@ function openSettingsWindow () {
   }
 
   settingsWindow = new BrowserWindow({
-    width: 560,
-    height: 360,
+    width: 760,
+    height: 620,
     parent: mainWindow,
     modal: true,
     autoHideMenuBar: true,
-    resizable: false,
+    resizable: true,
     maximizable: false,
     minimizable: false,
     backgroundColor: '#0b1220',
@@ -110,7 +120,7 @@ function openSettingsWindow () {
 function createWindow () {
   const config = readConfig()
   currentTargetUrl = buildDisplayUrl(config)
-  const allowedHost = allowedHostFromLink(config.link)
+  allowedHost = allowedHostFromLink(config.link)
   const iconPath = path.join(__dirname, 'icon.ico')
 
   mainWindow = new BrowserWindow({
@@ -126,9 +136,10 @@ function createWindow () {
     }
   })
 
-  session.defaultSession.setUserAgent(USER_AGENT)
+  const ses = mainWindow.webContents.session
+  ses.setUserAgent(ses.getUserAgent() + USER_AGENT_SUFFIX)
   mainWindow.setMenuBarVisibility(false)
-  mainWindow.loadURL(currentTargetUrl)
+  loadDisplayUrl(currentTargetUrl)
 
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
 
@@ -176,7 +187,12 @@ ipcMain.handle('settings-close', () => {
   }
 })
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  try {
+    await session.defaultSession.clearCache()
+  } catch {
+    /* ignore */
+  }
   createWindow()
   globalShortcut.register('Control+Shift+P', openSettingsWindow)
   globalShortcut.register('Control+Shift+Q', () => {
