@@ -48,6 +48,15 @@ public class MainActivity extends Activity {
     settings.setUserAgentString(settings.getUserAgentString() + " TKOHDisplayPlayer/1.0");
     settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
     settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
+    settings.setUseWideViewPort(true);
+    settings.setLoadWithOverviewMode(true);
+    settings.setSupportZoom(false);
+    settings.setBuiltInZoomControls(false);
+    settings.setDisplayZoomControls(false);
+    settings.setTextZoom(100);
+    settings.setMinimumFontSize(1);
+    settings.setMinimumLogicalFontSize(1);
+    settings.setLayoutAlgorithm(WebSettings.LayoutAlgorithm.NORMAL);
     webView.clearCache(true);
 
     webView.setWebViewClient(new WebViewClient() {
