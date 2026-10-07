@@ -119,12 +119,16 @@ function resolveFromDate () {
   )
 }
 
-/** 设计基准尺寸：按视口等比缩放填满全屏
- * - BASE_WIDTH 与 iPad 横屏宽度一致（避免 iPad 进一步放大）
- * - BASE_HEIGHT 采用更贴近电脑的比例（让桌面字体更大）
+/**
+ * 设计基准：按视口算 --ui-scale。
+ * 略小于常见 13.3"/14" 1080p 大屏，使同分辨率下字号更大；
+ * 行数少、一天占满整屏时再用 --content-scale 把字继续放大填空。
  */
-const BASE_WIDTH = 1024
-const BASE_HEIGHT = 640
+const BASE_WIDTH = 960
+const BASE_HEIGHT = 540
+/** 单行场地在基准缩放下的参考高度（用于内容放大） */
+const REF_VENUE_ROW_PX = 72
+const MAX_CONTENT_SCALE = 1.55
 
 const displayRoot = ref(null)
 
@@ -334,6 +338,8 @@ async function refreshDisplayData () {
   replaceRefIfChanged(displayDates, dates)
   replaceRefIfChanged(teaRequests, requests)
   lastDisplayFromDate = fromDate
+  await nextTick()
+  scheduleAdaptFullscreen()
 }
 
 function canCompleteRequest (request) {
@@ -432,7 +438,35 @@ watch(
   { deep: true }
 )
 
+watch(groupedByDate, async () => {
+  await nextTick()
+  scheduleAdaptFullscreen()
+})
+
 let adaptFullscreenRaf = null
+
+function setCssVarIfChanged (root, name, value) {
+  if (root.style.getPropertyValue(name) !== value) {
+    root.style.setProperty(name, value)
+  }
+}
+
+function updateContentScale (root, uiScale) {
+  // 一天占满整屏时：行被拉高但字号原先不变 → 13.3" 上显得「全屏了字却不大」
+  const body = root.querySelector('.day-section .schedule-body')
+  const rows = body?.querySelectorAll('.venue-row')
+  if (!body || !rows?.length) {
+    setCssVarIfChanged(root, '--content-scale', '1')
+    return
+  }
+  const avgRowPx = body.clientHeight / rows.length
+  const refPx = REF_VENUE_ROW_PX * (uiScale || 1)
+  const contentScale = Math.min(
+    MAX_CONTENT_SCALE,
+    Math.max(1, avgRowPx / Math.max(refPx, 1))
+  )
+  setCssVarIfChanged(root, '--content-scale', String(Number(contentScale.toFixed(3))))
+}
 
 function adaptFullscreen () {
   const root = displayRoot.value
@@ -443,20 +477,16 @@ function adaptFullscreen () {
   const vw = (window.innerWidth || BASE_WIDTH) * zoomCompensation
   const vh = (window.innerHeight || BASE_HEIGHT) * zoomCompensation
   const scale = Math.min(vw / BASE_WIDTH, vh / BASE_HEIGHT) || 1
-  const scaleText = String(scale)
-  if (root.style.getPropertyValue('--ui-scale') !== scaleText) {
-    root.style.setProperty('--ui-scale', scaleText)
-  }
+  setCssVarIfChanged(root, '--ui-scale', String(scale))
 
   // 一天占满主区域可视高度（百分比在 overflow 容器内常不可靠，改用实测）
   const scheduleEl = root.querySelector('.tea-schedule')
   const pageHeight = scheduleEl?.clientHeight || 0
   if (pageHeight > 0) {
-    const heightText = `${pageHeight}px`
-    if (root.style.getPropertyValue('--schedule-page-height') !== heightText) {
-      root.style.setProperty('--schedule-page-height', heightText)
-    }
+    setCssVarIfChanged(root, '--schedule-page-height', `${pageHeight}px`)
   }
+
+  updateContentScale(root, scale)
 
   document.documentElement.style.width = '100%'
   document.documentElement.style.height = '100%'
@@ -550,6 +580,7 @@ html.tea-display-fullscreen #app {
 
 .tea-display-root {
   --ui-scale: 1;
+  --content-scale: 1;
   position: fixed;
   inset: 0;
   z-index: 1;
@@ -564,7 +595,8 @@ html.tea-display-fullscreen #app {
   flex-direction: column;
   overflow: hidden;
   font-family: var(--display-font-family);
-  font-size: calc(29px * var(--ui-scale, 1));
+  /* ui-scale：跟屏幕分辨率；content-scale：一天占满且行被拉高时再放大字 */
+  font-size: calc(34px * var(--ui-scale, 1) * var(--content-scale, 1));
   user-select: none;
   -webkit-user-select: none;
   touch-action: none;

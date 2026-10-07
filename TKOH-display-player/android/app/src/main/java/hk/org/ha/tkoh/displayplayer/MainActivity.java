@@ -173,7 +173,7 @@ public class MainActivity extends Activity {
     if (failReload != null) handler.removeCallbacks(failReload);
     failReload = () -> {
       if (webView != null && targetUrl != null && !targetUrl.isEmpty()) {
-        webView.loadUrl(targetUrl);
+        loadDisplayUrl(targetUrl, true);
       }
     };
     handler.postDelayed(failReload, FAIL_RELOAD_MS);
@@ -262,9 +262,24 @@ public class MainActivity extends Activity {
     JSONObject config = configStore.load();
     targetUrl = DisplayUrl.build(config);
     showLoading("TKOH Display Player\nLoading…\n" + targetUrl);
-    // Do NOT block on network warm-up — a hung HEAD kept the screen black forever.
-    webView.loadUrl(targetUrl);
+    // 清 WebView HTTP 缓存后再加载，避免服务器已发新前端仍显示旧 SPA（无需重装 APK）
+    loadDisplayUrl(targetUrl, true);
     schedulePeriodicReload(config.optInt("reloadHours", 0));
+  }
+
+  private void loadDisplayUrl(String url, boolean bypassCache) {
+    if (webView == null || url == null || url.isEmpty()) return;
+    if (bypassCache) {
+      try {
+        webView.clearCache(true);
+      } catch (Exception ignored) {
+        /* best-effort */
+      }
+      webView.getSettings().setCacheMode(WebSettings.LOAD_NO_CACHE);
+    } else {
+      webView.getSettings().setCacheMode(WebSettings.LOAD_DEFAULT);
+    }
+    webView.loadUrl(url);
   }
 
   private void schedulePeriodicReload(int reloadHours) {
@@ -273,7 +288,7 @@ public class MainActivity extends Activity {
     periodicReload = new Runnable() {
       @Override
       public void run() {
-        if (webView != null) webView.loadUrl(targetUrl);
+        if (webView != null) loadDisplayUrl(targetUrl, true);
         handler.postDelayed(this, reloadHours * 60L * 60L * 1000L);
       }
     };

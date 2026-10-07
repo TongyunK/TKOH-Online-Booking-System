@@ -135,7 +135,11 @@ public class SettingsActivity extends Activity {
         android.text.InputType.TYPE_CLASS_NUMBER);
 
     TextView hint = new TextView(this);
-    hint.setText("Tap a shortcut to fill the link, or type any URL.");
+    hint.setText(
+        "Tap a shortcut to fill the link, or type any URL. "
+            + "After a server frontend update, use Force refresh (no APK reinstall) "
+            + "if the screen still shows the old page."
+    );
     hint.setTextColor(0xFF94A3B8);
     hint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
     hint.setPadding(0, dp(10), 0, dp(14));
@@ -157,6 +161,9 @@ public class SettingsActivity extends Activity {
     Button cancel = actionButton("Cancel", 0xFF1E293B);
     cancel.setOnClickListener(v -> finish());
 
+    Button forceRefresh = actionButton("Force refresh", 0xFF1E293B);
+    forceRefresh.setOnClickListener(v -> forceRefreshAndSave());
+
     Button save = actionButton("Save", 0xFF16A34A);
     save.setOnClickListener(v -> saveConfig());
 
@@ -165,7 +172,13 @@ public class SettingsActivity extends Activity {
         ViewGroup.LayoutParams.WRAP_CONTENT
     );
     cancelLp.rightMargin = gap;
+    LinearLayout.LayoutParams forceLp = new LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.WRAP_CONTENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT
+    );
+    forceLp.rightMargin = gap;
     rightButtons.addView(cancel, cancelLp);
+    rightButtons.addView(forceRefresh, forceLp);
     rightButtons.addView(save);
 
     LinearLayout.LayoutParams exitLp = new LinearLayout.LayoutParams(
@@ -327,8 +340,31 @@ public class SettingsActivity extends Activity {
   }
 
   private void saveConfig() {
-    String link = linkInput.getText().toString().trim();
-    if (link.isEmpty()) {
+    saveConfigWithLink(linkInput.getText().toString().trim());
+  }
+
+  /** 不重装 APK：给 link 加 _v 时间戳，迫使 WebView 放弃旧文档缓存 */
+  private void forceRefreshAndSave() {
+    String raw = linkInput.getText().toString().trim();
+    if (raw.isEmpty()) {
+      Toast.makeText(this, "Link is required", Toast.LENGTH_SHORT).show();
+      return;
+    }
+    try {
+      String stamped = raw.replaceAll("([?&])_v=[^&]*", "$1");
+      stamped = stamped.replaceAll("[?&]$", "");
+      String token = "_v=" + System.currentTimeMillis();
+      stamped = stamped.contains("?") ? stamped + "&" + token : stamped + "?" + token;
+      String next = DisplayUrl.withPlayerFlag(stamped);
+      linkInput.setText(next);
+      saveConfigWithLink(next);
+    } catch (Exception e) {
+      Toast.makeText(this, "Link must be a valid URL", Toast.LENGTH_SHORT).show();
+    }
+  }
+
+  private void saveConfigWithLink(String link) {
+    if (link == null || link.isEmpty()) {
       Toast.makeText(this, "Link is required", Toast.LENGTH_SHORT).show();
       return;
     }
