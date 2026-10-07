@@ -84,9 +84,9 @@
           </div>
 
           <div v-else class="empty-day">-</div>
-        </section>
 
-        <div v-if="dateIdx < groupedByDate.length - 1" class="completed-banner">完</div>
+          <div v-if="dateIdx < groupedByDate.length - 1" class="completed-banner">完</div>
+        </section>
       </template>
     </main>
   </div>
@@ -143,14 +143,32 @@ const headerDateTime = computed(() => {
 
 function updateDateTime () {
   const parts = getAppDisplayDateTimeParts()
-  currentWeekdayZh.value = parts.weekdayZh.replace(/^星期/, '')
-  currentDateSlash.value = `${parts.day}/${parts.month}/${parts.year}`
-  currentTime.value = `${parts.hour}:${parts.minute}`
+  const nextWeekday = parts.weekdayZh.replace(/^星期/, '')
+  const nextDate = `${parts.day}/${parts.month}/${parts.year}`
+  const nextTime = `${parts.hour}:${parts.minute}`
+  // 仅值变化时写 ref，避免 Android WebView 在整分 tick 时无意义重绘闪一下
+  if (currentWeekdayZh.value !== nextWeekday) currentWeekdayZh.value = nextWeekday
+  if (currentDateSlash.value !== nextDate) currentDateSlash.value = nextDate
+  if (currentTime.value !== nextTime) currentTime.value = nextTime
 
   const fromDate = resolveFromDate()
   if (lastDisplayFromDate && fromDate !== lastDisplayFromDate) {
     void refreshDisplayData()
   }
+}
+
+function snapshotForCompare (value) {
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return ''
+  }
+}
+
+function replaceRefIfChanged (targetRef, next) {
+  if (snapshotForCompare(targetRef.value) === snapshotForCompare(next)) return false
+  targetRef.value = next
+  return true
 }
 
 function parseStartTime (timeStr) {
@@ -304,12 +322,17 @@ async function refreshDisplayData () {
   const fromDate = resolveFromDate()
   const data = await getTeaServicePublicDisplay(fromDate)
   dataPoll.applyFromPayload(data?.dataPollIntervalMs)
-  const requests = Array.isArray(data?.requests) ? data.requests : []
-  teaDisplayVenues.value = Array.isArray(data?.venues) ? data.venues : []
-  displayDates.value = Array.isArray(data?.dates) && data.dates.length
+  const requests = mergePendingCompleted(
+    Array.isArray(data?.requests) ? data.requests : []
+  )
+  const venues = Array.isArray(data?.venues) ? data.venues : []
+  const dates = Array.isArray(data?.dates) && data.dates.length
     ? data.dates.slice(0, 2)
     : [fromDate]
-  teaRequests.value = mergePendingCompleted(requests)
+  // 轮询结果未变时不替换数组引用，避免整表重挂载闪屏
+  replaceRefIfChanged(teaDisplayVenues, venues)
+  replaceRefIfChanged(displayDates, dates)
+  replaceRefIfChanged(teaRequests, requests)
   lastDisplayFromDate = fromDate
 }
 
@@ -409,6 +432,8 @@ watch(
   { deep: true }
 )
 
+let adaptFullscreenRaf = null
+
 function adaptFullscreen () {
   const root = displayRoot.value
   if (!root) return
@@ -418,7 +443,20 @@ function adaptFullscreen () {
   const vw = (window.innerWidth || BASE_WIDTH) * zoomCompensation
   const vh = (window.innerHeight || BASE_HEIGHT) * zoomCompensation
   const scale = Math.min(vw / BASE_WIDTH, vh / BASE_HEIGHT) || 1
-  root.style.setProperty('--ui-scale', String(scale))
+  const scaleText = String(scale)
+  if (root.style.getPropertyValue('--ui-scale') !== scaleText) {
+    root.style.setProperty('--ui-scale', scaleText)
+  }
+
+  // 一天占满主区域可视高度（百分比在 overflow 容器内常不可靠，改用实测）
+  const scheduleEl = root.querySelector('.tea-schedule')
+  const pageHeight = scheduleEl?.clientHeight || 0
+  if (pageHeight > 0) {
+    const heightText = `${pageHeight}px`
+    if (root.style.getPropertyValue('--schedule-page-height') !== heightText) {
+      root.style.setProperty('--schedule-page-height', heightText)
+    }
+  }
 
   document.documentElement.style.width = '100%'
   document.documentElement.style.height = '100%'
@@ -431,6 +469,15 @@ function adaptFullscreen () {
   document.body.style.margin = '0'
   document.body.style.padding = '0'
   document.body.style.overflow = 'hidden'
+}
+
+/** Android WebView 偶发 resize/visualViewport 抖动，合并到下一帧再量，减少布局闪 */
+function scheduleAdaptFullscreen () {
+  if (adaptFullscreenRaf != null) return
+  adaptFullscreenRaf = window.requestAnimationFrame(() => {
+    adaptFullscreenRaf = null
+    adaptFullscreen()
+  })
 }
 
 onMounted(async () => {
@@ -447,8 +494,8 @@ onMounted(async () => {
   document.addEventListener('visibilitychange', onDocumentVisibilityChange)
   await nextTick()
   adaptFullscreen()
-  window.addEventListener('resize', adaptFullscreen)
-  window.visualViewport?.addEventListener('resize', adaptFullscreen)
+  window.addEventListener('resize', scheduleAdaptFullscreen)
+  window.visualViewport?.addEventListener('resize', scheduleAdaptFullscreen)
   const viewport = document.querySelector('meta[name="viewport"]')
   if (viewport) {
     viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no')
@@ -460,8 +507,12 @@ onUnmounted(() => {
   stopClock()
   dataPoll.stop()
   document.removeEventListener('visibilitychange', onDocumentVisibilityChange)
-  window.removeEventListener('resize', adaptFullscreen)
-  window.visualViewport?.removeEventListener('resize', adaptFullscreen)
+  window.removeEventListener('resize', scheduleAdaptFullscreen)
+  window.visualViewport?.removeEventListener('resize', scheduleAdaptFullscreen)
+  if (adaptFullscreenRaf != null) {
+    window.cancelAnimationFrame(adaptFullscreenRaf)
+    adaptFullscreenRaf = null
+  }
   document.body.style.overflow = ''
   document.documentElement.style.overflow = ''
   document.body.style.width = ''
@@ -513,7 +564,7 @@ html.tea-display-fullscreen #app {
   flex-direction: column;
   overflow: hidden;
   font-family: var(--display-font-family);
-  font-size: calc(24.5px * var(--ui-scale, 1));
+  font-size: calc(29px * var(--ui-scale, 1));
   user-select: none;
   -webkit-user-select: none;
   touch-action: none;
@@ -541,12 +592,12 @@ html.tea-display-fullscreen #app {
 }
 
 .header-title {
-  font-size: 1.48rem;
+  font-size: 1.58rem;
   line-height: 1.1;
 }
 
 .header-datetime {
-  font-size: 1.24rem;
+  font-size: 1.34rem;
   line-height: 1.1;
   white-space: nowrap;
 }
@@ -559,28 +610,31 @@ html.tea-display-fullscreen #app {
   overflow-x: hidden;
   overflow-y: auto;
   background: #001b44;
-  padding: 0 calc(24px * var(--ui-scale, 1)) calc(5px * var(--ui-scale, 1));
+  padding: 0 calc(24px * var(--ui-scale, 1));
+  scroll-snap-type: y proximity;
+  scroll-behavior: smooth;
 }
 
 .day-section {
+  box-sizing: border-box;
   flex: 0 0 auto;
-  min-height: fit-content;
+  /* 一天尽量占满主区域一整屏；内容过多时再自然增高 */
+  min-height: var(--schedule-page-height, 100%);
   display: flex;
   flex-direction: column;
   overflow: visible;
-}
-
-.day-section + .day-section {
-  margin-top: calc(8px * var(--ui-scale, 1));
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  padding-bottom: calc(5px * var(--ui-scale, 1));
 }
 
 .schedule-header,
 .venue-row {
   display: grid;
   grid-template-columns:
-    minmax(0, calc(120px * var(--ui-scale, 1)))
+    minmax(0, calc(140px * var(--ui-scale, 1)))
     minmax(0, 1fr)
-    calc(52px * var(--ui-scale, 1))
+    calc(56px * var(--ui-scale, 1))
     minmax(0, 1fr);
   column-gap: 0;
   row-gap: 1px;
@@ -593,10 +647,10 @@ html.tea-display-fullscreen #app {
   top: 0;
   z-index: 6;
   align-items: center;
-  font-size: 1.24rem;
+  font-size: 1.34rem;
   font-weight: 700;
   margin-bottom: 0;
-  min-height: calc(52px * var(--ui-scale, 1));
+  min-height: calc(58px * var(--ui-scale, 1));
   padding-top: calc(14px * var(--ui-scale, 1));
   padding-bottom: calc(14px * var(--ui-scale, 1));
   background: #001b44;
@@ -607,7 +661,7 @@ html.tea-display-fullscreen #app {
   display: flex;
   align-items: center;
   padding: 0 4px;
-  font-size: 1.36rem;
+  font-size: 1.46rem;
   font-weight: 700;
   line-height: 1.1;
   color: #ffffff;
@@ -641,8 +695,8 @@ html.tea-display-fullscreen #app {
 }
 
 .schedule-body {
-  flex: 0 0 auto;
-  min-height: fit-content;
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: visible;
@@ -650,16 +704,16 @@ html.tea-display-fullscreen #app {
 
 .venue-row {
   position: relative;
-  flex: 0 0 auto;
-  min-height: calc(58px * var(--ui-scale, 1));
-  font-size: 1.2rem;
+  flex: 1 1 auto;
+  min-height: calc(66px * var(--ui-scale, 1));
+  font-size: 1.3rem;
   overflow: visible;
 }
 
 .venue-row::after {
   content: '';
   position: absolute;
-  left: calc(120px * var(--ui-scale, 1) + 8px * var(--ui-scale, 1));
+  left: calc(140px * var(--ui-scale, 1) + 8px * var(--ui-scale, 1));
   right: 0;
   bottom: 0;
   height: 1px;
@@ -674,9 +728,9 @@ html.tea-display-fullscreen #app {
   display: flex;
   align-items: flex-start;
   padding-top: calc(8px * var(--ui-scale, 1));
-  font-size: 1.42rem;
+  font-size: 1.52rem;
   font-weight: 700;
-  line-height: 1.1;
+  line-height: 1.2;
   color: #ffffff;
 }
 
@@ -685,6 +739,7 @@ html.tea-display-fullscreen #app {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  justify-content: flex-start;
   gap: calc(12px * var(--ui-scale, 1));
   padding-top: calc(8px * var(--ui-scale, 1));
   padding-bottom: calc(8px * var(--ui-scale, 1));
@@ -698,7 +753,7 @@ html.tea-display-fullscreen #app {
   align-items: start;
   width: 100%;
   min-height: calc(36px * var(--ui-scale, 1));
-  padding-block: calc(4px * var(--ui-scale, 1));
+  padding-block: 0;
   cursor: pointer;
   line-height: 1.2;
 }
@@ -726,10 +781,11 @@ html.tea-display-fullscreen #app {
 
 .entry-time {
   white-space: nowrap;
-  font-size: 1.42rem;
+  font-size: 1.52rem;
   font-weight: 600;
   color: rgb(255, 212, 91);
   line-height: 1.2;
+  padding-top: 0;
 }
 
 .entry-details {
@@ -737,7 +793,7 @@ html.tea-display-fullscreen #app {
   justify-self: start;
   text-align: left;
   overflow-wrap: anywhere;
-  font-size: 1.42rem;
+  font-size: 1.52rem;
   font-weight: 600;
   line-height: 1.2;
 }
@@ -763,7 +819,8 @@ html.tea-display-fullscreen #app {
 .entry-placeholder {
   opacity: 0.75;
   min-height: calc(36px * var(--ui-scale, 1));
-  padding-top: calc(8px * var(--ui-scale, 1));
+  line-height: 1.2;
+  padding-top: 0;
 }
 
 .entry-done :deep(.el-checkbox) {
@@ -771,8 +828,8 @@ html.tea-display-fullscreen #app {
 }
 
 .entry-done :deep(.el-checkbox__inner) {
-  width: calc(20px * var(--ui-scale, 1));
-  height: calc(20px * var(--ui-scale, 1));
+  width: calc(24px * var(--ui-scale, 1));
+  height: calc(24px * var(--ui-scale, 1));
   border: 1.5px solid #ffffff;
   border-radius: 2px;
   background: #ffffff;
@@ -803,8 +860,8 @@ html.tea-display-fullscreen #app {
   border-width: 0 3.5px 3.5px 0;
   left: 50%;
   top: 50%;
-  width: 8px;
-  height: 13px;
+  width: 9px;
+  height: 15px;
   transform: translate(-50%, -58%) rotate(45deg) scaleY(0);
   transform-origin: center;
 }
@@ -815,10 +872,11 @@ html.tea-display-fullscreen #app {
 
 .completed-banner {
   flex-shrink: 0;
-  margin-block: calc(4px * var(--ui-scale, 1));
+  margin-top: auto;
+  margin-bottom: calc(4px * var(--ui-scale, 1));
   padding: calc(3px * var(--ui-scale, 1)) calc(24px * var(--ui-scale, 1));
   text-align: center;
-  font-size: 1.38rem;
+  font-size: 1.48rem;
   font-weight: 700;
   color: #ffffff;
   background: #4ea72e;
@@ -826,11 +884,11 @@ html.tea-display-fullscreen #app {
 }
 
 .empty-day {
-  flex: 1;
+  flex: 1 1 auto;
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0.7;
-  font-size: 1.28rem;
+  font-size: 1.38rem;
 }
 </style>
