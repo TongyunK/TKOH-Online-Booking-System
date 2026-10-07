@@ -131,9 +131,15 @@
       .actions {
         margin-top: auto;
         display: flex;
-        justify-content: flex-end;
+        justify-content: space-between;
+        align-items: center;
         gap: 10px;
         flex-shrink: 0;
+      }
+
+      .actions-right {
+        display: flex;
+        gap: 10px;
       }
 
       .actions button {
@@ -144,6 +150,15 @@
         font-size: 0.92rem;
         font-weight: 650;
         cursor: pointer;
+      }
+
+      .exit {
+        background: #dc2626;
+        color: #fff;
+      }
+
+      .exit:hover {
+        background: #b91c1c;
       }
 
       .cancel {
@@ -190,8 +205,11 @@
       <p class="hint">Tap a shortcut to fill the link, or type any URL. Saved to config.json.</p>
 
       <div class="actions">
-        <button class="cancel" type="button" id="cancel">Cancel</button>
-        <button class="save" type="button" id="save">Save</button>
+        <button class="exit" type="button" id="exit">Exit</button>
+        <div class="actions-right">
+          <button class="cancel" type="button" id="cancel">Cancel</button>
+          <button class="save" type="button" id="save">Save</button>
+        </div>
       </div>
     </div>
 
@@ -259,6 +277,10 @@
 
       document.getElementById('cancel').addEventListener('click', () => {
         window.tkohSettings.close()
+      })
+
+      document.getElementById('exit').addEventListener('click', () => {
+        window.tkohSettings.quitApp()
       })
 
       document.getElementById('save').addEventListener('click', async () => {

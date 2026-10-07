@@ -7,6 +7,8 @@
     :hide-after="80"
     :teleported="resolvedTeleported"
     popper-class="calendar-booking-popover"
+    @show="emit('visible-change', true)"
+    @hide="emit('visible-change', false)"
   >
     <template #default>
       <div class="booking-popover-body">
@@ -80,6 +82,8 @@ const props = defineProps({
   }
 })
 
+const emit = defineEmits(['visible-change'])
+
 const autoTeleported = ref(true)
 let zoomBreakpointMq = null
 
@@ -107,6 +111,7 @@ onMounted(() => {
 onUnmounted(() => {
   zoomBreakpointMq?.removeEventListener('change', syncAutoTeleported)
   zoomBreakpointMq = null
+  emit('visible-change', false)
 })
 
 function getBookingContact() {

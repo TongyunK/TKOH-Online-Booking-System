@@ -4,9 +4,10 @@ const path = require('path')
 const { buildDisplayUrl, allowedHostFromLink } = require('./displayUrl')
 
 const USER_AGENT_SUFFIX = ' TKOHDisplayPlayer/1.0'
-const FAIL_RELOAD_MS = 15000
+const FAIL_RELOAD_MS = 3000
 const SETTINGS_PROTOCOL = 'tkoh-player://settings'
 const SECRET_TAPS = 5
+const ERR_ABORTED = -3
 
 let mainWindow = null
 let settingsWindow = null
@@ -49,9 +50,35 @@ function schedulePeriodicReload (reloadHours) {
 function loadDisplayUrl (url) {
   if (!mainWindow || mainWindow.isDestroyed()) return
   currentTargetUrl = url
-  // Bypass Chromium HTTP cache so player always matches latest cloud frontend.
-  mainWindow.webContents.loadURL(url, {
-    extraHeaders: 'Cache-Control: no-cache\nPragma: no-cache\n'
+  // Use normal HTTP cache so cold starts stay fast after first load.
+  mainWindow.webContents.loadURL(url)
+}
+
+/** Open TCP to the display host while splash is visible (helps after idle). */
+function warmUpOrigin (url) {
+  return new Promise((resolve) => {
+    try {
+      const u = new URL(url)
+      const lib = u.protocol === 'https:' ? require('https') : require('http')
+      const req = lib.request({
+        hostname: u.hostname,
+        port: u.port || (u.protocol === 'https:' ? 443 : 80),
+        path: '/',
+        method: 'HEAD',
+        timeout: 8000
+      }, (res) => {
+        res.resume()
+        resolve()
+      })
+      req.on('error', () => resolve())
+      req.on('timeout', () => {
+        req.destroy()
+        resolve()
+      })
+      req.end()
+    } catch {
+      resolve()
+    }
   })
 }
 
@@ -127,7 +154,7 @@ function createWindow () {
     fullscreen: true,
     kiosk: true,
     autoHideMenuBar: true,
-    backgroundColor: '#000000',
+    backgroundColor: '#001e5c',
     icon: fs.existsSync(iconPath) ? iconPath : undefined,
     webPreferences: {
       nodeIntegration: false,
@@ -139,7 +166,13 @@ function createWindow () {
   const ses = mainWindow.webContents.session
   ses.setUserAgent(ses.getUserAgent() + USER_AGENT_SUFFIX)
   mainWindow.setMenuBarVisibility(false)
-  loadDisplayUrl(currentTargetUrl)
+  // Local splash first; warm TCP to cloud while splash is up, then load display.
+  mainWindow.loadFile(path.join(__dirname, 'loading.html'))
+  mainWindow.webContents.once('did-finish-load', () => {
+    warmUpOrigin(currentTargetUrl).finally(() => {
+      loadDisplayUrl(currentTargetUrl)
+    })
+  })
 
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
 
@@ -161,7 +194,9 @@ function createWindow () {
 
   mainWindow.webContents.on('did-finish-load', injectSettingsGesture)
 
-  mainWindow.webContents.on('did-fail-load', () => {
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, _desc, _url, isMainFrame) => {
+    // ERR_ABORTED (-3) is normal when a navigation is replaced; do not wait 15s.
+    if (!isMainFrame || errorCode === ERR_ABORTED) return
     clearTimeout(failTimer)
     failTimer = setTimeout(() => {
       reloadDisplay()
@@ -187,12 +222,11 @@ ipcMain.handle('settings-close', () => {
   }
 })
 
-app.whenReady().then(async () => {
-  try {
-    await session.defaultSession.clearCache()
-  } catch {
-    /* ignore */
-  }
+ipcMain.handle('settings-quit', () => {
+  app.quit()
+})
+
+app.whenReady().then(() => {
   createWindow()
   globalShortcut.register('Control+Shift+P', openSettingsWindow)
   globalShortcut.register('Control+Shift+Q', () => {

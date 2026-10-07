@@ -32,7 +32,8 @@
           'is-public-holiday': isPublicHolidayCell(day, 'prev'),
           'has-holiday-label': Boolean(getHolidayLabel(day, 'prev')),
           'first-col': (index % 7) === 0,
-          'last-col': (index % 7) === 6
+          'last-col': (index % 7) === 6,
+          'is-popover-open': openPopoverCellKey === dayCellKey(day, 'prev')
         }"
         @click="selectDate(day, 'prev')"
       >
@@ -56,6 +57,7 @@
             :fallback-day="day"
             :rooms="selectedRooms"
             default-color="#f97316"
+            @visible-change="(visible) => onCellPopoverVisible(dayCellKey(day, 'prev'), visible)"
           >
             <template #reference>
               <div
@@ -75,6 +77,7 @@
           :bookings="getBookingsForDay(day, 'prev')"
           :hidden-count="getHiddenBookingCount(day, 'prev')"
           :selected-rooms="selectedRooms"
+          @visible-change="(visible) => onCellPopoverVisible(dayCellKey(day, 'prev'), visible)"
         />
       </div>
 
@@ -91,7 +94,8 @@
           'is-public-holiday': isPublicHolidayCell(day, 'current'),
           'has-holiday-label': Boolean(getHolidayLabel(day, 'current')),
           'first-col': ((prevMonthDays.length + index) % 7) === 0,
-          'last-col': ((prevMonthDays.length + index) % 7) === 6
+          'last-col': ((prevMonthDays.length + index) % 7) === 6,
+          'is-popover-open': openPopoverCellKey === dayCellKey(day, 'current')
         }"
         @click="selectDate(day, 'current')"
       >
@@ -115,6 +119,7 @@
             :fallback-day="day"
             :rooms="selectedRooms"
             default-color="#f97316"
+            @visible-change="(visible) => onCellPopoverVisible(dayCellKey(day, 'current'), visible)"
           >
             <template #reference>
               <div
@@ -134,6 +139,7 @@
           :bookings="getBookingsForDay(day, 'current')"
           :hidden-count="getHiddenBookingCount(day, 'current')"
           :selected-rooms="selectedRooms"
+          @visible-change="(visible) => onCellPopoverVisible(dayCellKey(day, 'current'), visible)"
         />
       </div>
 
@@ -150,7 +156,8 @@
           'is-public-holiday': isPublicHolidayCell(day, 'next'),
           'has-holiday-label': Boolean(getHolidayLabel(day, 'next')),
           'first-col': ((prevMonthDays.length + daysInMonth + index) % 7) === 0,
-          'last-col': ((prevMonthDays.length + daysInMonth + index) % 7) === 6
+          'last-col': ((prevMonthDays.length + daysInMonth + index) % 7) === 6,
+          'is-popover-open': openPopoverCellKey === dayCellKey(day, 'next')
         }"
         @click="selectDate(day, 'next')"
       >
@@ -174,6 +181,7 @@
             :fallback-day="day"
             :rooms="selectedRooms"
             default-color="#f97316"
+            @visible-change="(visible) => onCellPopoverVisible(dayCellKey(day, 'next'), visible)"
           >
             <template #reference>
               <div
@@ -193,6 +201,7 @@
           :bookings="getBookingsForDay(day, 'next')"
           :hidden-count="getHiddenBookingCount(day, 'next')"
           :selected-rooms="selectedRooms"
+          @visible-change="(visible) => onCellPopoverVisible(dayCellKey(day, 'next'), visible)"
         />
       </div>
     </div>
@@ -250,8 +259,20 @@ const dayLayoutMap = ref(new Map())
 const layoutEpoch = ref(0)
 /** 月历网格单行高度（由容器均分，保证各行等高） */
 const monthGridRowHeightPx = ref(0)
+/** 14" zoom + teleported=false：当前打开气泡的格子，用于抬高 z-index */
+const openPopoverCellKey = ref(null)
 let gridResizeObserver = null
 let layoutRafId = null
+
+function onCellPopoverVisible (cellKey, visible) {
+  if (visible) {
+    openPopoverCellKey.value = cellKey
+    return
+  }
+  if (openPopoverCellKey.value === cellKey) {
+    openPopoverCellKey.value = null
+  }
+}
 
 const GRID_ROW_GAP_PX = 1
 const LAYOUT_SLACK_PX = 2
@@ -995,15 +1016,23 @@ watch(
   border-right: 1px solid #e5e7eb;
 }
 
-/* 14" zoom + teleported=false：仅放开当前格子，避免整表 overflow 错乱 */
-.date-cell:has(> .month-more-root.is-popover-open),
-.date-cell:has(.calendar-booking-popover) {
-  overflow: visible;
-  z-index: 45;
-}
+/*
+ * 14" html zoom:0.8 时 popover teleported=false，气泡留在日期格 DOM 内；
+ * 同排/下一排格子默认按文档序叠在上面，需抬高当前格并放开网格 overflow。
+ */
+@media screen and (min-width: 1100px) and (max-width: 1599px) {
+  .month-grid:has(.date-cell.is-popover-open) {
+    overflow: visible;
+  }
 
-.date-cell:has(.calendar-booking-popover) .month-booking-list {
-  overflow: visible;
+  .date-cell.is-popover-open {
+    overflow: visible;
+    z-index: 80;
+  }
+
+  .date-cell.is-popover-open .month-booking-list {
+    overflow: visible;
+  }
 }
 
 .date-number {

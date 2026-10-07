@@ -21,6 +21,7 @@ import android.widget.Toast;
 import org.json.JSONObject;
 
 public class SettingsActivity extends Activity {
+  static final int RESULT_EXIT = RESULT_FIRST_USER;
   private static final String DEFAULT_ORIGIN = "http://103.68.62.241:3200";
   private static final String[][] PRESETS = {
     { "Discussion Room", "/VenueBooking/Display?displayType=single&venueId=4" },
@@ -141,7 +142,17 @@ public class SettingsActivity extends Activity {
 
     LinearLayout buttons = new LinearLayout(this);
     buttons.setOrientation(LinearLayout.HORIZONTAL);
-    buttons.setGravity(Gravity.END);
+    buttons.setGravity(Gravity.CENTER_VERTICAL);
+
+    Button exit = actionButton("Exit", 0xFFDC2626);
+    exit.setOnClickListener(v -> {
+      setResult(RESULT_EXIT);
+      finish();
+    });
+
+    LinearLayout rightButtons = new LinearLayout(this);
+    rightButtons.setOrientation(LinearLayout.HORIZONTAL);
+    rightButtons.setGravity(Gravity.END);
 
     Button cancel = actionButton("Cancel", 0xFF1E293B);
     cancel.setOnClickListener(v -> finish());
@@ -154,8 +165,16 @@ public class SettingsActivity extends Activity {
         ViewGroup.LayoutParams.WRAP_CONTENT
     );
     cancelLp.rightMargin = gap;
-    buttons.addView(cancel, cancelLp);
-    buttons.addView(save);
+    rightButtons.addView(cancel, cancelLp);
+    rightButtons.addView(save);
+
+    LinearLayout.LayoutParams exitLp = new LinearLayout.LayoutParams(
+        ViewGroup.LayoutParams.WRAP_CONTENT,
+        ViewGroup.LayoutParams.WRAP_CONTENT
+    );
+    buttons.addView(exit, exitLp);
+    buttons.addView(new android.widget.Space(this), new LinearLayout.LayoutParams(0, 0, 1));
+    buttons.addView(rightButtons);
 
     card.addView(header);
     card.addView(linkLabel);

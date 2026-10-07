@@ -61,7 +61,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import CalendarBookingPopover from './CalendarBookingPopover.vue'
 import {
   resolveBookingAccentColor,
@@ -91,6 +91,8 @@ const props = defineProps({
   }
 })
 
+const emit = defineEmits(['visible-change'])
+
 const popoverVisible = ref(false)
 /** 14" html zoom 断点内挂 body 会偏移，与 style.css 说明一致：留在缩放 DOM 内 */
 const popoverTeleported = ref(true)
@@ -101,6 +103,10 @@ function syncPopoverTeleported () {
   popoverTeleported.value = !window.matchMedia(HTML_ZOOM_BREAKPOINT_MQ).matches
 }
 
+watch(popoverVisible, (visible) => {
+  emit('visible-change', visible)
+})
+
 onMounted(() => {
   syncPopoverTeleported()
   zoomBreakpointMq = window.matchMedia(HTML_ZOOM_BREAKPOINT_MQ)
@@ -110,6 +116,7 @@ onMounted(() => {
 onUnmounted(() => {
   zoomBreakpointMq?.removeEventListener('change', syncPopoverTeleported)
   zoomBreakpointMq = null
+  if (popoverVisible.value) emit('visible-change', false)
 })
 
 const dayHeaderLabel = computed(() => {
@@ -205,8 +212,11 @@ function getBarStyle (booking) {
 }
 
 @media screen and (min-width: 1100px) and (max-width: 1599px) {
-  .calendar-container:has(.month-more-root.is-popover-open),
-  .month-view:has(.month-more-root.is-popover-open) {
+  /* teleported=false：气泡留在格子内，需逐级放开 overflow，避免被父级裁切 */
+  .calendar-container:has(.date-cell.is-popover-open),
+  .month-view:has(.date-cell.is-popover-open),
+  .calendar-month:has(.date-cell.is-popover-open),
+  .month-grid:has(.date-cell.is-popover-open) {
     overflow: visible;
   }
 }
