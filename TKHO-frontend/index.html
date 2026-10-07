@@ -13,6 +13,37 @@
   </head>
   <body>
     <div id="app"></div>
+    <!--
+      大屏 EXE（Electron）会缓存旧 SPA。此脚本不依赖重装 EXE：
+      一旦拿到新的 index.html，即对比 /version.json，不一致则带 _b= 强制换页拉新包。
+    -->
+    <script>
+      (function () {
+        try {
+          var ua = navigator.userAgent || ''
+          var isPlayer =
+            /TKOHDisplayPlayer/i.test(ua) ||
+            /[?&]player=1(?:&|$)/.test(location.search || '')
+          if (!isPlayer) return
+          if (window.__tkohBuildGuard) return
+          window.__tkohBuildGuard = true
+          fetch('/version.json?_=' + Date.now(), { cache: 'no-store' })
+            .then(function (res) {
+              if (!res.ok) throw new Error('version http ' + res.status)
+              return res.json()
+            })
+            .then(function (data) {
+              var buildId = data && data.buildId ? String(data.buildId) : ''
+              if (!buildId) return
+              var url = new URL(location.href)
+              if (url.searchParams.get('_b') === buildId) return
+              url.searchParams.set('_b', buildId)
+              location.replace(url.toString())
+            })
+            .catch(function () {})
+        } catch (e) {}
+      })()
+    </script>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

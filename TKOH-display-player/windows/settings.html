@@ -202,12 +202,17 @@
         <input id="reloadHours" type="number" min="0" step="1" />
       </div>
 
-      <p class="hint">Tap a shortcut to fill the link, or type any URL. Saved to config.json.</p>
+      <p class="hint">
+        Tap a shortcut to fill the link, or type any URL. Saved to config.json.
+        If the screen shows an old page after a server update, use
+        <strong>Force refresh</strong> (no reinstall needed) — it only changes a cache-bust query on the link.
+      </p>
 
       <div class="actions">
         <button class="exit" type="button" id="exit">Exit</button>
         <div class="actions-right">
           <button class="cancel" type="button" id="cancel">Cancel</button>
+          <button class="cancel" type="button" id="forceRefresh" title="Bust HTTP cache and reload">Force refresh</button>
           <button class="save" type="button" id="save">Save</button>
         </div>
       </div>
@@ -283,8 +288,7 @@
         window.tkohSettings.quitApp()
       })
 
-      document.getElementById('save').addEventListener('click', async () => {
-        const link = linkInput.value.trim()
+      async function saveConfig (link) {
         const reloadHours = Number(document.getElementById('reloadHours').value)
         if (!link) {
           alert('Link is required')
@@ -295,6 +299,27 @@
           return
         }
         await window.tkohSettings.saveConfig({ link, reloadHours })
+      }
+
+      document.getElementById('save').addEventListener('click', async () => {
+        await saveConfig(linkInput.value.trim())
+      })
+
+      /** 不重装 EXE：改 link 的 _v 查询参数即可让 Chromium 放弃旧缓存文档 */
+      document.getElementById('forceRefresh').addEventListener('click', async () => {
+        const raw = linkInput.value.trim()
+        if (!raw) {
+          alert('Link is required')
+          return
+        }
+        try {
+          const url = new URL(raw)
+          url.searchParams.set('_v', String(Date.now()))
+          linkInput.value = url.toString()
+          await saveConfig(linkInput.value.trim())
+        } catch {
+          alert('Link must be a valid URL')
+        }
       })
 
       init()
