@@ -47,11 +47,37 @@ function schedulePeriodicReload (reloadHours) {
   }, reloadHours * 60 * 60 * 1000)
 }
 
-function loadDisplayUrl (url) {
+/**
+ * @param {string} url
+ * @param {{ bypassCache?: boolean }} [opts]
+ * bypassCache: 清 Chromium HTTP 缓存再加载，避免 kiosk 长期缓存旧 index.html / 旧 JS
+ */
+function loadDisplayUrl (url, opts = {}) {
   if (!mainWindow || mainWindow.isDestroyed()) return
   currentTargetUrl = url
-  // Use normal HTTP cache so cold starts stay fast after first load.
-  mainWindow.webContents.loadURL(url)
+  const bypassCache = Boolean(opts.bypassCache)
+  const ses = mainWindow.webContents.session
+
+  const navigate = () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return
+    if (bypassCache) {
+      // 强制文档与子资源绕过磁盘缓存（部署前端后 EXE 才能吃到新包）
+      mainWindow.webContents.loadURL(url, {
+        extraHeaders: 'Cache-Control: no-cache\nPragma: no-cache\n'
+      })
+      return
+    }
+    mainWindow.webContents.loadURL(url)
+  }
+
+  if (!bypassCache) {
+    navigate()
+    return
+  }
+
+  Promise.resolve(ses.clearCache())
+    .catch(() => {})
+    .finally(navigate)
 }
 
 /** Open TCP to the display host while splash is visible (helps after idle). */
@@ -86,7 +112,8 @@ function reloadDisplay () {
   if (!mainWindow || mainWindow.isDestroyed()) return
   const config = readConfig()
   allowedHost = allowedHostFromLink(config.link)
-  loadDisplayUrl(buildDisplayUrl(config))
+  // 定时/设置保存后的重载必须绕过缓存，否则前端已发布 EXE 仍显示旧 Tea 页
+  loadDisplayUrl(buildDisplayUrl(config), { bypassCache: true })
   schedulePeriodicReload(Number(config.reloadHours) || 0)
 }
 
@@ -170,7 +197,8 @@ function createWindow () {
   mainWindow.loadFile(path.join(__dirname, 'loading.html'))
   mainWindow.webContents.once('did-finish-load', () => {
     warmUpOrigin(currentTargetUrl).finally(() => {
-      loadDisplayUrl(currentTargetUrl)
+      // 冷启动也绕过缓存：机器重启/开 EXE 时应拿到最新前端，而不是磁盘里的旧 SPA
+      loadDisplayUrl(currentTargetUrl, { bypassCache: true })
     })
   })
 
