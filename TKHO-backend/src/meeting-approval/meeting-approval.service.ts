@@ -67,6 +67,13 @@ export class MeetingApprovalService {
     return {
       bookingType: 'venue',
       approvalStatus: { equals: 'pending', mode: 'insensitive' },
+      // 审批前已取消：只改 status，不改 approvalStatus；Pending/Expired/角标都应排除
+      NOT: {
+        OR: [
+          { status: { equals: 'cancelled', mode: 'insensitive' } },
+          { status: { equals: 'canceled', mode: 'insensitive' } },
+        ],
+      },
     };
   }
 
