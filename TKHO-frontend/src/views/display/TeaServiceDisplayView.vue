@@ -734,7 +734,7 @@ html.tea-display-fullscreen #app {
   position: relative;
   flex: 1 1 auto;
   min-height: calc(120px * var(--ui-scale, 1));
-  overflow: hidden;
+  overflow: visible;
 }
 
 .venue-row::after {
@@ -778,7 +778,7 @@ html.tea-display-fullscreen #app {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   column-gap: calc(16px * var(--ui-scale, 1));
-  align-items: center;
+  align-items: start;
   width: 100%;
   min-height: calc(48px * var(--ui-scale, 1));
   cursor: pointer;
@@ -803,27 +803,30 @@ html.tea-display-fullscreen #app {
   font-size: 1em;
   font-weight: 600;
   color: rgb(255, 212, 91);
-  line-height: 1.2;
+  line-height: 1.25;
+  padding-top: 0.05em;
 }
 
 .entry-details {
   min-width: 0;
   justify-self: stretch;
   text-align: left;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* 与时间同一行排布；文案过长时在需求列内自动换行，不用省略号截断 */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   font-size: 1em;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1.25;
   color: rgb(255, 212, 91);
 }
 
 .entry-done {
   display: flex;
   flex-shrink: 0;
-  align-items: center;
+  align-items: flex-start;
   justify-self: end;
+  padding-top: 0.1em;
   z-index: 1;
 }
 
