@@ -198,14 +198,14 @@
       <div class="presets" id="presets"></div>
 
       <div class="field">
-        <label for="reloadHours">Reload hours (0 = off)</label>
+        <label for="reloadHours">Reload hours (0 = off; recommend 12–24 for 24h kiosk)</label>
         <input id="reloadHours" type="number" min="0" step="1" />
       </div>
 
       <p class="hint">
-        Tap a shortcut to fill the link, or type any URL. Saved to config.json.
-        If the screen shows an old page after a server update, use
-        <strong>Force refresh</strong> (no reinstall needed) — it only changes a cache-bust query on the link.
+        For 24h displays: keep Reload hours at 12–24 (soft memory recycle). 0 is not recommended.
+        After a server frontend update, use <strong>Force refresh</strong> if the page looks stale
+        (no reinstall needed).
       </p>
 
       <div class="actions">
@@ -276,7 +276,7 @@
       async function init () {
         const config = await window.tkohSettings.getConfig()
         linkInput.value = config.link || ''
-        document.getElementById('reloadHours').value = config.reloadHours ?? 6
+        document.getElementById('reloadHours').value = config.reloadHours ?? 12
         markActive()
       }
 

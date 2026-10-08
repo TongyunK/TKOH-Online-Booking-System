@@ -7,11 +7,19 @@
 ```json
 {
   "link": "http://103.68.62.241:3200/VenueBooking/Display/Merge",
-  "reloadHours": 6
+  "reloadHours": 12
 }
 ```
 
 `link` 填写完整大屏地址。播放器会自动带上 `player=1`，页面不再弹出全屏遮罩。
+
+### 24 小时常开建议
+
+- **Reload hours = 12～24**：定时**软刷新**回收 WebView/Chromium 内存；不要设 0（长跑更容易卡死/黑屏）。
+- 播放器内置**心跳看门狗**：页面无根节点、JS 假死、`scale` 异常过小时会自动软恢复。
+- **WebView / 渲染进程崩溃**会自动重建并重新加载。
+- 系统侧：关闭系统屏保与休眠；Android 保持「永不休眠」；Windows 电源设为从不关闭显示器/从不睡眠；有线网络优先。
+- 服务器前端保持可访问；设备勿装省电策略杀掉后台。
 
 ## Windows
 
@@ -70,7 +78,7 @@ Android 用 Android Studio 打包（不能用 `npm run pack`）。
 ```json
 {
   "link": "http://103.68.62.241:3200/VenueBooking/Display/Merge",
-  "reloadHours": 6
+  "reloadHours": 12
 }
 ```
 

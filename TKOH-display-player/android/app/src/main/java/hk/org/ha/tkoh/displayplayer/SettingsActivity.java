@@ -130,15 +130,15 @@ public class SettingsActivity extends Activity {
     reloadLabelLp.topMargin = gap;
     reloadLabel.setLayoutParams(reloadLabelLp);
 
-    reloadHoursInput = input(String.valueOf(config.optInt("reloadHours", 6)),
-        "6",
+    reloadHoursInput = input(String.valueOf(config.optInt("reloadHours", 12)),
+        "12",
         android.text.InputType.TYPE_CLASS_NUMBER);
 
     TextView hint = new TextView(this);
     hint.setText(
-        "Tap a shortcut to fill the link, or type any URL. "
-            + "After a server frontend update, use Force refresh (no APK reinstall) "
-            + "if the screen still shows the old page."
+        "24h kiosk tip: set Reload hours to 12–24 (soft reload only, no cache wipe). "
+            + "0 = never reload (not recommended for long runs). "
+            + "Force refresh clears cache once after a server frontend update."
     );
     hint.setTextColor(0xFF94A3B8);
     hint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);

@@ -8,14 +8,17 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="theme-color" content="#000000" />
+    <!-- 构建时由 write-build-version.js 写入真实 buildId；dev 为 dev -->
+    <meta name="tkoh-build-id" content="dev" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <title>TKOH GA Service Center</title>
   </head>
   <body>
     <div id="app"></div>
     <!--
-      大屏 EXE（Electron）会缓存旧 SPA。此脚本不依赖重装 EXE：
-      一旦拿到新的 index.html，即对比 /version.json，不一致则带 _b= 强制换页拉新包。
+      播放器(APK/EXE)带 player=1。旧逻辑每次 location.replace(_b=) 会整页加载两次，
+      比浏览器慢一截（与跨境延迟无关）。现改为：仅当「当前 index 内嵌 buildId」
+      与服务器 version.json 不一致时才 reload 一次。
     -->
     <script>
       (function () {
@@ -27,18 +30,31 @@
           if (!isPlayer) return
           if (window.__tkohBuildGuard) return
           window.__tkohBuildGuard = true
+
+          var meta = document.querySelector('meta[name="tkoh-build-id"]')
+          var embedded = (meta && meta.getAttribute('content')) || ''
+          if (!embedded || embedded === 'dev') return
+
+          // 本会话已确认过同一 build，不再请求，避免干扰首屏
+          try {
+            if (sessionStorage.getItem('tkoh_build_ok') === embedded) return
+          } catch (e) {}
+
           fetch('/version.json?_=' + Date.now(), { cache: 'no-store' })
             .then(function (res) {
               if (!res.ok) throw new Error('version http ' + res.status)
               return res.json()
             })
             .then(function (data) {
-              var buildId = data && data.buildId ? String(data.buildId) : ''
-              if (!buildId) return
-              var url = new URL(location.href)
-              if (url.searchParams.get('_b') === buildId) return
-              url.searchParams.set('_b', buildId)
-              location.replace(url.toString())
+              var remote = data && data.buildId ? String(data.buildId) : ''
+              if (!remote) return
+              if (remote === embedded) {
+                try { sessionStorage.setItem('tkoh_build_ok', embedded) } catch (e) {}
+                return
+              }
+              // index 过期：只 reload 一次（nginx 对 index 已 no-cache）
+              try { sessionStorage.setItem('tkoh_build_ok', remote) } catch (e) {}
+              location.reload()
             })
             .catch(function () {})
         } catch (e) {}

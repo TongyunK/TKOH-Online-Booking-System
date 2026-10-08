@@ -1,20 +1,28 @@
-const { app, BrowserWindow, globalShortcut, ipcMain, session } = require('electron')
+const { app, BrowserWindow, globalShortcut, ipcMain } = require('electron')
 const fs = require('fs')
 const path = require('path')
 const { buildDisplayUrl, allowedHostFromLink } = require('./displayUrl')
 
 const USER_AGENT_SUFFIX = ' TKOHDisplayPlayer/1.0'
 const FAIL_RELOAD_MS = 3000
+const FAIL_RELOAD_MAX_MS = 60_000
 const SETTINGS_PROTOCOL = 'tkoh-player://settings'
 const SECRET_TAPS = 5
 const ERR_ABORTED = -3
+const WATCHDOG_INTERVAL_MS = 45_000
+const WATCHDOG_FAIL_THRESHOLD = 2
+const RECOVERY_COOLDOWN_MS = 90_000
 
 let mainWindow = null
 let settingsWindow = null
 let failTimer = null
 let periodicTimer = null
+let watchdogTimer = null
 let currentTargetUrl = ''
 let allowedHost = ''
+let watchdogFailCount = 0
+let lastRecoveryAt = 0
+let failRetryAttempt = 0
 
 function configPath () {
   if (app.isPackaged) {
@@ -39,18 +47,27 @@ function clearPeriodicReload () {
   }
 }
 
+function clearWatchdog () {
+  if (watchdogTimer) {
+    clearInterval(watchdogTimer)
+    watchdogTimer = null
+  }
+}
+
+/**
+ * 定时软刷新：回收长时间运行的页面内存，不 clearCache（避免网络抖动黑屏）
+ */
 function schedulePeriodicReload (reloadHours) {
   clearPeriodicReload()
   if (!reloadHours || reloadHours <= 0) return
   periodicTimer = setInterval(() => {
-    reloadDisplay()
+    softReloadDisplay('periodic')
   }, reloadHours * 60 * 60 * 1000)
 }
 
 /**
  * @param {string} url
  * @param {{ bypassCache?: boolean }} [opts]
- * bypassCache: 清 Chromium HTTP 缓存再加载，避免 kiosk 长期缓存旧 index.html / 旧 JS
  */
 function loadDisplayUrl (url, opts = {}) {
   if (!mainWindow || mainWindow.isDestroyed()) return
@@ -61,7 +78,6 @@ function loadDisplayUrl (url, opts = {}) {
   const navigate = () => {
     if (!mainWindow || mainWindow.isDestroyed()) return
     if (bypassCache) {
-      // 强制文档与子资源绕过磁盘缓存（部署前端后 EXE 才能吃到新包）
       mainWindow.webContents.loadURL(url, {
         extraHeaders: 'Cache-Control: no-cache\nPragma: no-cache\n'
       })
@@ -80,7 +96,34 @@ function loadDisplayUrl (url, opts = {}) {
     .finally(navigate)
 }
 
-/** Open TCP to the display host while splash is visible (helps after idle). */
+function softReloadDisplay (reason) {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  const now = Date.now()
+  if (reason !== 'periodic' && now - lastRecoveryAt < RECOVERY_COOLDOWN_MS) return
+  if (reason !== 'periodic') lastRecoveryAt = now
+
+  const config = readConfig()
+  allowedHost = allowedHostFromLink(config.link)
+  const url = buildDisplayUrl(config)
+  currentTargetUrl = url
+  // 软加载：不 clearCache
+  mainWindow.webContents.loadURL(url)
+}
+
+function hardReloadDisplay () {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  const config = readConfig()
+  allowedHost = allowedHostFromLink(config.link)
+  loadDisplayUrl(buildDisplayUrl(config), { bypassCache: true })
+  schedulePeriodicReload(Number(config.reloadHours) || 12)
+  startWatchdog()
+}
+
+/** 设置保存 / 冷启动：绕过缓存 */
+function reloadDisplay () {
+  hardReloadDisplay()
+}
+
 function warmUpOrigin (url) {
   return new Promise((resolve) => {
     try {
@@ -108,15 +151,6 @@ function warmUpOrigin (url) {
   })
 }
 
-function reloadDisplay () {
-  if (!mainWindow || mainWindow.isDestroyed()) return
-  const config = readConfig()
-  allowedHost = allowedHostFromLink(config.link)
-  // 定时/设置保存后的重载必须绕过缓存，否则前端已发布 EXE 仍显示旧 Tea 页
-  loadDisplayUrl(buildDisplayUrl(config), { bypassCache: true })
-  schedulePeriodicReload(Number(config.reloadHours) || 0)
-}
-
 function injectSettingsGesture () {
   if (!mainWindow || mainWindow.isDestroyed()) return
   mainWindow.webContents.executeJavaScript(`
@@ -138,6 +172,65 @@ function injectSettingsGesture () {
       }, true)
     })()
   `).catch(() => {})
+}
+
+function injectKioskHeartbeat () {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  mainWindow.webContents.executeJavaScript(`
+    (function () {
+      if (window.__tkohKioskHb) return
+      window.__tkohKioskHb = true
+      window.__tkohAliveAt = Date.now()
+      setInterval(function () { window.__tkohAliveAt = Date.now() }, 15000)
+    })()
+  `).catch(() => {})
+}
+
+function startWatchdog () {
+  clearWatchdog()
+  watchdogFailCount = 0
+  watchdogTimer = setInterval(() => {
+    if (!mainWindow || mainWindow.isDestroyed()) return
+    mainWindow.webContents.executeJavaScript(`
+      (function () {
+        try {
+          var alive = window.__tkohAliveAt || 0
+          if (alive && (Date.now() - alive) > 120000) return 'stale'
+          var root = document.querySelector(
+            '.tea-display-root, .merge-display-root, .ev-display-root, .ev-display-viewport, .venue-display-root'
+          )
+          if (!root) root = document.querySelector('#app > div')
+          if (!root) return 'no-root'
+          if (root.offsetWidth < 8 || root.offsetHeight < 8) return 'tiny'
+          var t = window.getComputedStyle(root).transform || ''
+          var m = t.match(/matrix\\(([^,]+)/)
+          if (m) {
+            var a = parseFloat(m[1])
+            if (a > 0 && a < 0.05) return 'tiny-scale'
+          }
+          return 'ok'
+        } catch (e) {
+          return 'err'
+        }
+      })()
+    `).then((status) => {
+      if (status === 'ok') {
+        watchdogFailCount = 0
+        return
+      }
+      watchdogFailCount += 1
+      if (watchdogFailCount >= WATCHDOG_FAIL_THRESHOLD) {
+        watchdogFailCount = 0
+        softReloadDisplay('watchdog:' + status)
+      }
+    }).catch(() => {
+      watchdogFailCount += 1
+      if (watchdogFailCount >= WATCHDOG_FAIL_THRESHOLD) {
+        watchdogFailCount = 0
+        softReloadDisplay('watchdog:eval-fail')
+      }
+    })
+  }, WATCHDOG_INTERVAL_MS)
 }
 
 function openSettingsWindow () {
@@ -186,18 +279,18 @@ function createWindow () {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: true
+      sandbox: true,
+      backgroundThrottling: false
     }
   })
 
   const ses = mainWindow.webContents.session
   ses.setUserAgent(ses.getUserAgent() + USER_AGENT_SUFFIX)
   mainWindow.setMenuBarVisibility(false)
-  // Local splash first; warm TCP to cloud while splash is up, then load display.
+
   mainWindow.loadFile(path.join(__dirname, 'loading.html'))
   mainWindow.webContents.once('did-finish-load', () => {
     warmUpOrigin(currentTargetUrl).finally(() => {
-      // 冷启动也绕过缓存：机器重启/开 EXE 时应拿到最新前端，而不是磁盘里的旧 SPA
       loadDisplayUrl(currentTargetUrl, { bypassCache: true })
     })
   })
@@ -220,18 +313,51 @@ function createWindow () {
     }
   })
 
-  mainWindow.webContents.on('did-finish-load', injectSettingsGesture)
-
-  mainWindow.webContents.on('did-fail-load', (_event, errorCode, _desc, _url, isMainFrame) => {
-    // ERR_ABORTED (-3) is normal when a navigation is replaced; do not wait 15s.
-    if (!isMainFrame || errorCode === ERR_ABORTED) return
-    clearTimeout(failTimer)
-    failTimer = setTimeout(() => {
-      reloadDisplay()
-    }, FAIL_RELOAD_MS)
+  mainWindow.webContents.on('did-finish-load', () => {
+    injectSettingsGesture()
+    injectKioskHeartbeat()
+    watchdogFailCount = 0
+    const url = mainWindow.webContents.getURL() || ''
+    if (!url.includes('loading.html')) {
+      failRetryAttempt = 0
+    }
   })
 
-  schedulePeriodicReload(Number(config.reloadHours) || 0)
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, desc, failingUrl, isMainFrame) => {
+    if (!isMainFrame || errorCode === ERR_ABORTED) return
+    // 忽略对本地 loading 页自身的失败，避免重试环
+    if (failingUrl && failingUrl.includes('loading.html')) return
+    clearTimeout(failTimer)
+    const delay = Math.min(
+      FAIL_RELOAD_MAX_MS,
+      FAIL_RELOAD_MS * (2 ** Math.min(failRetryAttempt, 4))
+    )
+    failRetryAttempt += 1
+    // 断网/不可达时用本地 loading 页盖住 Chromium 错误页，再退避重试
+    const loadingPath = path.join(__dirname, 'loading.html')
+    if (fs.existsSync(loadingPath)) {
+      const q = new URLSearchParams({
+        msg: `Network error · ${desc || errorCode} · Retrying…`
+      })
+      mainWindow.webContents.loadFile(loadingPath, { search: q.toString() }).catch(() => {})
+    }
+    failTimer = setTimeout(() => {
+      if (!mainWindow || mainWindow.isDestroyed() || !currentTargetUrl) return
+      // 不走 softReload 冷却：失败重试必须持续进行直到恢复
+      mainWindow.webContents.loadURL(currentTargetUrl)
+    }, delay)
+  })
+
+  mainWindow.webContents.on('render-process-gone', () => {
+    softReloadDisplay('render-process-gone')
+  })
+
+  mainWindow.webContents.on('unresponsive', () => {
+    softReloadDisplay('unresponsive')
+  })
+
+  schedulePeriodicReload(Number(config.reloadHours) || 12)
+  startWatchdog()
 }
 
 ipcMain.handle('settings-get-config', () => readConfig())
@@ -270,4 +396,5 @@ app.on('will-quit', () => {
   globalShortcut.unregisterAll()
   clearTimeout(failTimer)
   clearPeriodicReload()
+  clearWatchdog()
 })

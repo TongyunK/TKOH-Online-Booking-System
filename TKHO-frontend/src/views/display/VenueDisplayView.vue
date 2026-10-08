@@ -76,6 +76,8 @@ import {
 import { useDisplayLiveRefresh, useDisplayDataPollTimer } from '@/composables/useDisplayLiveRefresh'
 import { todayYmdInAppTimeZone } from '@/utils/appTimezone'
 import { pickRouteQuery, pickRouteQueryDate } from '@/utils/routeQuery'
+import { measureDisplayViewport } from '@/utils/displayFullscreenScale'
+import { resetDisplayReady, signalDisplayReady } from '@/utils/displayReadySignal'
 import DisplayFullscreenHint from '@/components/display/DisplayFullscreenHint.vue'
 import VenueDisplayClock from './VenueDisplayClock.vue'
 
@@ -84,6 +86,7 @@ const route = useRoute()
 /** 竖向 9:16（与横屏 16:9 同比例，旋转 90°） */
 const BASE_WIDTH = 1080
 const BASE_HEIGHT = 1920
+let adaptRetryCount = 0
 
 const displayViewport = ref(null)
 const displayRoot = ref(null)
@@ -368,6 +371,7 @@ async function refreshDisplayData () {
     const nextQr = settings.qrCodeImage || ''
     if (qrCodeImage.value !== nextQr) qrCodeImage.value = nextQr
     replaceTodayEvents([])
+    signalDisplayReady()
     return
   }
 
@@ -377,6 +381,7 @@ async function refreshDisplayData () {
     venueNameZh.value = ''
     venueLocation.value = ''
     venueLocationZh.value = ''
+    signalDisplayReady()
     return
   }
 
@@ -385,6 +390,7 @@ async function refreshDisplayData () {
   applyVenueInfo(data?.venue)
   if (qrCodeImage.value) qrCodeImage.value = ''
   replaceTodayEvents(data?.events)
+  signalDisplayReady()
 }
 
 let dataPollInFlight = false
@@ -438,26 +444,29 @@ function adaptFullscreen () {
   const root = displayRoot.value
   if (!root) return
 
-  const viewportScale = window.visualViewport?.scale || 1
-  const zoomCompensation = viewportScale > 0 ? viewportScale : 1
-  const vw = (window.innerWidth || BASE_WIDTH) * zoomCompensation
-  const vh = (window.innerHeight || BASE_HEIGHT) * zoomCompensation
-  const scale = Math.min(vw / BASE_WIDTH, vh / BASE_HEIGHT) || 1
-  const offsetX = (vw - BASE_WIDTH * scale) / 2
-  const offsetY = (vh - BASE_HEIGHT * scale) / 2
+  const measured = measureDisplayViewport(BASE_WIDTH, BASE_HEIGHT)
+  if (!measured.ok) {
+    if (adaptRetryCount < 90) {
+      adaptRetryCount += 1
+      requestAnimationFrame(adaptFullscreen)
+    }
+    return
+  }
+  adaptRetryCount = 0
 
   root.style.width = `${BASE_WIDTH}px`
   root.style.height = `${BASE_HEIGHT}px`
-  root.style.transform = `scale(${scale})`
+  root.style.transform = `scale(${measured.scale})`
   root.style.transformOrigin = 'top left'
-  root.style.left = `${offsetX}px`
-  root.style.top = `${offsetY}px`
+  root.style.left = `${measured.offsetX}px`
+  root.style.top = `${measured.offsetY}px`
 
   scheduleFitFooterLayout()
   scheduleFitEventsLayout()
 }
 
 onMounted(() => {
+  resetDisplayReady()
   document.documentElement.classList.add('venue-display-fullscreen')
   adaptFullscreen()
   window.addEventListener('resize', adaptFullscreen)
@@ -468,6 +477,7 @@ onMounted(() => {
     .finally(() => {
       nextTick(() => {
         adaptFullscreen()
+        signalDisplayReady()
       })
     })
 

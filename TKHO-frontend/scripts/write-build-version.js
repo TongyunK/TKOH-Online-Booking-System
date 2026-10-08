@@ -1,8 +1,8 @@
 /**
- * 构建后写入 version.json / build-id，供大屏与 nginx 检测前端是否已更新。
- * 不依赖重装 Electron EXE：index.html 内联脚本会对比并强制换页。
+ * 构建后写入 version.json / build-id，并注入 dist/index.html 的 tkoh-build-id。
+ * 播放器仅在「内嵌 buildId ≠ 服务器 version.json」时才 reload，避免每次整页加载两次。
  */
-import { writeFileSync, mkdirSync, existsSync } from 'node:fs'
+import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -24,4 +24,20 @@ const payload = {
 
 writeFileSync(join(distDir, 'version.json'), `${JSON.stringify(payload, null, 2)}\n`, 'utf8')
 writeFileSync(join(distDir, 'build-id.txt'), `${buildId}\n`, 'utf8')
+
+const indexPath = join(distDir, 'index.html')
+if (existsSync(indexPath)) {
+  let html = readFileSync(indexPath, 'utf8')
+  const nextMeta = `<meta name="tkoh-build-id" content="${buildId}" />`
+  if (/<meta\s+name="tkoh-build-id"[^>]*>/i.test(html)) {
+    html = html.replace(/<meta\s+name="tkoh-build-id"[^>]*>/i, nextMeta)
+  } else {
+    html = html.replace(/<\/head>/i, `    ${nextMeta}\n  </head>`)
+  }
+  writeFileSync(indexPath, html, 'utf8')
+  console.log(`[build-version] inject index.html tkoh-build-id=${buildId}`)
+} else {
+  console.warn('[build-version] dist/index.html missing, skip meta inject')
+}
+
 console.log(`[build-version] write version.json buildId=${buildId}`)

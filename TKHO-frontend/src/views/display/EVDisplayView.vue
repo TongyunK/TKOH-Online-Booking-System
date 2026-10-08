@@ -85,8 +85,11 @@ import {
   todayYmdInAppTimeZone
 } from '@/utils/appTimezone'
 import { pickRouteQueryDate } from '@/utils/routeQuery'
+import { measureDisplayViewport } from '@/utils/displayFullscreenScale'
+import { resetDisplayReady, signalDisplayReady } from '@/utils/displayReadySignal'
 
 const route = useRoute()
+let adaptRetryCount = 0
 
 function resolveDisplayDate () {
   return pickRouteQueryDate(route.query, 'date', 'Date') || todayYmdInAppTimeZone()
@@ -166,6 +169,7 @@ async function refreshDisplayData () {
   lastDisplayYmd = date
   await nextTick()
   syncTickerScrollMode()
+  signalDisplayReady()
 }
 
 function updateDateTime () {
@@ -273,20 +277,22 @@ function adaptFullscreen () {
   const root = displayRoot.value
   if (!root) return
 
-  const viewportScale = window.visualViewport?.scale || 1
-  const zoomCompensation = viewportScale > 0 ? viewportScale : 1
-  const vw = (window.innerWidth || BASE_WIDTH) * zoomCompensation
-  const vh = (window.innerHeight || BASE_HEIGHT) * zoomCompensation
-  const scale = Math.min(vw / BASE_WIDTH, vh / BASE_HEIGHT) || 1
-  const offsetX = (vw - BASE_WIDTH * scale) / 2
-  const offsetY = (vh - BASE_HEIGHT * scale) / 2
+  const measured = measureDisplayViewport(BASE_WIDTH, BASE_HEIGHT)
+  if (!measured.ok) {
+    if (adaptRetryCount < 90) {
+      adaptRetryCount += 1
+      requestAnimationFrame(adaptFullscreen)
+    }
+    return
+  }
+  adaptRetryCount = 0
 
   root.style.width = `${BASE_WIDTH}px`
   root.style.height = `${BASE_HEIGHT}px`
-  root.style.transform = `scale(${scale})`
+  root.style.transform = `scale(${measured.scale})`
   root.style.transformOrigin = 'top left'
-  root.style.left = `${offsetX}px`
-  root.style.top = `${offsetY}px`
+  root.style.left = `${measured.offsetX}px`
+  root.style.top = `${measured.offsetY}px`
 
   syncTickerScrollMode()
 }
@@ -296,6 +302,7 @@ watch(footerTickerDisplayText, () => {
 })
 
 onMounted(() => {
+  resetDisplayReady()
   document.documentElement.classList.add('ev-display-fullscreen')
   // 与 Merge 一致：先立刻等比缩放，再异步拉数（避免云端接口慢时一直停在旧的铺满布局）
   adaptFullscreen()
@@ -313,6 +320,7 @@ onMounted(() => {
       nextTick(() => {
         adaptFullscreen()
         syncTickerScrollMode()
+        signalDisplayReady()
       })
     })
   startClock()

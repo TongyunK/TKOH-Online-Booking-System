@@ -136,10 +136,13 @@ import {
   todayYmdInAppTimeZone
 } from '@/utils/appTimezone'
 import { pickRouteQueryDate } from '@/utils/routeQuery'
+import { measureDisplayViewport } from '@/utils/displayFullscreenScale'
+import { resetDisplayReady, signalDisplayReady } from '@/utils/displayReadySignal'
 
 /** 固定设计稿；任意分辨率用同一比例整体缩放 */
 const BASE_WIDTH = 1920
 const BASE_HEIGHT = 1080
+let adaptRetryCount = 0
 
 const route = useRoute()
 
@@ -252,6 +255,7 @@ async function refreshDisplayData () {
   scheduleRows.value = Array.isArray(data?.scheduleRows) ? data.scheduleRows : []
   lastDisplayYmd = date
   await measureMeetingViewports()
+  signalDisplayReady()
 }
 
 function getArrowStyle (direction) {
@@ -501,27 +505,36 @@ function adaptFullscreen () {
   const root = displayRoot.value
   if (!root) return
 
-  const viewportScale = window.visualViewport?.scale || 1
-  const zoomCompensation = viewportScale > 0 ? viewportScale : 1
-  const vw = (window.innerWidth || BASE_WIDTH) * zoomCompensation
-  const vh = (window.innerHeight || BASE_HEIGHT) * zoomCompensation
-  const scale = Math.min(vw / BASE_WIDTH, vh / BASE_HEIGHT) || 1
-  const offsetX = (vw - BASE_WIDTH * scale) / 2
-  const offsetY = (vh - BASE_HEIGHT * scale) / 2
+  const measured = measureDisplayViewport(BASE_WIDTH, BASE_HEIGHT)
+  if (!measured.ok) {
+    // Reload hours / WebView 重载瞬间尺寸未就绪时跳过，避免 scale≈0 黑屏
+    if (adaptRetryCount < 90) {
+      adaptRetryCount += 1
+      requestAnimationFrame(adaptFullscreen)
+    }
+    return
+  }
+  adaptRetryCount = 0
 
   root.style.width = `${BASE_WIDTH}px`
   root.style.height = `${BASE_HEIGHT}px`
-  root.style.transform = `scale(${scale})`
+  root.style.transform = `scale(${measured.scale})`
   root.style.transformOrigin = 'top left'
-  root.style.left = `${offsetX}px`
-  root.style.top = `${offsetY}px`
+  root.style.left = `${measured.offsetX}px`
+  root.style.top = `${measured.offsetY}px`
 
   void measureMeetingViewports()
 }
 
 onMounted(() => {
+  resetDisplayReady()
   document.documentElement.classList.add('merge-display-fullscreen')
-  void refreshDisplayData().catch(() => { /* 首次失敗仍顯示框架 */ })
+  void refreshDisplayData()
+    .catch(() => { /* 首次失敗仍顯示框架 */ })
+    .finally(() => {
+      adaptFullscreen()
+      signalDisplayReady()
+    })
   currentVenuePage.value = 0
   startClock()
   dataPoll.start()
@@ -806,7 +819,7 @@ html.merge-display-fullscreen #app {
   flex-shrink: 0;
   font-size: 54px;
   font-weight: 700;
-  margin-top: 80px;
+  margin-top: 96px;
   margin-bottom: 20px;
 }
 
