@@ -1429,12 +1429,27 @@ const getUniqueOptions = (rows, key) => {
   return [...new Set((rows || []).map(row => row?.[key]).filter(v => v !== null && v !== undefined && `${v}` !== ''))]
 }
 
+const matchesPendingSearch = (item, keyword) => (
+  String(item.corpId).toLowerCase().includes(keyword) ||
+  matchesUserNameSearch(item, keyword) ||
+  String(item.department).toLowerCase().includes(keyword) ||
+  String(item.contactNo ?? item.contact ?? '').toLowerCase().includes(keyword) ||
+  String(item.email).toLowerCase().includes(keyword) ||
+  String(item.role || '').toLowerCase().includes(keyword)
+)
+
+const filterPendingBySearch = (list) => {
+  const keyword = pendingSearch.value.trim().toLowerCase()
+  if (!keyword) return list
+  return list.filter((item) => matchesPendingSearch(item, keyword))
+}
+
 const getFilterOptions = (tableKey, key) => {
   if (tableKey === 'user') return getUniqueOptions(filteredUserList.value, key)
   if (tableKey === 'expired') return getUniqueOptions(filteredExpiredList.value, key)
   if (tableKey === 'pendingPending') return getUniqueOptions(pendingPendingList.value, key)
-  if (tableKey === 'pendingApproved') return getUniqueOptions(pendingApprovedList.value, key)
-  if (tableKey === 'pendingRejected') return getUniqueOptions(pendingRejectedList.value, key)
+  if (tableKey === 'pendingApproved') return getUniqueOptions(filteredPendingApprovedList.value, key)
+  if (tableKey === 'pendingRejected') return getUniqueOptions(filteredPendingRejectedList.value, key)
   return []
 }
 
@@ -1531,10 +1546,12 @@ const filteredExpiredList = computed(() => {
   )
 })
 
-const pendingPendingList = computed(() => pendingList.value)
+const pendingPendingList = computed(() => filterPendingBySearch(pendingList.value))
+const filteredPendingApprovedList = computed(() => filterPendingBySearch(pendingApprovedList.value))
+const filteredPendingRejectedList = computed(() => filterPendingBySearch(pendingRejectedList.value))
 const sortedPendingPendingList = computed(() => sortList(applyTableFilters(pendingPendingList.value, 'pendingPending'), 'pendingPending'))
-const sortedPendingApprovedList = computed(() => sortList(applyTableFilters(pendingApprovedList.value, 'pendingApproved'), 'pendingApproved'))
-const sortedPendingRejectedList = computed(() => sortList(applyTableFilters(pendingRejectedList.value, 'pendingRejected'), 'pendingRejected'))
+const sortedPendingApprovedList = computed(() => sortList(applyTableFilters(filteredPendingApprovedList.value, 'pendingApproved'), 'pendingApproved'))
+const sortedPendingRejectedList = computed(() => sortList(applyTableFilters(filteredPendingRejectedList.value, 'pendingRejected'), 'pendingRejected'))
 const sortedUserList = computed(() => sortList(applyTableFilters(filteredUserList.value, 'user'), 'user'))
 const sortedExpiredList = computed(() => sortList(applyTableFilters(filteredExpiredList.value, 'expired'), 'expired'))
 
@@ -1595,18 +1612,6 @@ const pendingRejectedVisiblePages = computed(() => {
   return pages
 })
 
-const filteredPendingList = computed(() => {
-  const keyword = pendingSearch.value.trim().toLowerCase()
-  if (!keyword) return pendingList.value
-  return pendingList.value.filter(item =>
-    String(item.corpId).toLowerCase().includes(keyword) ||
-    matchesUserNameSearch(item, keyword) ||
-    String(item.department).toLowerCase().includes(keyword) ||
-    String(item.contactNo ?? item.contact ?? '').toLowerCase().includes(keyword) ||
-    String(item.email).toLowerCase().includes(keyword)
-  )
-})
-
 const currentSearch = computed({
   get: () => {
     if (activeTab.value === 'list') return employeeSearch.value
@@ -1623,6 +1628,8 @@ const currentSearch = computed({
     } else {
       pendingSearch.value = value
       pendingPendingCurrentPage.value = 1
+      pendingApprovedCurrentPage.value = 1
+      pendingRejectedCurrentPage.value = 1
     }
   }
 })
@@ -1641,27 +1648,6 @@ const employeeVisiblePages = computed(() => {
   const maxVisible = 5
   let start = Math.max(1, employeeCurrentPage.value - Math.floor(maxVisible / 2))
   let end = Math.min(employeeTotalPages.value, start + maxVisible - 1)
-  if (end - start < maxVisible - 1) {
-    start = Math.max(1, end - maxVisible + 1)
-  }
-  for (let i = start; i <= end; i++) pages.push(i)
-  return pages
-})
-
-const paginatedPendingData = computed(() => {
-  const start = (pendingPendingCurrentPage.value - 1) * pendingPendingPageSize.value
-  const end = start + pendingPendingPageSize.value
-  return filteredPendingList.value.slice(start, end)
-})
-
-const pendingTotalPages = computed(() => Math.max(1, Math.ceil(filteredPendingList.value.length / pendingPendingPageSize.value)))
-const pendingStartIndex = computed(() => (pendingPendingCurrentPage.value - 1) * pendingPendingPageSize.value)
-const pendingEndIndex = computed(() => Math.min(pendingStartIndex.value + pendingPendingPageSize.value, filteredPendingList.value.length))
-const pendingVisiblePages = computed(() => {
-  const pages = []
-  const maxVisible = 5
-  let start = Math.max(1, pendingPendingCurrentPage.value - Math.floor(maxVisible / 2))
-  let end = Math.min(pendingTotalPages.value, start + maxVisible - 1)
   if (end - start < maxVisible - 1) {
     start = Math.max(1, end - maxVisible + 1)
   }
@@ -1690,12 +1676,18 @@ const expiredVisiblePages = computed(() => {
   return pages
 })
 
-watch([employeeTotalPages, pendingTotalPages, expiredTotalPages], () => {
+watch([employeeTotalPages, pendingPendingTotalPages, pendingApprovedTotalPages, pendingRejectedTotalPages, expiredTotalPages], () => {
   if (employeeCurrentPage.value > employeeTotalPages.value) {
     employeeCurrentPage.value = employeeTotalPages.value
   }
-  if (pendingPendingCurrentPage.value > pendingTotalPages.value) {
-    pendingPendingCurrentPage.value = pendingTotalPages.value
+  if (pendingPendingCurrentPage.value > pendingPendingTotalPages.value) {
+    pendingPendingCurrentPage.value = pendingPendingTotalPages.value
+  }
+  if (pendingApprovedCurrentPage.value > pendingApprovedTotalPages.value) {
+    pendingApprovedCurrentPage.value = pendingApprovedTotalPages.value
+  }
+  if (pendingRejectedCurrentPage.value > pendingRejectedTotalPages.value) {
+    pendingRejectedCurrentPage.value = pendingRejectedTotalPages.value
   }
   if (expiredCurrentPage.value > expiredTotalPages.value) {
     expiredCurrentPage.value = expiredTotalPages.value
