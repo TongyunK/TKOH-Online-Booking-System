@@ -22,7 +22,10 @@ export function formatTeaServiceDisplay (teaService, fallbackAttendees, options 
     else option = '1'
   }
 
-  if (option === 'none') return '不用茶'
+  if (option === 'none') {
+    if (attendees !== '' && attendees != null) return `不用茶 / ${attendees}`
+    return '不用茶'
+  }
 
   let base = ''
   if (option === '1') {

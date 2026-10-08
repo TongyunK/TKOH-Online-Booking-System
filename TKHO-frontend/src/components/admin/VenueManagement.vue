@@ -985,7 +985,13 @@ const formatDateTime = (value) => {
   if (!value) return '-'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString('en-US', { hour12: false })
+  const d = date.getDate()
+  const m = date.getMonth() + 1
+  const y = date.getFullYear()
+  const hh = String(date.getHours()).padStart(2, '0')
+  const mm = String(date.getMinutes()).padStart(2, '0')
+  const ss = String(date.getSeconds()).padStart(2, '0')
+  return `${d}/${m}/${y}, ${hh}:${mm}:${ss}`
 }
 
 const formatBlockDateTime = (value) => {

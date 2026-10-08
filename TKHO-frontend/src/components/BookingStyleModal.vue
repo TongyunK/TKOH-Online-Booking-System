@@ -387,9 +387,11 @@ onUnmounted(() => {
   overflow: visible;
 }
 
-/* Pending approval details：部门下拉在弹窗内展开，避免裁切 */
+/* Pending approval details：与 Edit User 一致，内容区可滚动（14" zoom 断点下避免表单溢出） */
 .booking-style-modal-root.pending-approval-detail-modal .modal-body {
-  overflow: visible;
+  overflow-y: auto;
+  overflow-x: clip;
+  min-height: 0;
 }
 
 /* Reject Registration：模板下拉在弹窗内展开；收紧左右留白，减少左侧「空栏」感 */

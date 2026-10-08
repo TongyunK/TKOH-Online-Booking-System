@@ -939,6 +939,7 @@
             v-model="pendingHandleForm.role"
             placeholder="Select role"
             style="width: 100%"
+            placement="top-start"
             :teleported="pendingApprovalSelectTeleported"
             popper-class="pending-approval-select-popper"
             :popper-style="pendingApprovalSelectTeleported ? { zIndex: 10100 } : {}"
