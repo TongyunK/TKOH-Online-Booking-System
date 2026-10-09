@@ -74,8 +74,8 @@
                         </span>
                       </div>
                     </div>
+                    <div v-if="row.am.length === 0" class="meeting-placeholder">-</div>
                   </div>
-                  <div v-if="row.am.length === 0" class="meeting-placeholder">-</div>
                 </div>
               </div>
               <div class="slot-col pm-col">
@@ -100,8 +100,8 @@
                         </span>
                       </div>
                     </div>
+                    <div v-if="row.pm.length === 0" class="meeting-placeholder">-</div>
                   </div>
-                  <div v-if="row.pm.length === 0" class="meeting-placeholder">-</div>
                 </div>
               </div>
             </div>
