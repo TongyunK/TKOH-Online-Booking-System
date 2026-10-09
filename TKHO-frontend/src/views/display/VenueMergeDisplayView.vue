@@ -54,23 +54,25 @@
               </div>
               <div class="slot-col">
                 <div class="meeting-carousel" :data-key="`${row.id}-am`">
-                  <div class="meeting-track" :style="getMeetingTrackStyle(row.id, 'am')">
-                    <div
-                      v-for="item in row.am"
-                      :key="item.id"
-                      class="meeting-item"
-                      :data-item-id="String(item.id)"
-                    >
-                      <span class="meeting-time">{{ item.time }}</span>
-                      <span class="meeting-title-wrap">
-                        <span class="meeting-title">{{ item.title }}</span>
-                        <span
-                          v-if="getMeetingEllipsisStyle(row.id, 'am', item.id)"
-                          class="meeting-title-ellipsis"
-                          :style="getMeetingEllipsisStyle(row.id, 'am', item.id)"
-                          aria-hidden="true"
-                        >...</span>
-                      </span>
+                  <div class="meeting-clip" :style="getMeetingClipStyle(row.id, 'am')">
+                    <div class="meeting-track" :style="getMeetingTrackStyle(row.id, 'am')">
+                      <div
+                        v-for="item in row.am"
+                        :key="item.id"
+                        class="meeting-item"
+                        :data-item-id="String(item.id)"
+                      >
+                        <span class="meeting-time">{{ item.time }}</span>
+                        <span class="meeting-title-wrap">
+                          <span class="meeting-title">{{ item.title }}</span>
+                          <span
+                            v-if="getMeetingEllipsisStyle(row.id, 'am', item.id)"
+                            class="meeting-title-ellipsis"
+                            :style="getMeetingEllipsisStyle(row.id, 'am', item.id)"
+                            aria-hidden="true"
+                          >...</span>
+                        </span>
+                      </div>
                     </div>
                   </div>
                   <div v-if="row.am.length === 0" class="meeting-placeholder">-</div>
@@ -78,23 +80,25 @@
               </div>
               <div class="slot-col pm-col">
                 <div class="meeting-carousel" :data-key="`${row.id}-pm`">
-                  <div class="meeting-track" :style="getMeetingTrackStyle(row.id, 'pm')">
-                    <div
-                      v-for="item in row.pm"
-                      :key="item.id"
-                      class="meeting-item"
-                      :data-item-id="String(item.id)"
-                    >
-                      <span class="meeting-time">{{ item.time }}</span>
-                      <span class="meeting-title-wrap">
-                        <span class="meeting-title">{{ item.title }}</span>
-                        <span
-                          v-if="getMeetingEllipsisStyle(row.id, 'pm', item.id)"
-                          class="meeting-title-ellipsis"
-                          :style="getMeetingEllipsisStyle(row.id, 'pm', item.id)"
-                          aria-hidden="true"
-                        >...</span>
-                      </span>
+                  <div class="meeting-clip" :style="getMeetingClipStyle(row.id, 'pm')">
+                    <div class="meeting-track" :style="getMeetingTrackStyle(row.id, 'pm')">
+                      <div
+                        v-for="item in row.pm"
+                        :key="item.id"
+                        class="meeting-item"
+                        :data-item-id="String(item.id)"
+                      >
+                        <span class="meeting-time">{{ item.time }}</span>
+                        <span class="meeting-title-wrap">
+                          <span class="meeting-title">{{ item.title }}</span>
+                          <span
+                            v-if="getMeetingEllipsisStyle(row.id, 'pm', item.id)"
+                            class="meeting-title-ellipsis"
+                            :style="getMeetingEllipsisStyle(row.id, 'pm', item.id)"
+                            aria-hidden="true"
+                          >...</span>
+                        </span>
+                      </div>
                     </div>
                   </div>
                   <div v-if="row.pm.length === 0" class="meeting-placeholder">-</div>
@@ -273,9 +277,26 @@ function getMeetingTrackStyle (rowId, period) {
   const key = getMeetingKey(rowId, period)
   const meta = meetingViewportMeta.value[key]
   const page = currentMeetingPage.value[key] || 0
-  const offset = meta?.pageOffsets?.[page] ?? ((meta?.viewportHeight || 0) * page)
+  const rawOffset = meta?.pageOffsets?.[page] ?? ((meta?.viewportHeight || 0) * page)
+  // 第 2 页起 offset 落在条目顶；少滚一个 padding-top，与首页顶距对齐
+  const pad = meta?.trackPaddingTop || 0
+  const offset = page > 0 ? Math.max(0, rawOffset - pad) : rawOffset
   return {
     transform: `translateY(-${offset}px)`
+  }
+}
+
+/** 本页可见窗口高度；不够一整行的尾巴不画，避免半截字压到分隔线/底栏 */
+function getMeetingClipStyle (rowId, period) {
+  const key = getMeetingKey(rowId, period)
+  const meta = meetingViewportMeta.value[key]
+  if (!meta?.viewportHeight) return null
+  const page = currentMeetingPage.value[key] || 0
+  const start = meta.pageOffsets?.[page] ?? 0
+  const clipEnd = meta.pageClipEnds?.[page] ?? (start + meta.viewportHeight)
+  const height = Math.max(0, Math.min(meta.viewportHeight, clipEnd - start))
+  return {
+    height: `${height}px`
   }
 }
 
@@ -290,6 +311,17 @@ function getMeetingEllipsisStyle (rowId, period, itemId) {
   const info = meta?.ellipsisByPage?.[page]
   if (!info || info.itemId !== String(itemId)) return null
   return { top: `${info.topPx}px` }
+}
+
+function findFirstOverflowingItem (items, start, maxEnd, slop) {
+  for (const item of items) {
+    const top = item.offsetTop
+    const bottom = top + item.offsetHeight
+    if (bottom <= start + 1) continue
+    if (top >= maxEnd - 1) break
+    if (bottom > maxEnd + slop) return item
+  }
+  return null
 }
 
 function readLineHeightPx (el, fallback = 48) {
@@ -315,12 +347,19 @@ async function measureMeetingViewports () {
     const track = el.querySelector('.meeting-track')
     const items = track ? Array.from(track.querySelectorAll('.meeting-item')) : []
     const contentHeight = track ? track.scrollHeight : 0
+    const trackPaddingTop = track
+      ? (Number.parseFloat(window.getComputedStyle(track).paddingTop) || 0)
+      : 0
+    /** 亚像素 / 行高余量：差一点就视为完整放下，避免短标题误出 ... 并换页 */
+    const FIT_SLOP_PX = 3
 
-    if (viewportHeight <= 0 || items.length === 0 || contentHeight <= viewportHeight + 1) {
+    if (viewportHeight <= 0 || items.length === 0 || contentHeight <= viewportHeight + FIT_SLOP_PX) {
       nextMeta[key] = {
         viewportHeight,
+        trackPaddingTop,
         pageCount: 1,
         pageOffsets: [0],
+        pageClipEnds: [viewportHeight],
         ellipsisByPage: []
       }
       return
@@ -328,11 +367,12 @@ async function measureMeetingViewports () {
 
     /**
      * 分页规则：
-     * - 当前页底部若裁切某条预订 → 该条显示「...」
-     * - 下一页从该条预订的开头重新完整展示（而不是只续后半段）
-     * - 若单条高度超过一屏 → 仍按视口硬翻页
+     * - 优先在条目边界整页断开（本页只放完整预订）
+     * - 仅当「单条从本页顶开始仍超高」时，才在标题行末 ... 并硬翻页
+     * - 下页一律从被挤下去的那条开头完整重显
      */
     const pageOffsets = [0]
+    const pageClipEnds = []
     const ellipsisByPage = []
     let start = 0
     let guard = 0
@@ -342,20 +382,18 @@ async function measureMeetingViewports () {
       const pageIndex = pageOffsets.length - 1
       const maxEnd = start + viewportHeight
 
-      if (maxEnd >= contentHeight - 1) {
+      if (maxEnd >= contentHeight - FIT_SLOP_PX) {
         ellipsisByPage[pageIndex] = null
+        pageClipEnds[pageIndex] = maxEnd
         break
       }
 
-      const cutItem = items.find((item) => {
-        const top = item.offsetTop
-        const bottom = top + item.offsetHeight
-        return top < maxEnd - 1 && bottom > maxEnd + 1
-      })
+      const firstOverflowing = findFirstOverflowingItem(items, start, maxEnd, FIT_SLOP_PX)
 
-      if (!cutItem) {
+      if (!firstOverflowing) {
         ellipsisByPage[pageIndex] = null
-        const nextItem = items.find((item) => item.offsetTop >= maxEnd - 1)
+        pageClipEnds[pageIndex] = maxEnd
+        const nextItem = items.find((item) => item.offsetTop >= maxEnd - FIT_SLOP_PX)
         const nextStart = nextItem ? nextItem.offsetTop : contentHeight
         if (nextStart >= contentHeight - 1 || nextStart <= start) break
         pageOffsets.push(nextStart)
@@ -363,32 +401,47 @@ async function measureMeetingViewports () {
         continue
       }
 
-      const cutTop = cutItem.offsetTop
-      const titleEl = cutItem.querySelector('.meeting-title')
-      const lineHeight = readLineHeightPx(titleEl || cutItem)
-      const visibleInItem = maxEnd - cutTop
+      const overflowTop = firstOverflowing.offsetTop
+
+      // 前面已有完整条目：在溢出条之前收口，整条留给下一页
+      if (overflowTop > start + 1) {
+        ellipsisByPage[pageIndex] = null
+        pageClipEnds[pageIndex] = overflowTop
+        pageOffsets.push(overflowTop)
+        start = overflowTop
+        continue
+      }
+
+      // 单条从本页顶开始仍超高 → 行末 ... + 硬翻一屏
+      const titleEl = firstOverflowing.querySelector('.meeting-title')
+      const lineHeight = readLineHeightPx(titleEl || firstOverflowing)
+      const visibleInItem = maxEnd - overflowTop
       const visibleLines = Math.max(1, Math.floor((visibleInItem + 0.5) / lineHeight))
       const topPx = Math.max(0, (visibleLines - 1) * lineHeight)
 
       ellipsisByPage[pageIndex] = {
-        itemId: cutItem.getAttribute('data-item-id') || '',
+        itemId: firstOverflowing.getAttribute('data-item-id') || '',
         topPx
       }
+      pageClipEnds[pageIndex] = maxEnd
 
-      // 下页从该条开头完整重显；若本页已从该条开头起仍裁切（单条超高），则硬翻一屏
-      let nextStart = cutTop
-      if (nextStart <= start + 1) {
-        nextStart = Math.min(maxEnd, contentHeight)
-      }
+      const nextStart = Math.min(maxEnd, contentHeight)
       if (nextStart >= contentHeight - 1 || nextStart <= start) break
       pageOffsets.push(nextStart)
       start = nextStart
     }
 
+    if (pageClipEnds.length < pageOffsets.length) {
+      const last = pageOffsets.length - 1
+      pageClipEnds[last] = (pageOffsets[last] || 0) + viewportHeight
+    }
+
     nextMeta[key] = {
       viewportHeight,
+      trackPaddingTop,
       pageCount: Math.max(1, pageOffsets.length),
       pageOffsets,
+      pageClipEnds,
       ellipsisByPage
     }
   })
@@ -837,7 +890,8 @@ html.merge-display-fullscreen #app {
   flex: 1 1 0;
   min-height: 96px;
   font-size: 38px;
-  overflow: visible;
+  /* 防止会议文字在 transform:scale 下溢出到分隔线 / 底栏 */
+  overflow: hidden;
 }
 
 /* 占流式高度，不用 absolute/伪元素，避免 Android + scale 亚像素整条消失 */
@@ -860,7 +914,7 @@ html.merge-display-fullscreen #app {
   font-size: 84px;
   font-weight: 700;
   /* 与右侧会议第一行顶对齐（对应 .meeting-track padding-top） */
-  padding-top: 10px;
+  padding-top: 8px;
   align-self: flex-start;
   width: 100%;
   height: auto;
@@ -902,6 +956,16 @@ html.merge-display-fullscreen #app {
   height: 100%;
   min-height: 0;
   overflow: hidden;
+  /* 独立层，减轻 Android WebView + 外层 scale 时 overflow 裁切失效 */
+  transform: translateZ(0);
+}
+
+.meeting-clip {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
 }
 
 .meeting-track {
@@ -909,9 +973,9 @@ html.merge-display-fullscreen #app {
   flex-direction: column;
   justify-content: flex-start;
   align-items: flex-start;
-  gap: 12px;
+  gap: 11px;
   width: 100%;
-  padding-top: 10px;
+  padding-top: 8px;
   transition: transform 450ms ease;
 }
 
@@ -963,7 +1027,7 @@ html.merge-display-fullscreen #app {
 
 .meeting-placeholder {
   opacity: 0.9;
-  padding-top: 10px;
+  padding-top: 8px;
   color: rgb(255, 212, 91);
   font-size: 38px;
 }
