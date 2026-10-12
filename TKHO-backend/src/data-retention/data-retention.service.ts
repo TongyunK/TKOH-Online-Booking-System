@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { getAppTodayYmd } from '../common/app-timezone';
 import { PrismaService } from '../prisma/prisma.service';
 import { SystemSettingsService } from '../system-settings/system-settings.service';
 import { DataRetentionPurgeSummary } from './data-retention.types';
@@ -10,6 +11,11 @@ function cutoffBeforeMonths(months: number): Date {
   const cutoff = new Date();
   cutoff.setMonth(cutoff.getMonth() - months);
   return cutoff;
+}
+
+/** Prisma @db.Date 比较用：业务日历日 YYYY-MM-DD → UTC 午夜 */
+function parseDateOnlyYmd(ymd: string): Date {
+  return new Date(`${ymd}T00:00:00.000Z`);
 }
 
 @Injectable()
@@ -26,6 +32,8 @@ export class DataRetentionService {
     const retentionMonths =
       await this.systemSettingsService.getDataRetentionMonths();
     const cutoff = cutoffBeforeMonths(retentionMonths);
+    const todayYmd = getAppTodayYmd();
+    const todayDate = parseDateOnlyYmd(todayYmd);
 
     const summary: DataRetentionPurgeSummary = {
       retentionMonths,
@@ -41,21 +49,19 @@ export class DataRetentionService {
     };
 
     this.logger.log(
-      `Data retention purge starting: months=${retentionMonths}, cutoff=${summary.cutoffIso}`,
+      `Data retention purge starting: months=${retentionMonths}, cutoff=${summary.cutoffIso}, todayYmd=${todayYmd}`,
     );
 
     try {
-      const planned = await this.countPlannedDeletes(cutoff);
+      const planned = await this.countPlannedDeletes(cutoff, todayDate);
       this.logger.log(
         `Data retention purge plan: venueBookings=${planned.venueBookings}, evBookingsByAge=${planned.evBookingsByAge}, inactiveUsers=${planned.inactiveUsers}, licensePlates=${planned.licensePlates}`,
       );
 
-      summary.venueBookingsDeleted = await this.deleteVenueBookingsByCreatedAt(
-        cutoff,
-      );
-      summary.evBookingsDeletedByAge = await this.deleteEvBookingsByCreatedAt(
-        cutoff,
-      );
+      summary.venueBookingsDeleted =
+        await this.deleteVenueBookingsByAgeAndPastDate(cutoff, todayDate);
+      summary.evBookingsDeletedByAge =
+        await this.deleteEvBookingsByAgeAndPastDate(cutoff, todayDate);
 
       const userPurge = await this.deleteInactiveUsersAndPlates(cutoff);
       summary.evBookingsDeletedForUserPlates = userPurge.evBookingsForPlates;
@@ -81,16 +87,40 @@ export class DataRetentionService {
     }
   }
 
-  private async countPlannedDeletes(cutoff: Date) {
+  /**
+   * Venue：created_at 超龄，且 booking_date 早于今天（HKT）或为空。
+   */
+  private agedVenueBookingWhere(
+    cutoff: Date,
+    todayDate: Date,
+  ): Prisma.VenueBookingsWhereInput {
+    return {
+      createdAt: { lt: cutoff },
+      OR: [{ bookingDate: null }, { bookingDate: { lt: todayDate } }],
+    };
+  }
+
+  /**
+   * EV：created_at 超龄 且 booking_date 早于今天（HKT）。
+   */
+  private agedEvBookingWhere(
+    cutoff: Date,
+    todayDate: Date,
+  ): Prisma.EvBookingsWhereInput {
+    return {
+      createdAt: { lt: cutoff },
+      bookingDate: { lt: todayDate },
+    };
+  }
+
+  private async countPlannedDeletes(cutoff: Date, todayDate: Date) {
     const inactiveUserWhere = this.inactiveUserWhere(cutoff);
+    const venueWhere = this.agedVenueBookingWhere(cutoff, todayDate);
+    const evWhere = this.agedEvBookingWhere(cutoff, todayDate);
     const [venueBookings, evBookingsByAge, inactiveUserRows] =
       await Promise.all([
-        this.prisma.venueBookings.count({
-          where: { createdAt: { lt: cutoff } },
-        }),
-        this.prisma.evBookings.count({
-          where: { createdAt: { lt: cutoff } },
-        }),
+        this.prisma.venueBookings.count({ where: venueWhere }),
+        this.prisma.evBookings.count({ where: evWhere }),
         this.prisma.user.findMany({
           where: inactiveUserWhere,
           select: { id: true },
@@ -132,11 +162,15 @@ export class DataRetentionService {
     };
   }
 
-  private async deleteVenueBookingsByCreatedAt(cutoff: Date): Promise<number> {
+  private async deleteVenueBookingsByAgeAndPastDate(
+    cutoff: Date,
+    todayDate: Date,
+  ): Promise<number> {
+    const where = this.agedVenueBookingWhere(cutoff, todayDate);
     let deleted = 0;
     for (;;) {
       const rows = await this.prisma.venueBookings.findMany({
-        where: { createdAt: { lt: cutoff } },
+        where,
         select: { id: true },
         take: BATCH_SIZE,
         orderBy: { id: 'asc' },
@@ -152,11 +186,15 @@ export class DataRetentionService {
     return deleted;
   }
 
-  private async deleteEvBookingsByCreatedAt(cutoff: Date): Promise<number> {
+  private async deleteEvBookingsByAgeAndPastDate(
+    cutoff: Date,
+    todayDate: Date,
+  ): Promise<number> {
+    const where = this.agedEvBookingWhere(cutoff, todayDate);
     let deleted = 0;
     for (;;) {
       const rows = await this.prisma.evBookings.findMany({
-        where: { createdAt: { lt: cutoff } },
+        where,
         select: { id: true },
         take: BATCH_SIZE,
         orderBy: { id: 'asc' },

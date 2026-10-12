@@ -53,7 +53,13 @@
           <el-input v-model="form.firstName" placeholder="Enter first name e.g. Peter / T M" />
         </el-form-item>
         <el-form-item label="Department / Unit" required>
-          <el-select v-model="form.department" style="width: 100%" filterable placeholder="Select department / unit">
+          <el-select
+            v-model="form.department"
+            style="width: 100%"
+            filterable
+            placeholder="Select department / unit"
+            :teleported="selectTeleported"
+          >
             <el-option v-for="d in departments" :key="d.id" :label="d.departmentName" :value="d.departmentName" />
           </el-select>
         </el-form-item>
@@ -73,7 +79,12 @@
           />
         </el-form-item>
         <el-form-item label="Reason" required>
-          <el-select v-model="form.reason" style="width: 100%" placeholder="1) EV booking 2) Venue booking">
+          <el-select
+            v-model="form.reason"
+            style="width: 100%"
+            placeholder="1) EV booking 2) Venue booking"
+            :teleported="selectTeleported"
+          >
             <el-option
               v-for="option in reasonOptions"
               :key="option"
@@ -110,6 +121,7 @@ import { Check, Close, WarningFilled } from '@element-plus/icons-vue'
 import BookingStyleModal from '@/components/BookingStyleModal.vue'
 import { getRegistrationOptions, submitUserRegistration } from '@/api/userManagement'
 import { notifyPendingUsersUpdated } from '@/utils/pendingUsersSync'
+import { HTML_ZOOM_BREAKPOINT_MQ } from '@/utils/venueCalendarApi'
 
 const departments = ref([])
 const reasonOptions = ['EV booking', 'Venue booking']
@@ -134,6 +146,10 @@ const formLabelPosition = ref('right')
 const formLabelWidth = ref('152px')
 let regLayoutMq
 
+/** 14" html zoom:0.8 时挂 body 的 fixed 浮层会坐标偏移，断点内留在缩放 DOM 内 */
+const selectTeleported = ref(true)
+let zoomBreakpointMq = null
+
 function syncRegistrationFormLayout () {
   if (!regLayoutMq) return
   if (regLayoutMq.matches) {
@@ -143,6 +159,10 @@ function syncRegistrationFormLayout () {
     formLabelPosition.value = 'right'
     formLabelWidth.value = '152px'
   }
+}
+
+function syncSelectTeleported () {
+  selectTeleported.value = !window.matchMedia(HTML_ZOOM_BREAKPOINT_MQ).matches
 }
 
 function showResult (kind, title, message) {
@@ -309,6 +329,10 @@ onMounted(async () => {
   syncRegistrationFormLayout()
   regLayoutMq.addEventListener('change', syncRegistrationFormLayout)
 
+  syncSelectTeleported()
+  zoomBreakpointMq = window.matchMedia(HTML_ZOOM_BREAKPOINT_MQ)
+  zoomBreakpointMq.addEventListener('change', syncSelectTeleported)
+
   try {
     const data = await getRegistrationOptions()
     departments.value = data?.departments || []
@@ -320,6 +344,8 @@ onMounted(async () => {
 
 onUnmounted(() => {
   regLayoutMq?.removeEventListener('change', syncRegistrationFormLayout)
+  zoomBreakpointMq?.removeEventListener('change', syncSelectTeleported)
+  zoomBreakpointMq = null
 })
 </script>
 

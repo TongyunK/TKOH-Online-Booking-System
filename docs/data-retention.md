@@ -23,11 +23,13 @@
 
 | 数据 | 判定字段 | 条件 | 动作 |
 |------|----------|------|------|
-| Venue 预订 | `venue_bookings.created_at` | `< cutoff` | 删除（茶水子表随 DB cascade） |
-| EV 预订 | `ev_bookings.created_at` | `< cutoff` | 删除 |
+| Venue 预订 | `created_at` + `booking_date` | `created_at < cutoff` **且**（`booking_date < 今天(HKT)` **或** `booking_date` 为空） | 删除（茶水子表随 DB cascade） |
+| EV 预订 | `created_at` + `booking_date` | `created_at < cutoff` **且** `booking_date < 今天(HKT)` | 删除 |
 | 用户 | `user.inactive_time` + `status` | `status = Inactive` 且 `inactive_time < cutoff` | 删除用户及其车牌 |
 | Active 用户 | — | 任意 | **永不删除** |
 | SuperAdmin / `is_system_hidden` | — | — | **不纳入** Inactive 用户清理 |
+
+因此「今天创建、预约日在两年后」的预订不会被清；须创建已超龄 **且** 预约日已过才会删。
 
 ### Inactive 用户与车牌
 
@@ -125,7 +127,8 @@ TKHO-backend/src/system-settings/system-setting.keys.ts
 ## 风险与说明
 
 - **不可恢复**：服务器 purge 后无法从本系统恢复；只能依赖客户备份邮件或其它外部备份。  
-- **删用户时可能删较新 EV 预订**：若 Inactive 用户仍有未满 N 个月、但挂在其车牌上的 EV 预订，会一并删除以便删车牌。  
+- **未来预约不删**：即使 `created_at` 已超龄，只要 `booking_date` ≥ 今天（HKT），预订保留；Venue 的 `booking_date` 为空且已超龄则会删。  
+- **删用户时可能删较新 EV 预订**：若 Inactive 用户仍有未满 N 个月、但挂在其车牌上的 EV 预订，会一并删除以便删车牌（该路径不受 booking_date 双条件约束）。  
 - **Venue 预订人变空**：未超龄 Venue 预订在用户被删后 `reserved_by` 等为 null，列表可能显示不出原预订人姓名。  
 - **Expired 用户**：当前任务只清理 `Inactive`；`Expired` 不在本任务范围内（如需可另定规则）。  
 
@@ -135,3 +138,5 @@ TKHO-backend/src/system-settings/system-setting.keys.ts
 |------|------|
 | 2026-08-27 | 初版：月度 purge、Settings `data_retention_months` / `data_retention_ops_email`、预订按创建日、Inactive 用户按 inactive_time + 车牌 |
 | 2026-08-27 | Data Retention 从 Admin System Settings UI 隐藏；改由 DB / 默认值配置 |
+| 2026-10-09 | 预订 purge 改为 `created_at` 超龄 **且** `booking_date` 早于今天（HKT）双条件 |
+| 2026-10-09 | Venue：超龄且 `booking_date` 为空的记录也纳入 purge |

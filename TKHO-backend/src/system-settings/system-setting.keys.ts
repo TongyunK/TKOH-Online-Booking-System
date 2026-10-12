@@ -16,7 +16,7 @@ export const SystemSettingKey = {
   dataBackupEmailSendTime: 'data_backup_email_send_time',
   /** 是否启用定时自动发送备份邮件（手动 Send now 不受此开关限制） */
   dataBackupEmailEnabled: 'data_backup_email_enabled',
-  /** 在线数据保留月数；超龄预订/Inactive 用户由月度 purge 清理 */
+  /** 在线数据保留月数；超龄且预约日已过的预订 / Inactive 用户由月度 purge 清理 */
   dataRetentionMonths: 'data_retention_months',
   /** 数据保留清理结果/失败通知的运维邮箱 */
   dataRetentionOpsEmail: 'data_retention_ops_email',
@@ -100,7 +100,7 @@ export const SYSTEM_SETTING_DESCRIPTIONS: Record<SystemSettingKeyName, string> =
     [SystemSettingKey.dataBackupEmailEnabled]:
       'Whether scheduled data backup emails are sent automatically',
     [SystemSettingKey.dataRetentionMonths]:
-      'Months to retain online booking/user data before monthly purge (admin UI hidden; bookings by created_at; inactive users by inactive_time)',
+      'Months to retain online booking/user data before monthly purge (admin UI hidden; bookings when created_at older than N months AND (booking_date before today HKT, or null for venue); inactive users by inactive_time)',
     [SystemSettingKey.dataRetentionOpsEmail]:
       'Ops email for monthly data retention purge summary and failure alerts (admin UI hidden)',
     [SystemSettingKey.mergeDisplayRotateIntervalMs]:
