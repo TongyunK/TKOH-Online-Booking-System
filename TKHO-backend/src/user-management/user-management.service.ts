@@ -10,6 +10,10 @@ import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { ApprovePendingDto } from './dto/approve-pending.dto';
 import { CreateUserDto } from './dto/create-user.dto';
+import {
+  ListPendingUsersQuery,
+  ListUsersQuery,
+} from './dto/list-users-query.dto';
 import { SubmitPendingUserDto } from './dto/submit-pending-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { isSuperAdminAuth, isSuperAdminRole } from '../auth/super-admin.util';
@@ -17,6 +21,9 @@ import {
   formatUserDisplayName,
   userDisplayNameSelect,
 } from '../common/user-display-name';
+
+const MAX_PAGE_SIZE = 100;
+const MAX_EXPORT_SIZE = 5000;
 
 const userSelect = {
   id: true,
@@ -378,15 +385,227 @@ export class UserManagementService {
     };
   }
 
-  async listUsers(auth?: { isSuperAdmin?: boolean; role?: string }) {
+  private parsePositiveInt(value: unknown, fallback: number): number {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n <= 0) return fallback;
+    return Math.floor(n);
+  }
+
+  private isTruthyFlag(value: unknown): boolean {
+    if (value === true || value === 1) return true;
+    const text = String(value ?? '').trim().toLowerCase();
+    return text === '1' || text === 'true' || text === 'yes';
+  }
+
+  private parseCsv(value?: string): string[] {
+    return String(value ?? '')
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean);
+  }
+
+  private hideSuperAdminWhere(): Prisma.UserWhereInput {
+    return {
+      NOT: {
+        access_roles: {
+          is: {
+            role_name: {
+              equals: 'SuperAdmin',
+              mode: 'insensitive',
+            },
+          },
+        },
+      },
+    };
+  }
+
+  private buildUserStatusScopeWhere(
+    statusScope?: string,
+  ): Prisma.UserWhereInput | undefined {
+    const scope = String(statusScope ?? 'active').trim().toLowerCase();
+    if (scope === 'all') return undefined;
+    if (scope === 'expired_inactive') {
+      return {
+        OR: [
+          { status: { equals: 'Expired', mode: 'insensitive' } },
+          { status: { equals: 'Inactive', mode: 'insensitive' } },
+        ],
+      };
+    }
+    return { status: { equals: 'Active', mode: 'insensitive' } };
+  }
+
+  private buildUserKeywordWhere(q?: string): Prisma.UserWhereInput | undefined {
+    const keyword = String(q ?? '').trim();
+    if (!keyword) return undefined;
+    return {
+      OR: [
+        { corpId: { contains: keyword, mode: 'insensitive' } },
+        { firstName: { contains: keyword, mode: 'insensitive' } },
+        { lastName: { contains: keyword, mode: 'insensitive' } },
+        { employeeNo: { contains: keyword, mode: 'insensitive' } },
+        { rank: { contains: keyword, mode: 'insensitive' } },
+        { email: { contains: keyword, mode: 'insensitive' } },
+        { contact: { contains: keyword, mode: 'insensitive' } },
+        {
+          department: {
+            is: { department_name: { contains: keyword, mode: 'insensitive' } },
+          },
+        },
+        {
+          access_roles: {
+            is: { role_name: { contains: keyword, mode: 'insensitive' } },
+          },
+        },
+      ],
+    };
+  }
+
+  private buildUserColumnFilterWhere(
+    departments?: string,
+    roles?: string,
+  ): Prisma.UserWhereInput | undefined {
+    const deps = this.parseCsv(departments);
+    const roleNames = this.parseCsv(roles);
+    const parts: Prisma.UserWhereInput[] = [];
+    if (deps.length) {
+      parts.push({
+        department: { is: { department_name: { in: deps } } },
+      });
+    }
+    if (roleNames.length) {
+      parts.push({
+        access_roles: { is: { role_name: { in: roleNames } } },
+      });
+    }
+    if (!parts.length) return undefined;
+    return parts.length === 1 ? parts[0] : { AND: parts };
+  }
+
+  private buildUserListWhere(
+    auth: { isSuperAdmin?: boolean; role?: string } | undefined,
+    query: ListUsersQuery,
+    options?: { applyColumnFilters?: boolean },
+  ): Prisma.UserWhereInput {
+    const and: Prisma.UserWhereInput[] = [];
+    if (!isSuperAdminAuth(auth)) {
+      and.push(this.hideSuperAdminWhere());
+    }
+    const statusWhere = this.buildUserStatusScopeWhere(query.statusScope);
+    if (statusWhere) and.push(statusWhere);
+    const keywordWhere = this.buildUserKeywordWhere(query.q);
+    if (keywordWhere) and.push(keywordWhere);
+    if (options?.applyColumnFilters !== false) {
+      const columnWhere = this.buildUserColumnFilterWhere(
+        query.departments,
+        query.roles,
+      );
+      if (columnWhere) and.push(columnWhere);
+    }
+    if (!and.length) return {};
+    return and.length === 1 ? and[0] : { AND: and };
+  }
+
+  private buildUserOrderBy(
+    query: ListUsersQuery,
+  ): Prisma.UserOrderByWithRelationInput[] {
+    const sortBy = String(query.sortBy ?? '').trim();
+    const sortOrder =
+      String(query.sortOrder ?? '').trim().toLowerCase() === 'asc' ? 'asc' : 'desc';
+    const tieBreaker: Prisma.UserOrderByWithRelationInput = { id: 'asc' };
+    switch (sortBy) {
+      case 'corpId':
+        return [{ corpId: sortOrder }, tieBreaker];
+      case 'department':
+        return [{ department: { department_name: sortOrder } }, tieBreaker];
+      case 'role':
+        return [{ access_roles: { role_name: sortOrder } }, tieBreaker];
+      case 'status':
+        return [{ status: sortOrder }, tieBreaker];
+      case 'lastLoginTime':
+        return [{ lastLoginTime: sortOrder }, tieBreaker];
+      case 'inactiveTime':
+        return [{ inactiveTime: sortOrder }, tieBreaker];
+      case 'inactivedBy':
+        return [{ inactivedBy: sortOrder }, tieBreaker];
+      case 'evQuota':
+        return [{ usedQuotaEv: sortOrder }, { annualQuotaEv: sortOrder }, tieBreaker];
+      case 'venueQuota':
+        return [
+          { usedQuotaVenue: sortOrder },
+          { annualQuotaVenue: sortOrder },
+          tieBreaker,
+        ];
+      default:
+        return [{ id: 'asc' }];
+    }
+  }
+
+  private async buildUserFilterOptions(where: Prisma.UserWhereInput) {
     const rows = await this.prisma.user.findMany({
-      orderBy: { id: 'asc' },
-      select: userSelect,
+      where,
+      select: {
+        department: { select: { department_name: true } },
+        access_roles: { select: { role_name: true } },
+      },
     });
-    const visibleRows = isSuperAdminAuth(auth)
-      ? rows
-      : rows.filter((u) => !isSuperAdminRole(u.access_roles?.role_name ?? ''));
-    return visibleRows.map((u) => this.mapUser(u));
+    const departments = new Set<string>();
+    const roles = new Set<string>();
+    for (const row of rows) {
+      const dep = String(row.department?.department_name ?? '').trim();
+      if (dep) departments.add(dep);
+      const role = String(row.access_roles?.role_name ?? '').trim();
+      if (role) roles.add(role);
+    }
+    return {
+      departments: [...departments].sort((a, b) =>
+        a.localeCompare(b, undefined, { sensitivity: 'base' }),
+      ),
+      roles: [...roles].sort((a, b) =>
+        a.localeCompare(b, undefined, { sensitivity: 'base' }),
+      ),
+    };
+  }
+
+  async listUsers(
+    auth?: { isSuperAdmin?: boolean; role?: string },
+    query: ListUsersQuery = {},
+  ) {
+    const wantAll = this.isTruthyFlag(query.all);
+    const includeOptions = this.isTruthyFlag(query.includeOptions);
+    const page = this.parsePositiveInt(query.page, 1);
+    const pageSize = Math.min(
+      this.parsePositiveInt(query.pageSize, 20),
+      wantAll ? MAX_EXPORT_SIZE : MAX_PAGE_SIZE,
+    );
+    const where = this.buildUserListWhere(auth, query);
+    const orderBy = this.buildUserOrderBy(query);
+    const skip = wantAll ? 0 : (page - 1) * pageSize;
+    const take: number = wantAll ? MAX_EXPORT_SIZE : pageSize;
+
+    const [total, rows, filterOptions] = await Promise.all([
+      this.prisma.user.count({ where }),
+      this.prisma.user.findMany({
+        where,
+        orderBy,
+        skip,
+        take,
+        select: userSelect,
+      }),
+      includeOptions
+        ? this.buildUserFilterOptions(
+            this.buildUserListWhere(auth, query, { applyColumnFilters: false }),
+          )
+        : Promise.resolve(undefined),
+    ]);
+
+    return {
+      items: rows.map((u) => this.mapUser(u)),
+      total,
+      page: wantAll ? 1 : page,
+      pageSize: wantAll ? rows.length : pageSize,
+      ...(filterOptions ? { filterOptions } : {}),
+    };
   }
 
   async listUserOwnerOptions(
@@ -670,34 +889,145 @@ export class UserManagementService {
   }
 
   async listPendingUsers() {
-    const rows = await this.prisma.pending_users.findMany({
-      where: { approval_status: 'Pending' },
-      orderBy: { id: 'asc' },
-      include: {
-        departments: { select: { department_name: true } },
-      },
-    });
-    return rows.map((p) => this.mapPendingUser(p));
+    return this.listPendingUsersByStatus({ status: 'pending' });
   }
 
-  async listPendingUsersByStatus(status?: string) {
-    const normalized = String(status ?? '').trim().toLowerCase();
+  private buildPendingKeywordWhere(
+    q?: string,
+  ): Prisma.pending_usersWhereInput | undefined {
+    const keyword = String(q ?? '').trim();
+    if (!keyword) return undefined;
+    return {
+      OR: [
+        { corp_id: { contains: keyword, mode: 'insensitive' } },
+        { first_name: { contains: keyword, mode: 'insensitive' } },
+        { last_name: { contains: keyword, mode: 'insensitive' } },
+        { employee_no: { contains: keyword, mode: 'insensitive' } },
+        { email: { contains: keyword, mode: 'insensitive' } },
+        { contact_no: { contains: keyword, mode: 'insensitive' } },
+        { approver_name: { contains: keyword, mode: 'insensitive' } },
+        { reject_reason: { contains: keyword, mode: 'insensitive' } },
+        {
+          departments: {
+            is: { department_name: { contains: keyword, mode: 'insensitive' } },
+          },
+        },
+      ],
+    };
+  }
+
+  private buildPendingListWhere(
+    query: ListPendingUsersQuery,
+    options?: { applyColumnFilters?: boolean },
+  ): Prisma.pending_usersWhereInput {
+    const normalized = String(query.status ?? '').trim().toLowerCase();
     const statusMap: Record<string, string> = {
       pending: 'Pending',
       approved: 'Approved',
       rejected: 'Rejected',
     };
-    const where = statusMap[normalized]
-      ? { approval_status: statusMap[normalized] }
-      : undefined;
+    const and: Prisma.pending_usersWhereInput[] = [];
+    if (statusMap[normalized]) {
+      and.push({ approval_status: statusMap[normalized] });
+    }
+    const keywordWhere = this.buildPendingKeywordWhere(query.q);
+    if (keywordWhere) and.push(keywordWhere);
+    if (options?.applyColumnFilters !== false) {
+      const deps = this.parseCsv(query.departments);
+      if (deps.length) {
+        and.push({
+          departments: { is: { department_name: { in: deps } } },
+        });
+      }
+    }
+    if (!and.length) return {};
+    return and.length === 1 ? and[0] : { AND: and };
+  }
+
+  private buildPendingOrderBy(
+    query: ListPendingUsersQuery,
+  ): Prisma.pending_usersOrderByWithRelationInput[] {
+    const sortBy = String(query.sortBy ?? '').trim();
+    const sortOrder =
+      String(query.sortOrder ?? '').trim().toLowerCase() === 'asc' ? 'asc' : 'desc';
+    const tieBreaker: Prisma.pending_usersOrderByWithRelationInput = { id: 'asc' };
+    switch (sortBy) {
+      case 'corpId':
+        return [{ corp_id: sortOrder }, tieBreaker];
+      case 'department':
+        return [{ departments: { department_name: sortOrder } }, tieBreaker];
+      case 'submittedAt':
+        return [{ submitted_at: sortOrder }, tieBreaker];
+      case 'approvedAt':
+      case 'rejectedAt':
+        return [{ handled_at: sortOrder }, tieBreaker];
+      case 'approvedBy':
+      case 'rejectedBy':
+        return [{ approver_name: sortOrder }, tieBreaker];
+      case 'rejectReason':
+        return [{ reject_reason: sortOrder }, tieBreaker];
+      default:
+        return [{ id: 'asc' }];
+    }
+  }
+
+  private async buildPendingFilterOptions(where: Prisma.pending_usersWhereInput) {
     const rows = await this.prisma.pending_users.findMany({
       where,
-      orderBy: { id: 'asc' },
-      include: {
+      select: {
         departments: { select: { department_name: true } },
       },
     });
-    return rows.map((p) => this.mapPendingUser(p));
+    const departments = new Set<string>();
+    for (const row of rows) {
+      const dep = String(row.departments?.department_name ?? '').trim();
+      if (dep) departments.add(dep);
+    }
+    return {
+      departments: [...departments].sort((a, b) =>
+        a.localeCompare(b, undefined, { sensitivity: 'base' }),
+      ),
+    };
+  }
+
+  async listPendingUsersByStatus(query: ListPendingUsersQuery = {}) {
+    const wantAll = this.isTruthyFlag(query.all);
+    const includeOptions = this.isTruthyFlag(query.includeOptions);
+    const page = this.parsePositiveInt(query.page, 1);
+    const pageSize = Math.min(
+      this.parsePositiveInt(query.pageSize, 20),
+      wantAll ? MAX_EXPORT_SIZE : MAX_PAGE_SIZE,
+    );
+    const where = this.buildPendingListWhere(query);
+    const orderBy = this.buildPendingOrderBy(query);
+    const skip = wantAll ? 0 : (page - 1) * pageSize;
+    const take: number = wantAll ? MAX_EXPORT_SIZE : pageSize;
+
+    const [total, rows, filterOptions] = await Promise.all([
+      this.prisma.pending_users.count({ where }),
+      this.prisma.pending_users.findMany({
+        where,
+        orderBy,
+        skip,
+        take,
+        include: {
+          departments: { select: { department_name: true } },
+        },
+      }),
+      includeOptions
+        ? this.buildPendingFilterOptions(
+            this.buildPendingListWhere(query, { applyColumnFilters: false }),
+          )
+        : Promise.resolve(undefined),
+    ]);
+
+    return {
+      items: rows.map((p) => this.mapPendingUser(p)),
+      total,
+      page: wantAll ? 1 : page,
+      pageSize: wantAll ? rows.length : pageSize,
+      ...(filterOptions ? { filterOptions } : {}),
+    };
   }
 
   async approvePending(

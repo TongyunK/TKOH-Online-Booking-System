@@ -1,8 +1,18 @@
-import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AdminRoleGuard } from '../auth/guards/admin-role.guard';
 import { ApproveBookingDto } from './dto/approve-booking.dto';
 import { RejectBookingDto } from './dto/reject-booking.dto';
+import { MeetingApprovalListQuery } from './dto/list-bookings-query.dto';
 import { MeetingApprovalService } from './meeting-approval.service';
 
 @ApiTags('meeting-approval')
@@ -13,23 +23,23 @@ export class MeetingApprovalController {
   constructor(private readonly meetingApprovalService: MeetingApprovalService) {}
 
   @Get('pending')
-  listPending() {
-    return this.meetingApprovalService.listPending();
+  listPending(@Query() query: MeetingApprovalListQuery) {
+    return this.meetingApprovalService.listPending(query);
   }
 
   @Get('pending-expired')
-  listPendingExpired() {
-    return this.meetingApprovalService.listPendingExpired();
+  listPendingExpired(@Query() query: MeetingApprovalListQuery) {
+    return this.meetingApprovalService.listPendingExpired(query);
   }
 
   @Get('approved')
-  listApproved() {
-    return this.meetingApprovalService.listByApprovalStatus('approved');
+  listApproved(@Query() query: MeetingApprovalListQuery) {
+    return this.meetingApprovalService.listByApprovalStatus('approved', query);
   }
 
   @Get('rejected')
-  listRejected() {
-    return this.meetingApprovalService.listByApprovalStatus('rejected');
+  listRejected(@Query() query: MeetingApprovalListQuery) {
+    return this.meetingApprovalService.listByApprovalStatus('rejected', query);
   }
 
   @Post(':id/approve')

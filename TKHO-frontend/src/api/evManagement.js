@@ -46,9 +46,13 @@ export function publishEvBookingWindow(payload) {
   return request.patch('/ev-management/booking-window', payload)
 }
 
-/** scope: 'my' | 'all'（all 仅管理员） */
-export function listEvManageBookings(scope = 'my', config = {}) {
-  return request.get('/ev-management/bookings', { params: { scope }, ...config })
+/** params: scope 'my'|'all' + page/pageSize/q/date/sort/filters/all/includeOptions */
+export function listEvManageBookings(scopeOrParams = 'my', config = {}) {
+  const params =
+    typeof scopeOrParams === 'string'
+      ? { scope: scopeOrParams }
+      : scopeOrParams
+  return request.get('/ev-management/bookings', { params, ...config })
 }
 
 export function cancelEvManageBooking(id) {

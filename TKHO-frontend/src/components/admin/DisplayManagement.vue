@@ -12,7 +12,7 @@
         <el-tab-pane label="Display Rules" name="rules" class="rules-tab-pane">
           <div class="rules-pane">
             <div class="table-card display-rules-card">
-              <el-table :data="paginatedVenueRules" height="100%" border stripe table-layout="auto" style="width: 100%">
+              <el-table v-loading="loading" :data="paginatedVenueRules" height="100%" border stripe table-layout="auto" style="width: 100%">
                 <el-table-column type="index" label="#" width="70" align="center" />
                 <el-table-column prop="venueName" label="Venue" min-width="180" />
                 <el-table-column label="Display Type" min-width="180">

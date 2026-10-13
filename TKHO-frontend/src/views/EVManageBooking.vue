@@ -224,7 +224,7 @@
       <!-- Content Area -->
       <div class="content-area flex-1 overflow-hidden flex flex-col">
         <!-- Card View -->
-        <div v-if="currentView === 'card'" class="card-view flex-1 overflow-y-auto">
+        <div v-if="currentView === 'card'" v-loading="bookingsLoading" class="card-view flex-1 overflow-y-auto">
           <div class="cards-grid">
             <div
               v-for="booking in paginatedBookings"
@@ -277,7 +277,7 @@
         </div>
 
         <!-- Table View -->
-        <div v-else class="table-view flex-1 overflow-hidden">
+        <div v-else v-loading="bookingsLoading" class="table-view flex-1 overflow-hidden">
           <div
             ref="tableWrapperRef"
             class="table-wrapper"
@@ -423,13 +423,13 @@
         <!-- Pagination -->
         <div class="pagination-bar">
           <div class="pagination-info">
-            Showing {{ startIndex + 1 }}-{{ endIndex }} of {{ filteredBookings.length }} bookings
+            Showing {{ bookingsTotal ? startIndex + 1 : 0 }}-{{ endIndex }} of {{ bookingsTotal }} bookings
           </div>
           <div class="pagination-controls">
             <button
               class="pagination-btn"
-              :disabled="currentPage === 1"
-              @click="currentPage--"
+              :disabled="currentPage === 1 || bookingsLoading"
+              @click="goBookingsPage(currentPage - 1)"
             >
               Previous
             </button>
@@ -437,14 +437,14 @@
               v-for="page in visiblePages"
               :key="page"
               :class="['pagination-btn', 'page-number', { active: page === currentPage }]"
-              @click="currentPage = page"
+              @click="goBookingsPage(page)"
             >
               {{ page }}
             </button>
             <button
               class="pagination-btn"
-              :disabled="currentPage === totalPages"
-              @click="currentPage++"
+              :disabled="currentPage === totalPages || bookingsLoading"
+              @click="goBookingsPage(currentPage + 1)"
             >
               Next
             </button>
@@ -673,8 +673,73 @@ const showNotice = (message, title = 'Notice') => {
   showNoticeDialog.value = true
 }
 const bookings = ref([])
+const bookingsTotal = ref(0)
 const bookingsLoading = ref(false)
 const exportingExcel = ref(false)
+const filterOptionsState = ref({
+  licensePlate: [],
+  space: [],
+  status: ['upcoming', 'past', 'cancelled'],
+  submitter: [],
+  reservedBy: []
+})
+let searchReloadTimer = null
+let suppressBookingsReload = false
+
+function normalizeManageListResponse (payload) {
+  if (Array.isArray(payload?.items)) {
+    return {
+      items: payload.items,
+      total: Number(payload.total) || payload.items.length,
+      filterOptions: payload.filterOptions || null
+    }
+  }
+  if (Array.isArray(payload?.bookings)) {
+    return {
+      items: payload.bookings,
+      total: Number(payload.total) || payload.bookings.length,
+      filterOptions: payload.filterOptions || null
+    }
+  }
+  return { items: [], total: 0, filterOptions: null }
+}
+
+function buildEvListParams ({ includeOptions = false, all = false, dateOnly = false, dateRangeOverride = undefined } = {}) {
+  const scope = isAdmin.value && bookingView.value === 'all' ? 'all' : 'my'
+  const primarySort = sortState.value?.[0]
+  const activeStatuses = Object.keys(statusFilters.value).filter((key) => statusFilters.value[key])
+  const range = dateRangeOverride === undefined ? dateRange.value : dateRangeOverride
+  const params = {
+    scope,
+    page: currentPage.value,
+    pageSize: pageSize.value,
+    q: dateOnly ? undefined : (searchQuery.value || undefined),
+    sortBy: primarySort?.key,
+    sortOrder: primarySort?.order === 'asc' ? 'asc' : 'desc',
+    statuses: dateOnly
+      ? undefined
+      : (activeStatuses.length && activeStatuses.length < 3 ? activeStatuses.join(',') : undefined),
+    licensePlates: (!dateOnly && columnFilterState.value.licensePlate?.length)
+      ? columnFilterState.value.licensePlate.join(',')
+      : undefined,
+    spaces: (!dateOnly && columnFilterState.value.space?.length)
+      ? columnFilterState.value.space.join(',')
+      : undefined,
+    reservedBy: (!dateOnly && columnFilterState.value.reservedBy?.length)
+      ? columnFilterState.value.reservedBy.join(',')
+      : undefined,
+    submitters: (!dateOnly && columnFilterState.value.submitter?.length)
+      ? columnFilterState.value.submitter.join(',')
+      : undefined,
+    includeOptions: includeOptions ? 1 : undefined,
+    all: all ? 1 : undefined
+  }
+  if (range && range.length === 2) {
+    params.dateFrom = range[0]
+    params.dateTo = range[1]
+  }
+  return params
+}
 
 const applyDateRangeToBookings = (result, range) => {
   if (!range || range.length !== 2) return result
@@ -751,7 +816,7 @@ const buildFilteredBookings = (options = {}) => {
   return result
 }
 
-const filteredBookings = computed(() => buildFilteredBookings())
+const filteredBookings = computed(() => bookings.value)
 
 // Helper function to parse date string "28 Mar 2026" to Date object
 const parseDate = (dateStr) => {
@@ -848,65 +913,49 @@ const sortBookingsList = (list) => {
   })
 }
 
-const sortedBookings = computed(() => sortBookingsList(filteredBookings.value))
+const sortedBookings = computed(() => bookings.value)
+
+function reloadBookingsAfterControlChange () {
+  currentPage.value = 1
+  loadBookings({ includeOptions: true }).catch((e) => console.error(e))
+}
 
 const toggleSort = (key) => {
   if (!isAdmin.value && isAdminOnlyTableColumn(key)) return
   const idx = sortState.value.findIndex(item => item.key === key)
   if (idx === -1) {
-    sortState.value.push({ key, order: 'asc' })
+    sortState.value = [{ key, order: 'asc' }]
   } else if (sortState.value[idx].order === 'asc') {
-    sortState.value[idx].order = 'desc'
+    sortState.value = [{ key, order: 'desc' }]
   } else {
-    sortState.value.splice(idx, 1)
+    sortState.value = []
   }
-  currentPage.value = 1
+  reloadBookingsAfterControlChange()
 }
 
 const getSortIndicator = (key) => {
   const idx = sortState.value.findIndex(item => item.key === key)
   if (idx === -1) return ''
-  const arrow = sortState.value[idx].order === 'asc' ? '↑' : '↓'
-  return `${arrow}${idx + 1}`
+  return sortState.value[idx].order === 'asc' ? '↑' : '↓'
 }
 
 const setSortByMenu = (key, order) => {
   if (!isAdmin.value && isAdminOnlyTableColumn(key)) return
-  const idx = sortState.value.findIndex(item => item.key === key)
-  if (idx === -1) {
-    sortState.value.push({ key, order })
-  } else {
-    sortState.value[idx].order = order
-  }
-  currentPage.value = 1
+  sortState.value = [{ key, order }]
+  reloadBookingsAfterControlChange()
 }
 
 const clearSortByMenu = (key) => {
   sortState.value = sortState.value.filter(item => item.key !== key)
-  currentPage.value = 1
+  reloadBookingsAfterControlChange()
 }
 
-const getFilterOptions = (key) => {
-  const map = new Map()
-  for (const booking of bookings.value) {
-    let value = ''
-    if (key === 'licensePlate') value = booking.licensePlate || ''
-    if (key === 'space') value = booking.space || ''
-    if (key === 'status') value = booking.status || ''
-    if (key === 'submitter') value = booking.submitter || ''
-    if (key === 'reservedBy') value = booking.reservedBy || ''
-    if (!value) continue
-    if (!map.has(value)) map.set(value, String(value).toLowerCase())
-  }
-  return [...map.entries()]
-    .sort((a, b) => a[1].localeCompare(b[1], undefined, { sensitivity: 'base' }))
-    .map(([value]) => value)
-}
+const getFilterOptions = (key) => filterOptionsState.value[key] || []
 
 const updateFilter = (key, value) => {
   if (!isAdmin.value && isAdminOnlyTableColumn(key)) return
   columnFilterState.value[key] = Array.isArray(value) ? [...value] : []
-  currentPage.value = 1
+  reloadBookingsAfterControlChange()
 }
 
 watch(isAdmin, (admin) => {
@@ -955,15 +1004,16 @@ const dateFilterLabel = computed(() => {
   return `${formatDate(startDate)} - ${formatDate(endDate)}`
 })
 
-// Pagination
-const totalPages = computed(() => Math.ceil(sortedBookings.value.length / pageSize.value))
+// Pagination (server-side)
+const totalPages = computed(() => Math.max(1, Math.ceil(bookingsTotal.value / pageSize.value)))
 
-const startIndex = computed(() => (currentPage.value - 1) * pageSize.value)
-const endIndex = computed(() => Math.min(startIndex.value + pageSize.value, sortedBookings.value.length))
-
-const paginatedBookings = computed(() => {
-  return sortedBookings.value.slice(startIndex.value, endIndex.value)
+const startIndex = computed(() => {
+  if (!bookingsTotal.value) return 0
+  return (currentPage.value - 1) * pageSize.value
 })
+const endIndex = computed(() => Math.min(startIndex.value + bookings.value.length, bookingsTotal.value))
+
+const paginatedBookings = computed(() => bookings.value)
 
 const visiblePages = computed(() => {
   const pages = []
@@ -982,10 +1032,28 @@ const visiblePages = computed(() => {
   return pages
 })
 
-// Watch for filter changes and reset to page 1
-watch([statusFilters, searchQuery, dateRange, columnFilterState], () => {
-  currentPage.value = 1
+function goBookingsPage (page) {
+  const next = Math.min(Math.max(1, page), totalPages.value)
+  if (next === currentPage.value) return
+  currentPage.value = next
+  loadBookings({ includeOptions: false }).catch((e) => console.error(e))
+}
+
+watch(searchQuery, () => {
+  if (searchReloadTimer) clearTimeout(searchReloadTimer)
+  searchReloadTimer = setTimeout(() => {
+    reloadBookingsAfterControlChange()
+  }, 300)
+})
+
+watch([statusFilters, dateRange], () => {
+  if (suppressBookingsReload) return
+  reloadBookingsAfterControlChange()
 }, { deep: true })
+
+watch(pageSize, () => {
+  reloadBookingsAfterControlChange()
+})
 
 const formatStatus = (status) => {
   return status.charAt(0).toUpperCase() + status.slice(1)
@@ -1022,15 +1090,13 @@ const getExportRows = (mode, quickValue) => {
 }
 
 const exportOptionCounts = computed(() => {
-  if (!showExportMenu.value) {
-    return { current: 0, allDates: 0 }
-  }
+  // Exact counts require a separate full fetch; show current page total for "current".
   const counts = {
-    current: getExportRows('current').length,
-    allDates: getExportRows('allDates').length
+    current: bookingsTotal.value,
+    allDates: '…'
   }
   for (const option of quickDateOptions) {
-    counts[option.value] = getExportRows('quick', option.value).length
+    counts[option.value] = '…'
   }
   return counts
 })
@@ -1078,25 +1144,32 @@ const handleExportMenuClickOutside = (event) => {
 const handleExportExcel = async (mode = 'current', quickValue) => {
   if (!isAdminAllBookingsView.value) return
 
-  const rows = getExportRows(mode, quickValue)
-  if (!rows.length) {
-    showNotice('No bookings match the selected export range. Try another option.', 'Export Excel')
-    return
-  }
-
   let fileName = buildExportFileName()
+  let listParams
   if (mode === 'allDates') {
     fileName = buildExportFileName(null, 'All_Dates')
+    listParams = buildEvListParams({ all: true, dateOnly: true, dateRangeOverride: null })
   } else if (mode === 'quick') {
     const quickOption = quickDateOptions.find((option) => option.value === quickValue)
-    fileName = buildExportFileName(getQuickDateRange(quickValue), quickOption?.label)
-  } else if (dateRange.value && dateRange.value.length === 2) {
-    fileName = buildExportFileName(dateRange.value)
+    const quickRange = getQuickDateRange(quickValue)
+    fileName = buildExportFileName(quickRange, quickOption?.label)
+    listParams = buildEvListParams({ all: true, dateOnly: true, dateRangeOverride: quickRange })
+  } else {
+    if (dateRange.value && dateRange.value.length === 2) {
+      fileName = buildExportFileName(dateRange.value)
+    }
+    listParams = buildEvListParams({ all: true })
   }
 
   exportingExcel.value = true
   closeExportMenu()
   try {
+    const data = await listEvManageBookings(listParams)
+    const rows = normalizeManageListResponse(data).items
+    if (!rows.length) {
+      showNotice('No bookings match the selected export range. Try another option.', 'Export Excel')
+      return
+    }
     const exportData = rows.map((booking, index) => ({
       '#': index + 1,
       'Booking ID': booking.id ?? '',
@@ -1286,14 +1359,25 @@ const getErrorMessage = (error, fallback = 'Operation failed') => {
   return fallback
 }
 
-const loadBookings = async () => {
+const loadBookings = async ({ includeOptions = true } = {}) => {
   bookingsLoading.value = true
   try {
-    const scope = isAdmin.value && bookingView.value === 'all' ? 'all' : 'my'
-    const data = await listEvManageBookings(scope)
-    bookings.value = Array.isArray(data?.bookings) ? data.bookings : []
+    const data = await listEvManageBookings(buildEvListParams({ includeOptions }))
+    const { items, total, filterOptions } = normalizeManageListResponse(data)
+    bookings.value = items
+    bookingsTotal.value = total
+    if (filterOptions) {
+      filterOptionsState.value = {
+        licensePlate: Array.isArray(filterOptions.licensePlates) ? filterOptions.licensePlates : [],
+        space: Array.isArray(filterOptions.spaces) ? filterOptions.spaces : [],
+        status: ['upcoming', 'past', 'cancelled'],
+        submitter: Array.isArray(filterOptions.submitters) ? filterOptions.submitters : [],
+        reservedBy: Array.isArray(filterOptions.reservedBy) ? filterOptions.reservedBy : []
+      }
+    }
   } catch (error) {
     bookings.value = []
+    bookingsTotal.value = 0
     showNotice(getErrorMessage(error, 'Failed to load bookings'), 'Error')
   } finally {
     bookingsLoading.value = false
@@ -1303,7 +1387,8 @@ const loadBookings = async () => {
 watch(bookingView, () => {
   closeExportMenu()
   if (isAdmin.value) {
-    void loadBookings()
+    currentPage.value = 1
+    void loadBookings({ includeOptions: true })
   }
 })
 

@@ -88,7 +88,10 @@ export class EvManagementController {
     @Req() req: { user: { sub?: string; corpId?: string; role?: string; system?: string } },
     @Query() query: ListEvBookingsQueryDto,
   ) {
-    return this.evManagementService.listManageBookings(req.user, query.scope ?? 'my');
+    return this.evManagementService.listManageBookings(req.user, {
+      ...query,
+      scope: query.scope ?? 'my',
+    });
   }
 
   @Patch('bookings/:id/cancel')

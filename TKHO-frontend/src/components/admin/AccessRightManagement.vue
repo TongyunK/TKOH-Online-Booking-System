@@ -16,7 +16,7 @@
       <el-tabs v-model="activeTab">
         <el-tab-pane label="Role" name="role">
           <div class="table-card">
-      <el-table :data="paginatedData" height="100%" border stripe table-layout="auto" style="width: 100%">
+      <el-table v-loading="tableLoading" :data="paginatedData" height="100%" border stripe table-layout="auto" style="width: 100%">
         <el-table-column
           type="index"
           label="#"
@@ -120,7 +120,7 @@
 
         <el-tab-pane label="Department / Unit" name="department">
           <div class="table-card">
-      <el-table :data="paginatedDepartmentData" height="100%" border stripe table-layout="auto" style="width: 100%">
+      <el-table v-loading="tableLoading" :data="paginatedDepartmentData" height="100%" border stripe table-layout="auto" style="width: 100%">
         <el-table-column
           type="index"
           label="#"
@@ -472,13 +472,18 @@ const getErrorMessage = (error, fallback = 'Operation failed') => {
   return fallback
 }
 
+const tableLoading = ref(false)
+
 const loadAccessLists = async () => {
+  tableLoading.value = true
   try {
     const [roles, depts] = await Promise.all([getAccessRoles(), getAccessDepartments()])
     roleList.value = Array.isArray(roles) ? roles : []
     departmentList.value = Array.isArray(depts) ? depts : []
   } catch (error) {
     showNotice(getErrorMessage(error, 'Failed to load access right data'), 'Error')
+  } finally {
+    tableLoading.value = false
   }
 }
 

@@ -739,7 +739,143 @@ export class EvManagementService {
     };
   }
 
-  async listManageBookings(auth: AuthUser, scope: 'my' | 'all' = 'my') {
+  private parsePositiveInt(value: unknown, fallback: number): number {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n <= 0) return fallback;
+    return Math.floor(n);
+  }
+
+  private isTruthyFlag(value: unknown): boolean {
+    if (value === true || value === 1) return true;
+    const text = String(value ?? '').trim().toLowerCase();
+    return text === '1' || text === 'true' || text === 'yes';
+  }
+
+  private parseCsv(value?: string): string[] {
+    return String(value ?? '')
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean);
+  }
+
+  private parseYmdToUtcDate(ymd?: string): Date | null {
+    const match = String(ymd ?? '')
+      .trim()
+      .match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return null;
+    return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  }
+
+  private getUtcTodayDate(): Date {
+    const now = new Date();
+    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  }
+
+  private getUtcNowTimeAsDate(): Date {
+    const now = new Date();
+    return new Date(
+      Date.UTC(1970, 0, 1, now.getUTCHours(), now.getUTCMinutes(), 0, 0),
+    );
+  }
+
+  private cancelledStatusWhere(): Prisma.EvBookingsWhereInput {
+    return {
+      OR: [
+        { status: { equals: 'cancelled', mode: 'insensitive' } },
+        { status: { equals: 'canceled', mode: 'insensitive' } },
+      ],
+    };
+  }
+
+  private notCancelledStatusWhere(): Prisma.EvBookingsWhereInput {
+    return {
+      NOT: this.cancelledStatusWhere(),
+    };
+  }
+
+  /** Approximate upcoming/past using bookingDate + period.endTime (UTC), matching deriveUiStatus. */
+  private buildEvUiStatusWhere(
+    statusesCsv?: string,
+  ): Prisma.EvBookingsWhereInput | undefined {
+    const selected = this.parseCsv(statusesCsv).map((s) => s.toLowerCase());
+    const unique = [...new Set(selected)].filter((s) =>
+      ['upcoming', 'past', 'cancelled'].includes(s),
+    );
+    if (!unique.length || unique.length === 3) return undefined;
+
+    const today = this.getUtcTodayDate();
+    const nowTime = this.getUtcNowTimeAsDate();
+    const parts: Prisma.EvBookingsWhereInput[] = [];
+
+    if (unique.includes('cancelled')) {
+      parts.push(this.cancelledStatusWhere());
+    }
+    if (unique.includes('upcoming')) {
+      parts.push({
+        AND: [
+          this.notCancelledStatusWhere(),
+          {
+            OR: [
+              { bookingDate: { gt: today } },
+              {
+                AND: [
+                  { bookingDate: { equals: today } },
+                  {
+                    OR: [
+                      { period: { is: { endTime: { gt: nowTime } } } },
+                      { period: { is: null } },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      });
+    }
+    if (unique.includes('past')) {
+      parts.push({
+        AND: [
+          this.notCancelledStatusWhere(),
+          {
+            OR: [
+              { bookingDate: { lt: today } },
+              {
+                AND: [
+                  { bookingDate: { equals: today } },
+                  { period: { is: { endTime: { lte: nowTime } } } },
+                ],
+              },
+            ],
+          },
+        ],
+      });
+    }
+
+    return parts.length === 1 ? parts[0] : { OR: parts };
+  }
+
+  async listManageBookings(
+    auth: AuthUser,
+    query: {
+      scope?: 'my' | 'all';
+      page?: string | number;
+      pageSize?: string | number;
+      q?: string;
+      dateFrom?: string;
+      dateTo?: string;
+      sortBy?: string;
+      sortOrder?: string;
+      statuses?: string;
+      licensePlates?: string;
+      spaces?: string;
+      reservedBy?: string;
+      submitters?: string;
+      includeOptions?: string | boolean;
+      all?: string | boolean;
+    } = {},
+  ) {
+    const scope = query.scope === 'all' ? 'all' : 'my';
     const userId = this.parseAuthSub(auth);
     const corpId = String(auth.corpId ?? '').trim();
 
@@ -747,30 +883,173 @@ export class EvManagementService {
       throw new ForbiddenException('Only administrators can view all bookings.');
     }
 
-    const where: Prisma.EvBookingsWhereInput =
-      scope === 'all'
-        ? {}
-        : {
-            OR: [
-              ...(corpId ? [{ userCorpId: corpId }] : []),
-              { licensePlate: { user_id: userId } },
-            ],
-          };
+    const wantAll = this.isTruthyFlag(query.all);
+    const includeOptions = this.isTruthyFlag(query.includeOptions);
+    const page = this.parsePositiveInt(query.page, 1);
+    const pageSize = Math.min(
+      this.parsePositiveInt(query.pageSize, 20),
+      wantAll ? 5000 : 100,
+    );
 
+    const and: Prisma.EvBookingsWhereInput[] = [];
+    if (scope !== 'all') {
+      and.push({
+        OR: [
+          ...(corpId ? [{ userCorpId: corpId }] : []),
+          { licensePlate: { user_id: userId } },
+        ],
+      });
+    }
+
+    const statusWhere = this.buildEvUiStatusWhere(query.statuses);
+    if (statusWhere) and.push(statusWhere);
+
+    const from = this.parseYmdToUtcDate(query.dateFrom);
+    const to = this.parseYmdToUtcDate(query.dateTo);
+    if (from || to) {
+      const bookingDate: Prisma.DateTimeFilter = {};
+      if (from) bookingDate.gte = from;
+      if (to) bookingDate.lte = to;
+      and.push({ bookingDate });
+    }
+
+    const q = String(query.q ?? '').trim();
+    if (q) {
+      and.push({
+        OR: [
+          { licensePlate: { is: { plate_number: { contains: q, mode: 'insensitive' } } } },
+          { slot: { is: { evSpace: { contains: q, mode: 'insensitive' } } } },
+          { userCorpId: { contains: q, mode: 'insensitive' } },
+        ],
+      });
+    }
+
+    const plates = this.parseCsv(query.licensePlates);
+    if (plates.length) {
+      and.push({
+        licensePlate: { is: { plate_number: { in: plates } } },
+      });
+    }
+    const spaces = this.parseCsv(query.spaces);
+    if (spaces.length) {
+      and.push({ slot: { is: { evSpace: { in: spaces } } } });
+    }
+
+    const where: Prisma.EvBookingsWhereInput = and.length
+      ? and.length === 1
+        ? and[0]
+        : { AND: and }
+      : {};
+
+    const sortBy = String(query.sortBy ?? '').trim();
+    const sortOrder =
+      String(query.sortOrder ?? '').trim().toLowerCase() === 'asc' ? 'asc' : 'desc';
+    let orderBy: Prisma.EvBookingsOrderByWithRelationInput[] = [
+      { bookingDate: 'desc' },
+      { id: 'desc' },
+    ];
+    if (sortBy === 'bookingDateTime' || sortBy === 'date') {
+      orderBy = [{ bookingDate: sortOrder }, { id: 'desc' }];
+    } else if (sortBy === 'licensePlate') {
+      orderBy = [{ licensePlate: { plate_number: sortOrder } }, { id: 'desc' }];
+    } else if (sortBy === 'space') {
+      orderBy = [{ slot: { evSpace: sortOrder } }, { id: 'desc' }];
+    } else if (sortBy === 'applicationDate' || sortBy === 'bookedOn') {
+      orderBy = [{ createdAt: sortOrder }, { id: 'desc' }];
+    } else if (sortBy === 'status') {
+      orderBy = [{ status: sortOrder }, { id: 'desc' }];
+    }
+
+    const reservedByLabels = this.parseCsv(query.reservedBy);
+    const submitterLabels = this.parseCsv(query.submitters);
+    const needsPostFilter =
+      reservedByLabels.length > 0 || submitterLabels.length > 0;
+
+    const include = {
+      licensePlate: { select: { plate_number: true, user_id: true } },
+      slot: { select: { evSpace: true } },
+      period: { select: { period: true, startTime: true, endTime: true } },
+    } as const;
+
+    const skip = needsPostFilter || wantAll ? 0 : (page - 1) * pageSize;
+    const take: number = needsPostFilter || wantAll ? 5000 : pageSize;
     const rows = await this.prisma.evBookings.findMany({
       where,
-      include: {
-        licensePlate: { select: { plate_number: true, user_id: true } },
-        slot: { select: { evSpace: true } },
-        period: { select: { period: true, startTime: true, endTime: true } },
-      },
-      orderBy: [{ bookingDate: 'desc' }, { id: 'desc' }],
+      include,
+      orderBy,
+      skip,
+      take,
     });
 
     const owners = await this.resolveBookingOwners(rows);
+    let mapped = rows.map((row) => this.mapManageBookingRow(row, owners));
+
+    if (reservedByLabels.length) {
+      const set = new Set(reservedByLabels);
+      mapped = mapped.filter((item) => set.has(String(item.reservedBy || '')));
+    }
+    if (submitterLabels.length) {
+      const set = new Set(submitterLabels);
+      mapped = mapped.filter((item) => set.has(String(item.submitter || '')));
+    }
+
+    const total = needsPostFilter
+      ? mapped.length
+      : await this.prisma.evBookings.count({ where });
+    const items =
+      needsPostFilter || wantAll
+        ? wantAll
+          ? mapped
+          : mapped.slice((page - 1) * pageSize, page * pageSize)
+        : mapped;
+
+    let filterOptions:
+      | {
+          licensePlates: string[];
+          spaces: string[];
+          reservedBy: string[];
+          submitters: string[];
+        }
+      | undefined;
+    if (includeOptions) {
+      const optionRows = await this.prisma.evBookings.findMany({
+        where,
+        include,
+        take: 5000,
+      });
+      const optionOwners = await this.resolveBookingOwners(optionRows);
+      const optionMapped = optionRows.map((row) =>
+        this.mapManageBookingRow(row, optionOwners),
+      );
+      filterOptions = {
+        licensePlates: [
+          ...new Set(
+            optionMapped.map((b) => String(b.licensePlate || '')).filter(Boolean),
+          ),
+        ].sort(),
+        spaces: [
+          ...new Set(optionMapped.map((b) => String(b.space || '')).filter(Boolean)),
+        ].sort(),
+        reservedBy: [
+          ...new Set(
+            optionMapped.map((b) => String(b.reservedBy || '')).filter(Boolean),
+          ),
+        ].sort(),
+        submitters: [
+          ...new Set(
+            optionMapped.map((b) => String(b.submitter || '')).filter(Boolean),
+          ),
+        ].sort(),
+      };
+    }
 
     return {
-      bookings: rows.map((row) => this.mapManageBookingRow(row, owners)),
+      items,
+      bookings: items,
+      total,
+      page: wantAll ? 1 : page,
+      pageSize: wantAll ? items.length : pageSize,
+      ...(filterOptions ? { filterOptions } : {}),
     };
   }
 

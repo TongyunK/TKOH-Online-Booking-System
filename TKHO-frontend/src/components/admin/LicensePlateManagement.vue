@@ -20,7 +20,7 @@
 
     <div class="page-content">
       <div class="table-card">
-        <el-table :data="paginatedData" height="100%" border stripe table-layout="auto" style="width: 100%">
+        <el-table v-loading="tableLoading" :data="paginatedData" height="100%" border stripe table-layout="auto" style="width: 100%">
           <el-table-column
             type="index"
             label="#"
@@ -210,9 +210,16 @@ function normalizeUserRow (u) {
   }
 }
 
+const tableLoading = ref(false)
+
 async function loadLicensePlates () {
-  const data = await listLicensePlates()
-  licensePlateList.value = Array.isArray(data) ? data : []
+  tableLoading.value = true
+  try {
+    const data = await listLicensePlates()
+    licensePlateList.value = Array.isArray(data) ? data : []
+  } finally {
+    tableLoading.value = false
+  }
 }
 
 async function loadEmployees () {

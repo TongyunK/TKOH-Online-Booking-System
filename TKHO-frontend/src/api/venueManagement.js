@@ -43,9 +43,13 @@ export function uploadVenueImage(venueId, file) {
   })
 }
 
-/** scope: 'my' | 'all'（all 仅管理员） */
-export function listVenueManageBookings(scope = 'my') {
-  return request.get('/venue-management/bookings', { params: { scope } })
+/** params: scope 'my'|'all' + page/pageSize/q/date/sort/filters/all/includeOptions */
+export function listVenueManageBookings(scopeOrParams = 'my') {
+  const params =
+    typeof scopeOrParams === 'string'
+      ? { scope: scopeOrParams }
+      : scopeOrParams
+  return request.get('/venue-management/bookings', { params })
 }
 
 export function updateVenueManageBooking(id, payload) {

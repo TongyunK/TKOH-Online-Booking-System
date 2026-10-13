@@ -24,7 +24,7 @@
         <el-tab-pane label="Reject Template" name="reject" />
       </el-tabs>
       <div class="table-card">
-      <el-table :data="paginatedData" height="100%" border stripe table-layout="fixed" style="width: 100%">
+      <el-table v-loading="tableLoading" :data="paginatedData" height="100%" border stripe table-layout="fixed" style="width: 100%">
         <el-table-column
           type="index"
           label="#"
@@ -397,12 +397,17 @@ const getErrorMessage = (error, fallback = 'Operation failed') => {
   return fallback
 }
 
+const tableLoading = ref(false)
+
 const loadPromptList = async () => {
+  tableLoading.value = true
   try {
     const data = await getPrompts()
     promptList.value = Array.isArray(data) ? data : []
   } catch (error) {
     showNotice(getErrorMessage(error, 'Failed to load prompts'), 'Error')
+  } finally {
+    tableLoading.value = false
   }
 }
 

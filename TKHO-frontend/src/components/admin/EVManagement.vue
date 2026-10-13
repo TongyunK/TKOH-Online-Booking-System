@@ -16,7 +16,7 @@
       <el-tabs v-model="activeTab">
         <el-tab-pane label="EV Space" name="parking">
           <div class="table-card">
-            <el-table :data="paginatedParkingData" height="100%" border stripe table-layout="auto" style="width: 100%">
+            <el-table v-loading="tableLoading" :data="paginatedParkingData" height="100%" border stripe table-layout="auto" style="width: 100%">
               <el-table-column
                 type="index"
                 label="#"
@@ -89,7 +89,7 @@
 
         <el-tab-pane label="Booking Period" name="timePeriods">
           <div class="table-card">
-            <el-table :data="paginatedTimePeriodsData" height="100%" border stripe table-layout="auto" style="width: 100%">
+            <el-table v-loading="tableLoading" :data="paginatedTimePeriodsData" height="100%" border stripe table-layout="auto" style="width: 100%">
               <el-table-column
                 type="index"
                 label="#"
@@ -457,7 +457,10 @@ const applyEvWindowFromApi = (win) => {
   }
 }
 
+const tableLoading = ref(false)
+
 const loadEvManagementData = async () => {
+  tableLoading.value = true
   try {
     const [parking, periods, win] = await Promise.all([
       getEvParkingSlots(),
@@ -469,6 +472,8 @@ const loadEvManagementData = async () => {
     applyEvWindowFromApi(win)
   } catch (error) {
     showNotice(getErrorMessage(error, 'Failed to load EV management data'), 'Error')
+  } finally {
+    tableLoading.value = false
   }
 }
 

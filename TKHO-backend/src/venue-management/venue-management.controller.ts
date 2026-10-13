@@ -149,7 +149,10 @@ export class VenueManagementController {
     @Req() req: { user: { sub?: string; corpId?: string; role?: string; system?: string } },
     @Query() query: ListVenueBookingsQueryDto,
   ) {
-    return this.venueService.listManageBookings(req.user, query.scope ?? 'my');
+    return this.venueService.listManageBookings(req.user, {
+      ...query,
+      scope: query.scope ?? 'my',
+    });
   }
 
   @Patch('bookings/:id')

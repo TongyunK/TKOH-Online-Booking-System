@@ -11,7 +11,7 @@
           clearable
           class="toolbar-search"
         />
-        <el-button type="default" class="cancel-btn" @click="handleExport">
+        <el-button type="default" class="cancel-btn" :loading="exportLoading" @click="handleExport">
           <font-awesome-icon :icon="['fas', 'file-excel']" /> Export Excel
         </el-button>
         <el-button type="default" class="submit-btn" @click="handleAdd">
@@ -29,7 +29,7 @@
           <div class="table-card">
             <div class="table-view">
               <div class="table-wrapper">
-                <el-table :data="paginatedUserData" height="100%" border stripe table-layout="auto" style="width: 100%">
+                <el-table v-loading="usersLoading" :data="employeeList" height="100%" border stripe table-layout="auto" style="width: 100%">
                   <el-table-column
                     type="index"
                     label="#"
@@ -150,13 +150,13 @@
             </div>
             <div class="pagination-bar">
               <div class="pagination-info">
-                Showing {{ employeeStartIndex + 1 }}-{{ employeeEndIndex }} of {{ sortedUserList.length }} records
+                Showing {{ employeeTotal ? employeeStartIndex + 1 : 0 }}-{{ employeeEndIndex }} of {{ employeeTotal }} records
               </div>
               <div class="pagination-controls">
                 <button
                   class="pagination-btn"
-                  :disabled="employeeCurrentPage === 1"
-                  @click="employeeCurrentPage--"
+                  :disabled="employeeCurrentPage === 1 || usersLoading"
+                  @click="goEmployeePage(employeeCurrentPage - 1)"
                 >
                   Previous
                 </button>
@@ -164,20 +164,20 @@
                   v-for="page in employeeVisiblePages"
                   :key="page"
                   :class="['pagination-btn', 'page-number', { active: page === employeeCurrentPage }]"
-                  @click="employeeCurrentPage = page"
+                  @click="goEmployeePage(page)"
                 >
                   {{ page }}
                 </button>
                 <button
                   class="pagination-btn"
-                  :disabled="employeeCurrentPage === employeeTotalPages"
-                  @click="employeeCurrentPage++"
+                  :disabled="employeeCurrentPage === employeeTotalPages || usersLoading"
+                  @click="goEmployeePage(employeeCurrentPage + 1)"
                 >
                   Next
                 </button>
               </div>
               <div class="pagination-size">
-                <select v-model.number="employeePageSize" class="page-size-select" @change="employeeCurrentPage = 1">
+                <select v-model.number="employeePageSize" class="page-size-select" @change="onEmployeePageSizeChange">
                   <option :value="10">10 / page</option>
                   <option :value="20">20 / page</option>
                   <option :value="50">50 / page</option>
@@ -197,7 +197,7 @@
           <div class="table-card">
             <div class="table-view">
               <div class="table-wrapper">
-                <el-table :data="paginatedExpiredData" height="100%" border stripe table-layout="auto" style="width: 100%">
+                <el-table v-loading="expiredLoading" :data="expiredList" height="100%" border stripe table-layout="auto" style="width: 100%">
                   <el-table-column
                     type="index"
                     label="#"
@@ -331,13 +331,13 @@
             </div>
             <div class="pagination-bar">
               <div class="pagination-info">
-                Showing {{ expiredStartIndex + 1 }}-{{ expiredEndIndex }} of {{ sortedExpiredList.length }} records
+                Showing {{ expiredTotal ? expiredStartIndex + 1 : 0 }}-{{ expiredEndIndex }} of {{ expiredTotal }} records
               </div>
               <div class="pagination-controls">
                 <button
                   class="pagination-btn"
-                  :disabled="expiredCurrentPage === 1"
-                  @click="expiredCurrentPage--"
+                  :disabled="expiredCurrentPage === 1 || expiredLoading"
+                  @click="goExpiredPage(expiredCurrentPage - 1)"
                 >
                   Previous
                 </button>
@@ -345,20 +345,20 @@
                   v-for="page in expiredVisiblePages"
                   :key="page"
                   :class="['pagination-btn', 'page-number', { active: page === expiredCurrentPage }]"
-                  @click="expiredCurrentPage = page"
+                  @click="goExpiredPage(page)"
                 >
                   {{ page }}
                 </button>
                 <button
                   class="pagination-btn"
-                  :disabled="expiredCurrentPage === expiredTotalPages"
-                  @click="expiredCurrentPage++"
+                  :disabled="expiredCurrentPage === expiredTotalPages || expiredLoading"
+                  @click="goExpiredPage(expiredCurrentPage + 1)"
                 >
                   Next
                 </button>
               </div>
               <div class="pagination-size">
-                <select v-model.number="expiredPageSize" class="page-size-select" @change="expiredCurrentPage = 1">
+                <select v-model.number="expiredPageSize" class="page-size-select" @change="onExpiredPageSizeChange">
                   <option :value="10">10 / page</option>
                   <option :value="20">20 / page</option>
                   <option :value="50">50 / page</option>
@@ -387,7 +387,7 @@
               <div class="table-card">
                 <div class="table-view">
                   <div class="table-wrapper">
-                    <el-table :data="paginatedPendingPendingData" height="100%" border stripe table-layout="auto" style="width: 100%">
+                    <el-table v-loading="pendingPendingLoading" :data="pendingList" height="100%" border stripe table-layout="auto" style="width: 100%">
                       <el-table-column
                         type="index"
                         label="#"
@@ -454,22 +454,22 @@
                 </div>
                 <div class="pagination-bar">
                   <div class="pagination-info">
-                    Showing {{ pendingPendingStartIndex + 1 }}-{{ pendingPendingEndIndex }} of {{ sortedPendingPendingList.length }} records
+                    Showing {{ pendingPendingTotal ? pendingPendingStartIndex + 1 : 0 }}-{{ pendingPendingEndIndex }} of {{ pendingPendingTotal }} records
                   </div>
                   <div class="pagination-controls">
-                    <button class="pagination-btn" :disabled="pendingPendingCurrentPage === 1" @click="pendingPendingCurrentPage--">Previous</button>
+                    <button class="pagination-btn" :disabled="pendingPendingCurrentPage === 1 || pendingPendingLoading" @click="goPendingPendingPage(pendingPendingCurrentPage - 1)">Previous</button>
                     <button
                       v-for="page in pendingPendingVisiblePages"
                       :key="page"
                       :class="['pagination-btn', 'page-number', { active: page === pendingPendingCurrentPage }]"
-                      @click="pendingPendingCurrentPage = page"
+                      @click="goPendingPendingPage(page)"
                     >
                       {{ page }}
                     </button>
-                    <button class="pagination-btn" :disabled="pendingPendingCurrentPage === pendingPendingTotalPages" @click="pendingPendingCurrentPage++">Next</button>
+                    <button class="pagination-btn" :disabled="pendingPendingCurrentPage === pendingPendingTotalPages || pendingPendingLoading" @click="goPendingPendingPage(pendingPendingCurrentPage + 1)">Next</button>
                   </div>
                   <div class="pagination-size">
-                    <select v-model.number="pendingPendingPageSize" class="page-size-select" @change="pendingPendingCurrentPage = 1">
+                    <select v-model.number="pendingPendingPageSize" class="page-size-select" @change="onPendingPendingPageSizeChange">
                       <option :value="10">10 / page</option>
                       <option :value="20">20 / page</option>
                       <option :value="50">50 / page</option>
@@ -484,7 +484,7 @@
               <div class="table-card">
                 <div class="table-view">
                   <div class="table-wrapper">
-                    <el-table :data="paginatedPendingApprovedData" height="100%" border stripe table-layout="auto" style="width: 100%">
+                    <el-table v-loading="pendingApprovedLoading" :data="pendingApprovedList" height="100%" border stripe table-layout="auto" style="width: 100%">
                       <el-table-column
                         type="index"
                         label="#"
@@ -569,22 +569,22 @@
                 </div>
                 <div class="pagination-bar">
                   <div class="pagination-info">
-                    Showing {{ pendingApprovedStartIndex + 1 }}-{{ pendingApprovedEndIndex }} of {{ sortedPendingApprovedList.length }} records
+                    Showing {{ pendingApprovedTotal ? pendingApprovedStartIndex + 1 : 0 }}-{{ pendingApprovedEndIndex }} of {{ pendingApprovedTotal }} records
                   </div>
                   <div class="pagination-controls">
-                    <button class="pagination-btn" :disabled="pendingApprovedCurrentPage === 1" @click="pendingApprovedCurrentPage--">Previous</button>
+                    <button class="pagination-btn" :disabled="pendingApprovedCurrentPage === 1 || pendingApprovedLoading" @click="goPendingApprovedPage(pendingApprovedCurrentPage - 1)">Previous</button>
                     <button
                       v-for="page in pendingApprovedVisiblePages"
                       :key="page"
                       :class="['pagination-btn', 'page-number', { active: page === pendingApprovedCurrentPage }]"
-                      @click="pendingApprovedCurrentPage = page"
+                      @click="goPendingApprovedPage(page)"
                     >
                       {{ page }}
                     </button>
-                    <button class="pagination-btn" :disabled="pendingApprovedCurrentPage === pendingApprovedTotalPages" @click="pendingApprovedCurrentPage++">Next</button>
+                    <button class="pagination-btn" :disabled="pendingApprovedCurrentPage === pendingApprovedTotalPages || pendingApprovedLoading" @click="goPendingApprovedPage(pendingApprovedCurrentPage + 1)">Next</button>
                   </div>
                   <div class="pagination-size">
-                    <select v-model.number="pendingApprovedPageSize" class="page-size-select" @change="pendingApprovedCurrentPage = 1">
+                    <select v-model.number="pendingApprovedPageSize" class="page-size-select" @change="onPendingApprovedPageSizeChange">
                       <option :value="10">10 / page</option>
                       <option :value="20">20 / page</option>
                       <option :value="50">50 / page</option>
@@ -599,7 +599,7 @@
               <div class="table-card">
                 <div class="table-view">
                   <div class="table-wrapper">
-                    <el-table :data="paginatedPendingRejectedData" height="100%" border stripe table-layout="auto" style="width: 100%">
+                    <el-table v-loading="pendingRejectedLoading" :data="pendingRejectedList" height="100%" border stripe table-layout="auto" style="width: 100%">
                       <el-table-column
                         type="index"
                         label="#"
@@ -680,22 +680,22 @@
                 </div>
                 <div class="pagination-bar">
                   <div class="pagination-info">
-                    Showing {{ pendingRejectedStartIndex + 1 }}-{{ pendingRejectedEndIndex }} of {{ sortedPendingRejectedList.length }} records
+                    Showing {{ pendingRejectedTotal ? pendingRejectedStartIndex + 1 : 0 }}-{{ pendingRejectedEndIndex }} of {{ pendingRejectedTotal }} records
                   </div>
                   <div class="pagination-controls">
-                    <button class="pagination-btn" :disabled="pendingRejectedCurrentPage === 1" @click="pendingRejectedCurrentPage--">Previous</button>
+                    <button class="pagination-btn" :disabled="pendingRejectedCurrentPage === 1 || pendingRejectedLoading" @click="goPendingRejectedPage(pendingRejectedCurrentPage - 1)">Previous</button>
                     <button
                       v-for="page in pendingRejectedVisiblePages"
                       :key="page"
                       :class="['pagination-btn', 'page-number', { active: page === pendingRejectedCurrentPage }]"
-                      @click="pendingRejectedCurrentPage = page"
+                      @click="goPendingRejectedPage(page)"
                     >
                       {{ page }}
                     </button>
-                    <button class="pagination-btn" :disabled="pendingRejectedCurrentPage === pendingRejectedTotalPages" @click="pendingRejectedCurrentPage++">Next</button>
+                    <button class="pagination-btn" :disabled="pendingRejectedCurrentPage === pendingRejectedTotalPages || pendingRejectedLoading" @click="goPendingRejectedPage(pendingRejectedCurrentPage + 1)">Next</button>
                   </div>
                   <div class="pagination-size">
-                    <select v-model.number="pendingRejectedPageSize" class="page-size-select" @change="pendingRejectedCurrentPage = 1">
+                    <select v-model.number="pendingRejectedPageSize" class="page-size-select" @change="onPendingRejectedPageSizeChange">
                       <option :value="10">10 / page</option>
                       <option :value="20">20 / page</option>
                       <option :value="50">50 / page</option>
@@ -1132,21 +1132,205 @@ function normalizePendingRejectedRow (p) {
   }
 }
 
-async function loadUsers () {
-  const data = await listUsers()
-  const rows = Array.isArray(data) ? data : []
-  employeeList.value = rows.map(normalizeUserRow)
+const usersLoading = ref(false)
+const expiredLoading = ref(false)
+const pendingPendingLoading = ref(false)
+const pendingApprovedLoading = ref(false)
+const pendingRejectedLoading = ref(false)
+const exportLoading = ref(false)
+
+const employeeTotal = ref(0)
+const expiredTotal = ref(0)
+const pendingPendingTotal = ref(0)
+const pendingApprovedTotal = ref(0)
+const pendingRejectedTotal = ref(0)
+
+const filterOptionsState = ref({
+  user: { department: [], role: [] },
+  expired: { department: [], role: [] },
+  pendingPending: { department: [], role: [] },
+  pendingApproved: { department: [], role: [] },
+  pendingRejected: { department: [], role: [] }
+})
+
+let searchReloadTimer = null
+
+function normalizeListResponse (payload) {
+  if (Array.isArray(payload)) {
+    return { items: payload, total: payload.length, filterOptions: null }
+  }
+  const items = Array.isArray(payload?.items) ? payload.items : []
+  const total = Number(payload?.total)
+  return {
+    items,
+    total: Number.isFinite(total) ? total : items.length,
+    filterOptions: payload?.filterOptions || null
+  }
 }
 
-async function loadPendingUsers () {
-  const [pendingData, approvedData, rejectedData] = await Promise.all([
-    listPendingUsers('pending'),
-    listPendingUsers('approved'),
-    listPendingUsers('rejected')
+function getPrimarySort (tableKey) {
+  const first = sortStates.value[tableKey]?.[0]
+  if (!first?.key) return { sortBy: undefined, sortOrder: undefined }
+  return {
+    sortBy: first.key,
+    sortOrder: first.order === 'asc' ? 'asc' : 'desc'
+  }
+}
+
+function buildUserParams (tableKey, { includeOptions = false, all = false } = {}) {
+  const isExpired = tableKey === 'expired'
+  const { sortBy, sortOrder } = getPrimarySort(tableKey)
+  const filters = columnFilterState.value[tableKey] || { department: [], role: [] }
+  const params = {
+    page: isExpired ? expiredCurrentPage.value : employeeCurrentPage.value,
+    pageSize: isExpired ? expiredPageSize.value : employeePageSize.value,
+    q: isExpired ? expiredSearch.value : employeeSearch.value,
+    statusScope: isExpired ? 'expired_inactive' : 'active',
+    sortBy,
+    sortOrder,
+    departments: filters.department?.length ? filters.department.join(',') : undefined,
+    roles: filters.role?.length ? filters.role.join(',') : undefined,
+    includeOptions: includeOptions ? 1 : undefined,
+    all: all ? 1 : undefined
+  }
+  return params
+}
+
+function buildPendingParams (tableKey, { includeOptions = false, all = false } = {}) {
+  const status =
+    tableKey === 'pendingApproved'
+      ? 'approved'
+      : tableKey === 'pendingRejected'
+        ? 'rejected'
+        : 'pending'
+  const page =
+    tableKey === 'pendingApproved'
+      ? pendingApprovedCurrentPage.value
+      : tableKey === 'pendingRejected'
+        ? pendingRejectedCurrentPage.value
+        : pendingPendingCurrentPage.value
+  const pageSize =
+    tableKey === 'pendingApproved'
+      ? pendingApprovedPageSize.value
+      : tableKey === 'pendingRejected'
+        ? pendingRejectedPageSize.value
+        : pendingPendingPageSize.value
+  const { sortBy, sortOrder } = getPrimarySort(tableKey)
+  const filters = columnFilterState.value[tableKey] || { department: [], role: [] }
+  return {
+    status,
+    page,
+    pageSize,
+    q: pendingSearch.value || undefined,
+    sortBy,
+    sortOrder,
+    departments: filters.department?.length ? filters.department.join(',') : undefined,
+    includeOptions: includeOptions ? 1 : undefined,
+    all: all ? 1 : undefined
+  }
+}
+
+function applyUserFilterOptions (tableKey, filterOptions) {
+  if (!filterOptions) return
+  filterOptionsState.value[tableKey] = {
+    department: Array.isArray(filterOptions.departments) ? filterOptions.departments : [],
+    role: Array.isArray(filterOptions.roles) ? filterOptions.roles : (filterOptionsState.value[tableKey]?.role || [])
+  }
+}
+
+function applyPendingFilterOptions (tableKey, filterOptions) {
+  if (!filterOptions) return
+  filterOptionsState.value[tableKey] = {
+    department: Array.isArray(filterOptions.departments) ? filterOptions.departments : [],
+    role: filterOptionsState.value[tableKey]?.role || []
+  }
+}
+
+async function loadActiveUsers ({ includeOptions = false } = {}) {
+  usersLoading.value = true
+  try {
+    const payload = await listUsers(buildUserParams('user', { includeOptions }))
+    const { items, total, filterOptions } = normalizeListResponse(payload)
+    employeeList.value = items.map(normalizeUserRow)
+    employeeTotal.value = total
+    applyUserFilterOptions('user', filterOptions)
+  } finally {
+    usersLoading.value = false
+  }
+}
+
+async function loadExpiredUsers ({ includeOptions = false } = {}) {
+  expiredLoading.value = true
+  try {
+    const payload = await listUsers(buildUserParams('expired', { includeOptions }))
+    const { items, total, filterOptions } = normalizeListResponse(payload)
+    expiredList.value = items.map(normalizeUserRow)
+    expiredTotal.value = total
+    applyUserFilterOptions('expired', filterOptions)
+  } finally {
+    expiredLoading.value = false
+  }
+}
+
+async function loadUsers () {
+  await Promise.all([
+    loadActiveUsers({ includeOptions: true }),
+    loadExpiredUsers({ includeOptions: true })
   ])
-  pendingList.value = Array.isArray(pendingData) ? pendingData : []
-  pendingApprovedList.value = (Array.isArray(approvedData) ? approvedData : []).map(normalizePendingApprovedRow)
-  pendingRejectedList.value = (Array.isArray(rejectedData) ? rejectedData : []).map(normalizePendingRejectedRow)
+}
+
+async function loadPendingTable (tableKey, { includeOptions = false } = {}) {
+  const loadingRef =
+    tableKey === 'pendingApproved'
+      ? pendingApprovedLoading
+      : tableKey === 'pendingRejected'
+        ? pendingRejectedLoading
+        : pendingPendingLoading
+  loadingRef.value = true
+  try {
+    const payload = await listPendingUsers(buildPendingParams(tableKey, { includeOptions }))
+    const { items, total, filterOptions } = normalizeListResponse(payload)
+    if (tableKey === 'pendingApproved') {
+      pendingApprovedList.value = items.map(normalizePendingApprovedRow)
+      pendingApprovedTotal.value = total
+    } else if (tableKey === 'pendingRejected') {
+      pendingRejectedList.value = items.map(normalizePendingRejectedRow)
+      pendingRejectedTotal.value = total
+    } else {
+      pendingList.value = items
+      pendingPendingTotal.value = total
+    }
+    applyPendingFilterOptions(tableKey, filterOptions)
+  } finally {
+    loadingRef.value = false
+  }
+}
+
+async function loadPendingUsers ({ includeOptions = true } = {}) {
+  await Promise.all([
+    loadPendingTable('pendingPending', { includeOptions }),
+    loadPendingTable('pendingApproved', { includeOptions }),
+    loadPendingTable('pendingRejected', { includeOptions })
+  ])
+}
+
+function scheduleTableReload (tableKey) {
+  if (searchReloadTimer) clearTimeout(searchReloadTimer)
+  searchReloadTimer = setTimeout(() => {
+    resetTablePage(tableKey)
+    if (tableKey === 'user') {
+      loadActiveUsers({ includeOptions: true }).catch((e) => console.error(e))
+    } else if (tableKey === 'expired') {
+      loadExpiredUsers({ includeOptions: true }).catch((e) => console.error(e))
+    } else if (tableKey === 'pendingAll') {
+      pendingPendingCurrentPage.value = 1
+      pendingApprovedCurrentPage.value = 1
+      pendingRejectedCurrentPage.value = 1
+      loadPendingUsers({ includeOptions: true }).catch((e) => console.error(e))
+    } else {
+      loadPendingTable(tableKey, { includeOptions: true }).catch((e) => console.error(e))
+    }
+  }, 300)
 }
 
 async function loadRoleAndDepartmentOptions () {
@@ -1178,6 +1362,7 @@ const activeTab = ref('list')
 const pendingSubTab = ref('pending')
 
 const employeeList = ref([])
+const expiredList = ref([])
 
 const pendingList = ref([])
 const pendingApprovedList = ref([])
@@ -1258,6 +1443,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  if (searchReloadTimer) clearTimeout(searchReloadTimer)
   if (userFormModalMq) {
     userFormModalMq.removeEventListener('change', updateUserModalMaxHeight)
   }
@@ -1276,10 +1462,6 @@ const expiredPageSize = ref(20)
 const employeeSearch = ref('')
 const expiredSearch = ref('')
 const pendingSearch = ref('')
-
-const expiredList = computed(() =>
-  employeeList.value.filter((item) => item.status === 'expired' || item.status === 'inactive')
-)
 
 const roleOptions = ref([])
 /** Access Right 角色完整列表（含 AnnualEvQuota / AnnualVenueQuota） */
@@ -1319,20 +1501,6 @@ const handleDepartmentBlur = () => {
   departmentInputKeyword.value = ''
 }
 
-const filteredUserList = computed(() => {
-  const keyword = employeeSearch.value.trim().toLowerCase()
-  const base = employeeList.value.filter((item) => item.status === 'active')
-  if (!keyword) return base
-  return base.filter(item =>
-    String(item.corpId).toLowerCase().includes(keyword) ||
-    matchesUserNameSearch(item, keyword) ||
-    String(item.department).toLowerCase().includes(keyword) ||
-    String(item.contact || '').toLowerCase().includes(keyword) ||
-    String(item.email).toLowerCase().includes(keyword) ||
-    String(item.role).toLowerCase().includes(keyword)
-  )
-})
-
 const sortStates = ref({
   user: [],
   expired: [],
@@ -1348,13 +1516,6 @@ const columnFilterState = ref({
   pendingApproved: { department: [], role: [] },
   pendingRejected: { department: [], role: [] }
 })
-
-const parseDateTimeForSort = (value) => {
-  if (!value) return 0
-  const parsed = new Date(String(value).replace(',', ''))
-  const ts = parsed.getTime()
-  return Number.isNaN(ts) ? 0 : ts
-}
 
 /** ISO / Date → 本地可读：YYYY-MM-DD HH:mm:ss */
 function formatDateTimeDisplay (value) {
@@ -1376,91 +1537,32 @@ function formatInactivedBy (row) {
   return text || '-'
 }
 
-const getSortValue = (row, key) => {
-  switch (key) {
-    case 'corpId':
-    case 'department':
-    case 'role':
-    case 'status':
-    case 'approvedBy':
-    case 'rejectedBy':
-    case 'rejectReason':
-      return row[key] || ''
-    case 'evQuota':
-      return Number(row.usedQuotaEV || 0) * 10000 + Number(row.annualQuotaEV || 0)
-    case 'venueQuota':
-      return Number(row.usedQuotaVenue || 0) * 10000 + Number(row.annualQuotaVenue || 0)
-    case 'lastLoginTime':
-      return parseDateTimeForSort(row.lastLoginTime)
-    case 'inactiveTime':
-      return parseDateTimeForSort(row.inactiveTime)
-    case 'inactivedBy':
-      return formatInactivedBy(row)
-    case 'submittedAt':
-    case 'approvedAt':
-      return parseDateTimeForSort(row.approvedAt ?? row.handledAt ?? row.handled_at)
-    case 'rejectedAt':
-      return parseDateTimeForSort(row.rejectedAt ?? row.handledAt ?? row.handled_at)
-    default:
-      return ''
+function resetTablePage (tableKey) {
+  if (tableKey === 'user') employeeCurrentPage.value = 1
+  else if (tableKey === 'expired') expiredCurrentPage.value = 1
+  else if (tableKey === 'pendingPending') pendingPendingCurrentPage.value = 1
+  else if (tableKey === 'pendingApproved') pendingApprovedCurrentPage.value = 1
+  else if (tableKey === 'pendingRejected') pendingRejectedCurrentPage.value = 1
+}
+
+function reloadTable (tableKey, { includeOptions = false } = {}) {
+  if (tableKey === 'user') {
+    return loadActiveUsers({ includeOptions })
   }
-}
-
-const sortList = (rows, tableKey) => {
-  const state = sortStates.value[tableKey] || []
-  if (!state.length) return rows.slice()
-  return rows.slice().sort((a, b) => {
-    for (const criterion of state) {
-      const aValue = getSortValue(a, criterion.key)
-      const bValue = getSortValue(b, criterion.key)
-      const direction = criterion.order === 'asc' ? 1 : -1
-      let cmp = 0
-      if (typeof aValue === 'number' && typeof bValue === 'number') {
-        cmp = aValue - bValue
-      } else {
-        cmp = String(aValue).localeCompare(String(bValue), undefined, { sensitivity: 'base' })
-      }
-      if (cmp !== 0) return cmp * direction
-    }
-    return 0
-  })
-}
-
-const getUniqueOptions = (rows, key) => {
-  return [...new Set((rows || []).map(row => row?.[key]).filter(v => v !== null && v !== undefined && `${v}` !== ''))]
-}
-
-const matchesPendingSearch = (item, keyword) => (
-  String(item.corpId).toLowerCase().includes(keyword) ||
-  matchesUserNameSearch(item, keyword) ||
-  String(item.department).toLowerCase().includes(keyword) ||
-  String(item.contactNo ?? item.contact ?? '').toLowerCase().includes(keyword) ||
-  String(item.email).toLowerCase().includes(keyword) ||
-  String(item.role || '').toLowerCase().includes(keyword)
-)
-
-const filterPendingBySearch = (list) => {
-  const keyword = pendingSearch.value.trim().toLowerCase()
-  if (!keyword) return list
-  return list.filter((item) => matchesPendingSearch(item, keyword))
+  if (tableKey === 'expired') {
+    return loadExpiredUsers({ includeOptions })
+  }
+  return loadPendingTable(tableKey, { includeOptions })
 }
 
 const getFilterOptions = (tableKey, key) => {
-  if (tableKey === 'user') return getUniqueOptions(filteredUserList.value, key)
-  if (tableKey === 'expired') return getUniqueOptions(filteredExpiredList.value, key)
-  if (tableKey === 'pendingPending') return getUniqueOptions(pendingPendingList.value, key)
-  if (tableKey === 'pendingApproved') return getUniqueOptions(filteredPendingApprovedList.value, key)
-  if (tableKey === 'pendingRejected') return getUniqueOptions(filteredPendingRejectedList.value, key)
-  return []
+  return filterOptionsState.value[tableKey]?.[key] || []
 }
 
 const updateFilter = (tableKey, key, value) => {
   columnFilterState.value[tableKey][key] = value ?? []
-  if (tableKey === 'user') employeeCurrentPage.value = 1
-  if (tableKey === 'expired') expiredCurrentPage.value = 1
-  if (tableKey === 'pendingPending') pendingPendingCurrentPage.value = 1
-  if (tableKey === 'pendingApproved') pendingApprovedCurrentPage.value = 1
-  if (tableKey === 'pendingRejected') pendingRejectedCurrentPage.value = 1
+  resetTablePage(tableKey)
+  reloadTable(tableKey, { includeOptions: false }).catch((e) => console.error(e))
 }
 
 const selectAllFilterOptions = (tableKey, key, options) => {
@@ -1471,147 +1573,50 @@ const clearFilterOptions = (tableKey, key) => {
   updateFilter(tableKey, key, [])
 }
 
-const applyTableFilters = (rows, tableKey) => {
-  const state = columnFilterState.value[tableKey]
-  return rows.filter((row) => {
-    const depSelected = state.department || []
-    const roleSelected = state.role || []
-    const depMatch = !depSelected.length || depSelected.map(v => String(v)).includes(String(row.department || ''))
-    const roleMatch = !roleSelected.length || roleSelected.map(v => String(v)).includes(String(row.role || ''))
-    return depMatch && roleMatch
-  })
-}
-
 const toggleSort = (tableKey, key) => {
   const state = sortStates.value[tableKey]
   const idx = state.findIndex(item => item.key === key)
   if (idx === -1) {
-    state.push({ key, order: 'asc' })
+    sortStates.value[tableKey] = [{ key, order: 'asc' }]
   } else if (state[idx].order === 'asc') {
-    state[idx].order = 'desc'
+    sortStates.value[tableKey] = [{ key, order: 'desc' }]
   } else {
-    state.splice(idx, 1)
+    sortStates.value[tableKey] = []
   }
-  if (tableKey === 'user') employeeCurrentPage.value = 1
-  if (tableKey === 'expired') expiredCurrentPage.value = 1
-  if (tableKey === 'pendingPending') pendingPendingCurrentPage.value = 1
-  if (tableKey === 'pendingApproved') pendingApprovedCurrentPage.value = 1
-  if (tableKey === 'pendingRejected') pendingRejectedCurrentPage.value = 1
+  resetTablePage(tableKey)
+  reloadTable(tableKey, { includeOptions: false }).catch((e) => console.error(e))
 }
 
 const setSortByMenu = (tableKey, key, order) => {
-  const state = sortStates.value[tableKey]
-  const idx = state.findIndex(item => item.key === key)
-  if (idx === -1) {
-    state.push({ key, order })
-  } else {
-    state[idx].order = order
-  }
-  if (tableKey === 'user') employeeCurrentPage.value = 1
-  if (tableKey === 'expired') expiredCurrentPage.value = 1
-  if (tableKey === 'pendingPending') pendingPendingCurrentPage.value = 1
-  if (tableKey === 'pendingApproved') pendingApprovedCurrentPage.value = 1
-  if (tableKey === 'pendingRejected') pendingRejectedCurrentPage.value = 1
+  sortStates.value[tableKey] = [{ key, order }]
+  resetTablePage(tableKey)
+  reloadTable(tableKey, { includeOptions: false }).catch((e) => console.error(e))
 }
 
 const clearSortByMenu = (tableKey, key) => {
   const state = sortStates.value[tableKey]
   const idx = state.findIndex(item => item.key === key)
   if (idx !== -1) state.splice(idx, 1)
-  if (tableKey === 'user') employeeCurrentPage.value = 1
-  if (tableKey === 'expired') expiredCurrentPage.value = 1
-  if (tableKey === 'pendingPending') pendingPendingCurrentPage.value = 1
-  if (tableKey === 'pendingApproved') pendingApprovedCurrentPage.value = 1
-  if (tableKey === 'pendingRejected') pendingRejectedCurrentPage.value = 1
+  resetTablePage(tableKey)
+  reloadTable(tableKey, { includeOptions: false }).catch((e) => console.error(e))
 }
 
 const getSortIndicator = (tableKey, key) => {
   const state = sortStates.value[tableKey] || []
   const idx = state.findIndex(item => item.key === key)
   if (idx === -1) return '↕'
-  const arrow = state[idx].order === 'asc' ? '▲' : '▼'
-  return `${arrow}${idx + 1}`
+  return state[idx].order === 'asc' ? '▲' : '▼'
 }
 
-const filteredExpiredList = computed(() => {
-  const keyword = expiredSearch.value.trim().toLowerCase()
-  const base = employeeList.value.filter((item) => item.status === 'expired' || item.status === 'inactive')
-  if (!keyword) return base
-  return base.filter(item =>
-    String(item.corpId).toLowerCase().includes(keyword) ||
-    matchesUserNameSearch(item, keyword) ||
-    String(item.department).toLowerCase().includes(keyword) ||
-    String(item.contact || '').toLowerCase().includes(keyword) ||
-    String(item.email).toLowerCase().includes(keyword) ||
-    String(item.role).toLowerCase().includes(keyword)
-  )
-})
-
-const pendingPendingList = computed(() => filterPendingBySearch(pendingList.value))
-const filteredPendingApprovedList = computed(() => filterPendingBySearch(pendingApprovedList.value))
-const filteredPendingRejectedList = computed(() => filterPendingBySearch(pendingRejectedList.value))
-const sortedPendingPendingList = computed(() => sortList(applyTableFilters(pendingPendingList.value, 'pendingPending'), 'pendingPending'))
-const sortedPendingApprovedList = computed(() => sortList(applyTableFilters(filteredPendingApprovedList.value, 'pendingApproved'), 'pendingApproved'))
-const sortedPendingRejectedList = computed(() => sortList(applyTableFilters(filteredPendingRejectedList.value, 'pendingRejected'), 'pendingRejected'))
-const sortedUserList = computed(() => sortList(applyTableFilters(filteredUserList.value, 'user'), 'user'))
-const sortedExpiredList = computed(() => sortList(applyTableFilters(filteredExpiredList.value, 'expired'), 'expired'))
-
-const paginatedPendingPendingData = computed(() => {
-  const start = (pendingPendingCurrentPage.value - 1) * pendingPendingPageSize.value
-  const end = start + pendingPendingPageSize.value
-  return sortedPendingPendingList.value.slice(start, end)
-})
-
-const pendingPendingTotalPages = computed(() => Math.max(1, Math.ceil(sortedPendingPendingList.value.length / pendingPendingPageSize.value)))
-const pendingPendingStartIndex = computed(() => (pendingPendingCurrentPage.value - 1) * pendingPendingPageSize.value)
-const pendingPendingEndIndex = computed(() => Math.min(pendingPendingStartIndex.value + pendingPendingPageSize.value, sortedPendingPendingList.value.length))
-const pendingPendingVisiblePages = computed(() => {
+function buildVisiblePages (currentPage, totalPages) {
   const pages = []
   const maxVisible = 5
-  let start = Math.max(1, pendingPendingCurrentPage.value - Math.floor(maxVisible / 2))
-  let end = Math.min(pendingPendingTotalPages.value, start + maxVisible - 1)
+  let start = Math.max(1, currentPage - Math.floor(maxVisible / 2))
+  let end = Math.min(totalPages, start + maxVisible - 1)
   if (end - start < maxVisible - 1) start = Math.max(1, end - maxVisible + 1)
   for (let i = start; i <= end; i++) pages.push(i)
   return pages
-})
-
-const paginatedPendingApprovedData = computed(() => {
-  const start = (pendingApprovedCurrentPage.value - 1) * pendingApprovedPageSize.value
-  const end = start + pendingApprovedPageSize.value
-  return sortedPendingApprovedList.value.slice(start, end)
-})
-
-const pendingApprovedTotalPages = computed(() => Math.max(1, Math.ceil(sortedPendingApprovedList.value.length / pendingApprovedPageSize.value)))
-const pendingApprovedStartIndex = computed(() => (pendingApprovedCurrentPage.value - 1) * pendingApprovedPageSize.value)
-const pendingApprovedEndIndex = computed(() => Math.min(pendingApprovedStartIndex.value + pendingApprovedPageSize.value, sortedPendingApprovedList.value.length))
-const pendingApprovedVisiblePages = computed(() => {
-  const pages = []
-  const maxVisible = 5
-  let start = Math.max(1, pendingApprovedCurrentPage.value - Math.floor(maxVisible / 2))
-  let end = Math.min(pendingApprovedTotalPages.value, start + maxVisible - 1)
-  if (end - start < maxVisible - 1) start = Math.max(1, end - maxVisible + 1)
-  for (let i = start; i <= end; i++) pages.push(i)
-  return pages
-})
-
-const paginatedPendingRejectedData = computed(() => {
-  const start = (pendingRejectedCurrentPage.value - 1) * pendingRejectedPageSize.value
-  const end = start + pendingRejectedPageSize.value
-  return sortedPendingRejectedList.value.slice(start, end)
-})
-
-const pendingRejectedTotalPages = computed(() => Math.max(1, Math.ceil(sortedPendingRejectedList.value.length / pendingRejectedPageSize.value)))
-const pendingRejectedStartIndex = computed(() => (pendingRejectedCurrentPage.value - 1) * pendingRejectedPageSize.value)
-const pendingRejectedEndIndex = computed(() => Math.min(pendingRejectedStartIndex.value + pendingRejectedPageSize.value, sortedPendingRejectedList.value.length))
-const pendingRejectedVisiblePages = computed(() => {
-  const pages = []
-  const maxVisible = 5
-  let start = Math.max(1, pendingRejectedCurrentPage.value - Math.floor(maxVisible / 2))
-  let end = Math.min(pendingRejectedTotalPages.value, start + maxVisible - 1)
-  if (end - start < maxVisible - 1) start = Math.max(1, end - maxVisible + 1)
-  for (let i = start; i <= end; i++) pages.push(i)
-  return pages
-})
+}
 
 const currentSearch = computed({
   get: () => {
@@ -1622,78 +1627,117 @@ const currentSearch = computed({
   set: (value) => {
     if (activeTab.value === 'list') {
       employeeSearch.value = value
-      employeeCurrentPage.value = 1
     } else if (activeTab.value === 'expired') {
       expiredSearch.value = value
-      expiredCurrentPage.value = 1
     } else {
       pendingSearch.value = value
-      pendingPendingCurrentPage.value = 1
-      pendingApprovedCurrentPage.value = 1
-      pendingRejectedCurrentPage.value = 1
     }
   }
 })
 
-const paginatedUserData = computed(() => {
-  const start = (employeeCurrentPage.value - 1) * employeePageSize.value
-  const end = start + employeePageSize.value
-  return sortedUserList.value.slice(start, end)
-})
+watch(employeeSearch, () => scheduleTableReload('user'))
+watch(expiredSearch, () => scheduleTableReload('expired'))
+watch(pendingSearch, () => scheduleTableReload('pendingAll'))
 
-const employeeTotalPages = computed(() => Math.max(1, Math.ceil(sortedUserList.value.length / employeePageSize.value)))
-const employeeStartIndex = computed(() => (employeeCurrentPage.value - 1) * employeePageSize.value)
-const employeeEndIndex = computed(() => Math.min(employeeStartIndex.value + employeePageSize.value, sortedUserList.value.length))
-const employeeVisiblePages = computed(() => {
-  const pages = []
-  const maxVisible = 5
-  let start = Math.max(1, employeeCurrentPage.value - Math.floor(maxVisible / 2))
-  let end = Math.min(employeeTotalPages.value, start + maxVisible - 1)
-  if (end - start < maxVisible - 1) {
-    start = Math.max(1, end - maxVisible + 1)
-  }
-  for (let i = start; i <= end; i++) pages.push(i)
-  return pages
+const employeeTotalPages = computed(() => Math.max(1, Math.ceil(employeeTotal.value / employeePageSize.value)))
+const employeeStartIndex = computed(() => {
+  if (!employeeTotal.value) return 0
+  return (employeeCurrentPage.value - 1) * employeePageSize.value
 })
+const employeeEndIndex = computed(() => Math.min(employeeStartIndex.value + employeeList.value.length, employeeTotal.value))
+const employeeVisiblePages = computed(() => buildVisiblePages(employeeCurrentPage.value, employeeTotalPages.value))
 
-const paginatedExpiredData = computed(() => {
-  const start = (expiredCurrentPage.value - 1) * expiredPageSize.value
-  const end = start + expiredPageSize.value
-  return sortedExpiredList.value.slice(start, end)
+const expiredTotalPages = computed(() => Math.max(1, Math.ceil(expiredTotal.value / expiredPageSize.value)))
+const expiredStartIndex = computed(() => {
+  if (!expiredTotal.value) return 0
+  return (expiredCurrentPage.value - 1) * expiredPageSize.value
 })
+const expiredEndIndex = computed(() => Math.min(expiredStartIndex.value + expiredList.value.length, expiredTotal.value))
+const expiredVisiblePages = computed(() => buildVisiblePages(expiredCurrentPage.value, expiredTotalPages.value))
 
-const expiredTotalPages = computed(() => Math.max(1, Math.ceil(sortedExpiredList.value.length / expiredPageSize.value)))
-const expiredStartIndex = computed(() => (expiredCurrentPage.value - 1) * expiredPageSize.value)
-const expiredEndIndex = computed(() => Math.min(expiredStartIndex.value + expiredPageSize.value, sortedExpiredList.value.length))
-const expiredVisiblePages = computed(() => {
-  const pages = []
-  const maxVisible = 5
-  let start = Math.max(1, expiredCurrentPage.value - Math.floor(maxVisible / 2))
-  let end = Math.min(expiredTotalPages.value, start + maxVisible - 1)
-  if (end - start < maxVisible - 1) {
-    start = Math.max(1, end - maxVisible + 1)
-  }
-  for (let i = start; i <= end; i++) pages.push(i)
-  return pages
+const pendingPendingTotalPages = computed(() => Math.max(1, Math.ceil(pendingPendingTotal.value / pendingPendingPageSize.value)))
+const pendingPendingStartIndex = computed(() => {
+  if (!pendingPendingTotal.value) return 0
+  return (pendingPendingCurrentPage.value - 1) * pendingPendingPageSize.value
 })
+const pendingPendingEndIndex = computed(() => Math.min(pendingPendingStartIndex.value + pendingList.value.length, pendingPendingTotal.value))
+const pendingPendingVisiblePages = computed(() => buildVisiblePages(pendingPendingCurrentPage.value, pendingPendingTotalPages.value))
 
-watch([employeeTotalPages, pendingPendingTotalPages, pendingApprovedTotalPages, pendingRejectedTotalPages, expiredTotalPages], () => {
-  if (employeeCurrentPage.value > employeeTotalPages.value) {
-    employeeCurrentPage.value = employeeTotalPages.value
-  }
-  if (pendingPendingCurrentPage.value > pendingPendingTotalPages.value) {
-    pendingPendingCurrentPage.value = pendingPendingTotalPages.value
-  }
-  if (pendingApprovedCurrentPage.value > pendingApprovedTotalPages.value) {
-    pendingApprovedCurrentPage.value = pendingApprovedTotalPages.value
-  }
-  if (pendingRejectedCurrentPage.value > pendingRejectedTotalPages.value) {
-    pendingRejectedCurrentPage.value = pendingRejectedTotalPages.value
-  }
-  if (expiredCurrentPage.value > expiredTotalPages.value) {
-    expiredCurrentPage.value = expiredTotalPages.value
-  }
+const pendingApprovedTotalPages = computed(() => Math.max(1, Math.ceil(pendingApprovedTotal.value / pendingApprovedPageSize.value)))
+const pendingApprovedStartIndex = computed(() => {
+  if (!pendingApprovedTotal.value) return 0
+  return (pendingApprovedCurrentPage.value - 1) * pendingApprovedPageSize.value
 })
+const pendingApprovedEndIndex = computed(() => Math.min(pendingApprovedStartIndex.value + pendingApprovedList.value.length, pendingApprovedTotal.value))
+const pendingApprovedVisiblePages = computed(() => buildVisiblePages(pendingApprovedCurrentPage.value, pendingApprovedTotalPages.value))
+
+const pendingRejectedTotalPages = computed(() => Math.max(1, Math.ceil(pendingRejectedTotal.value / pendingRejectedPageSize.value)))
+const pendingRejectedStartIndex = computed(() => {
+  if (!pendingRejectedTotal.value) return 0
+  return (pendingRejectedCurrentPage.value - 1) * pendingRejectedPageSize.value
+})
+const pendingRejectedEndIndex = computed(() => Math.min(pendingRejectedStartIndex.value + pendingRejectedList.value.length, pendingRejectedTotal.value))
+const pendingRejectedVisiblePages = computed(() => buildVisiblePages(pendingRejectedCurrentPage.value, pendingRejectedTotalPages.value))
+
+function goEmployeePage (page) {
+  const next = Math.min(Math.max(1, page), employeeTotalPages.value)
+  if (next === employeeCurrentPage.value) return
+  employeeCurrentPage.value = next
+  loadActiveUsers({ includeOptions: false }).catch((e) => console.error(e))
+}
+
+function goExpiredPage (page) {
+  const next = Math.min(Math.max(1, page), expiredTotalPages.value)
+  if (next === expiredCurrentPage.value) return
+  expiredCurrentPage.value = next
+  loadExpiredUsers({ includeOptions: false }).catch((e) => console.error(e))
+}
+
+function goPendingPendingPage (page) {
+  const next = Math.min(Math.max(1, page), pendingPendingTotalPages.value)
+  if (next === pendingPendingCurrentPage.value) return
+  pendingPendingCurrentPage.value = next
+  loadPendingTable('pendingPending', { includeOptions: false }).catch((e) => console.error(e))
+}
+
+function goPendingApprovedPage (page) {
+  const next = Math.min(Math.max(1, page), pendingApprovedTotalPages.value)
+  if (next === pendingApprovedCurrentPage.value) return
+  pendingApprovedCurrentPage.value = next
+  loadPendingTable('pendingApproved', { includeOptions: false }).catch((e) => console.error(e))
+}
+
+function goPendingRejectedPage (page) {
+  const next = Math.min(Math.max(1, page), pendingRejectedTotalPages.value)
+  if (next === pendingRejectedCurrentPage.value) return
+  pendingRejectedCurrentPage.value = next
+  loadPendingTable('pendingRejected', { includeOptions: false }).catch((e) => console.error(e))
+}
+
+function onEmployeePageSizeChange () {
+  employeeCurrentPage.value = 1
+  loadActiveUsers({ includeOptions: false }).catch((e) => console.error(e))
+}
+
+function onExpiredPageSizeChange () {
+  expiredCurrentPage.value = 1
+  loadExpiredUsers({ includeOptions: false }).catch((e) => console.error(e))
+}
+
+function onPendingPendingPageSizeChange () {
+  pendingPendingCurrentPage.value = 1
+  loadPendingTable('pendingPending', { includeOptions: false }).catch((e) => console.error(e))
+}
+
+function onPendingApprovedPageSizeChange () {
+  pendingApprovedCurrentPage.value = 1
+  loadPendingTable('pendingApproved', { includeOptions: false }).catch((e) => console.error(e))
+}
+
+function onPendingRejectedPageSizeChange () {
+  pendingRejectedCurrentPage.value = 1
+  loadPendingTable('pendingRejected', { includeOptions: false }).catch((e) => console.error(e))
+}
 
 const showForm = ref(false)
 const showQRCode = ref(false)
@@ -1942,32 +1986,44 @@ const formatQuotaDisplay = (used, annual) => {
   return `${used ?? 0} / ${annual ?? 0}`
 }
 
-const handleExport = () => {
-  const exportData = employeeList.value.map(item => ({
-    'CORP User ID': item.corpId,
-    'Employee No.': item.employeeNo || '',
-    'First Name': item.firstName || '',
-    'Last Name': item.lastName || '',
-    'Department / Unit': item.department,
-    'Rank': item.rank || '',
-    'Email': item.email,
-    'Contact No.': item.contact || '',
-    'Role': item.role,
-    'EV Quota': item.annualQuotaEV,
-    'Used Quota (EV)': item.usedQuotaEV,
-    'Venue Quota': item.annualQuotaVenue,
-    'Used Quota (Venue)': item.usedQuotaVenue,
-    'Status': item.status === 'active' ? 'Active' : item.status === 'inactive' ? 'Inactive' : 'Expired',
-    'Last login time': formatDateTimeDisplay(item.lastLoginTime),
-    'Inactive Time': formatDateTimeDisplay(item.inactiveTime),
-    'Inactived By': formatInactivedBy(item)
-  }))
+const handleExport = async () => {
+  if (exportLoading.value) return
+  exportLoading.value = true
+  try {
+    const payload = await listUsers({ all: 1, statusScope: 'all' })
+    const { items } = normalizeListResponse(payload)
+    const rows = items.map(normalizeUserRow)
+    const exportData = rows.map(item => ({
+      'CORP User ID': item.corpId,
+      'Employee No.': item.employeeNo || '',
+      'First Name': item.firstName || '',
+      'Last Name': item.lastName || '',
+      'Department / Unit': item.department,
+      'Rank': item.rank || '',
+      'Email': item.email,
+      'Contact No.': item.contact || '',
+      'Role': item.role,
+      'EV Quota': item.annualQuotaEV,
+      'Used Quota (EV)': item.usedQuotaEV,
+      'Venue Quota': item.annualQuotaVenue,
+      'Used Quota (Venue)': item.usedQuotaVenue,
+      'Status': item.status === 'active' ? 'Active' : item.status === 'inactive' ? 'Inactive' : 'Expired',
+      'Last login time': formatDateTimeDisplay(item.lastLoginTime),
+      'Inactive Time': formatDateTimeDisplay(item.inactiveTime),
+      'Inactived By': formatInactivedBy(item)
+    }))
 
-  const ws = XLSX.utils.json_to_sheet(exportData)
-  const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, 'Users')
-  XLSX.writeFile(wb, `User_Management_${new Date().toISOString().split('T')[0]}.xlsx`)
-  showNotice('Excel file exported successfully', 'Success')
+    const ws = XLSX.utils.json_to_sheet(exportData)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Users')
+    XLSX.writeFile(wb, `User_Management_${new Date().toISOString().split('T')[0]}.xlsx`)
+    showNotice('Excel file exported successfully', 'Success')
+  } catch (error) {
+    console.error('Failed to export users:', error)
+    showNotice('Failed to export Excel file', 'Error')
+  } finally {
+    exportLoading.value = false
+  }
 }
 
 const handleAdd = () => {

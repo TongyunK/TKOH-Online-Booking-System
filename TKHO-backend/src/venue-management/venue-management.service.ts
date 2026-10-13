@@ -2066,97 +2066,279 @@ export class VenueManagementService {
 
 
   async listManageBookings(
-
-
     auth: { sub?: string; corpId?: string; role?: string; system?: string },
-
-
-    scope: 'my' | 'all' = 'my',
-
-
+    queryOrScope:
+      | 'my'
+      | 'all'
+      | {
+          scope?: 'my' | 'all';
+          page?: string | number;
+          pageSize?: string | number;
+          q?: string;
+          dateFrom?: string;
+          dateTo?: string;
+          sortBy?: string;
+          sortOrder?: string;
+          statuses?: string;
+          venueNames?: string;
+          reservedBy?: string;
+          submitters?: string;
+          approvalStatuses?: string;
+          includeOptions?: string | boolean;
+          all?: string | boolean;
+        } = 'my',
   ) {
-
-
+    const query =
+      typeof queryOrScope === 'string' || queryOrScope == null
+        ? { scope: (queryOrScope as 'my' | 'all') || 'my' }
+        : queryOrScope;
+    const scope = query.scope === 'all' ? 'all' : 'my';
     const userId = this.parseAuthSub(auth);
-
-
     const corpId = String(auth.corpId || '').trim();
 
-
     if (scope === 'all' && !this.isAdminRole(auth)) {
-
-
       throw new ForbiddenException('Only administrators can view all bookings.');
-
-
     }
 
-
-
-
-
-    const where: Prisma.VenueBookingsWhereInput = {
-
-
-      bookingType: 'venue',
-
-
-      ...(scope === 'all'
-
-
-        ? {}
-
-
-        : {
-
-
-            OR: [
-
-
-              { reservedByUserId: userId },
-
-
-              ...(corpId ? [{ reservedBy: { corpId } }] : []),
-
-
-            ],
-
-
-          }),
-
-
+    const parsePositiveInt = (value: unknown, fallback: number) => {
+      const n = Number(value);
+      if (!Number.isFinite(n) || n <= 0) return fallback;
+      return Math.floor(n);
+    };
+    const isTruthyFlag = (value: unknown) => {
+      if (value === true || value === 1) return true;
+      const text = String(value ?? '').trim().toLowerCase();
+      return text === '1' || text === 'true' || text === 'yes';
+    };
+    const parseCsv = (value?: string) =>
+      String(value ?? '')
+        .split(',')
+        .map((part) => part.trim())
+        .filter(Boolean);
+    const parseYmdToUtcDate = (ymd?: string) => {
+      const match = String(ymd ?? '')
+        .trim()
+        .match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!match) return null;
+      return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
     };
 
+    const wantAll = isTruthyFlag(query.all);
+    const includeOptions = isTruthyFlag(query.includeOptions);
+    const page = parsePositiveInt(query.page, 1);
+    const pageSize = Math.min(parsePositiveInt(query.pageSize, 20), wantAll ? 5000 : 100);
 
+    const and: Prisma.VenueBookingsWhereInput[] = [{ bookingType: 'venue' }];
+    if (scope !== 'all') {
+      and.push({
+        OR: [
+          { reservedByUserId: userId },
+          ...(corpId ? [{ reservedBy: { corpId } }] : []),
+        ],
+      });
+    }
 
+    const statuses = parseCsv(query.statuses).map((x) => x.toLowerCase());
+    const uniqueStatuses = [...new Set(statuses)].filter((x) =>
+      ['upcoming', 'past', 'cancelled'].includes(x),
+    );
+    if (uniqueStatuses.length && uniqueStatuses.length < 3) {
+      const now = new Date();
+      const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+      const nowTime = new Date(
+        Date.UTC(1970, 0, 1, now.getUTCHours(), now.getUTCMinutes(), 0, 0),
+      );
+      const cancelledWhere: Prisma.VenueBookingsWhereInput = {
+        OR: [
+          { status: { equals: 'cancelled', mode: 'insensitive' } },
+          { status: { equals: 'canceled', mode: 'insensitive' } },
+        ],
+      };
+      const notCancelled: Prisma.VenueBookingsWhereInput = { NOT: cancelledWhere };
+      const parts: Prisma.VenueBookingsWhereInput[] = [];
+      if (uniqueStatuses.includes('cancelled')) parts.push(cancelledWhere);
+      if (uniqueStatuses.includes('upcoming')) {
+        parts.push({
+          AND: [
+            notCancelled,
+            {
+              OR: [
+                { bookingDate: { gt: today } },
+                {
+                  AND: [
+                    { bookingDate: { equals: today } },
+                    {
+                      OR: [{ endTime: { gt: nowTime } }, { endTime: null }],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        });
+      }
+      if (uniqueStatuses.includes('past')) {
+        parts.push({
+          AND: [
+            notCancelled,
+            {
+              OR: [
+                { bookingDate: { lt: today } },
+                {
+                  AND: [
+                    { bookingDate: { equals: today } },
+                    { endTime: { lte: nowTime } },
+                  ],
+                },
+              ],
+            },
+          ],
+        });
+      }
+      and.push(parts.length === 1 ? parts[0] : { OR: parts });
+    }
 
+    const from = parseYmdToUtcDate(query.dateFrom);
+    const to = parseYmdToUtcDate(query.dateTo);
+    if (from || to) {
+      const bookingDate: Prisma.DateTimeNullableFilter = {};
+      if (from) bookingDate.gte = from;
+      if (to) bookingDate.lte = to;
+      and.push({ bookingDate });
+    }
+
+    const q = String(query.q ?? '').trim();
+    if (q) {
+      and.push({
+        OR: [
+          { meetingTitle: { contains: q, mode: 'insensitive' } },
+          { notes: { contains: q, mode: 'insensitive' } },
+          { venue: { is: { name: { contains: q, mode: 'insensitive' } } } },
+          {
+            reservedBy: {
+              is: {
+                OR: [
+                  { firstName: { contains: q, mode: 'insensitive' } },
+                  { lastName: { contains: q, mode: 'insensitive' } },
+                  { corpId: { contains: q, mode: 'insensitive' } },
+                ],
+              },
+            },
+          },
+        ],
+      });
+    }
+
+    const venueNames = parseCsv(query.venueNames);
+    if (venueNames.length) {
+      and.push({ venue: { is: { name: { in: venueNames } } } });
+    }
+
+    const approvalStatuses = parseCsv(query.approvalStatuses);
+    if (approvalStatuses.length) {
+      and.push({
+        OR: approvalStatuses.map((status) => ({
+          approvalStatus: { equals: status, mode: 'insensitive' as const },
+        })),
+      });
+    }
+
+    const where: Prisma.VenueBookingsWhereInput = { AND: and };
+
+    const sortBy = String(query.sortBy ?? '').trim();
+    const sortOrder =
+      String(query.sortOrder ?? '').trim().toLowerCase() === 'asc' ? 'asc' : 'desc';
+    let orderBy: Prisma.VenueBookingsOrderByWithRelationInput[] = [
+      { bookingDate: 'desc' },
+      { startTime: 'desc' },
+      { id: 'desc' },
+    ];
+    if (sortBy === 'dateTime' || sortBy === 'date') {
+      orderBy = [{ bookingDate: sortOrder }, { startTime: sortOrder }, { id: 'desc' }];
+    } else if (sortBy === 'room') {
+      orderBy = [{ venue: { name: sortOrder } }, { id: 'desc' }];
+    } else if (sortBy === 'topic') {
+      orderBy = [{ meetingTitle: sortOrder }, { id: 'desc' }];
+    } else if (sortBy === 'bookedOn') {
+      orderBy = [{ submittedAt: sortOrder }, { id: 'desc' }];
+    } else if (sortBy === 'cancelledAt') {
+      orderBy = [{ cancelledAt: sortOrder }, { id: 'desc' }];
+    } else if (sortBy === 'status') {
+      orderBy = [{ status: sortOrder }, { id: 'desc' }];
+    } else if (sortBy === 'approvalStatus') {
+      orderBy = [{ approvalStatus: sortOrder }, { id: 'desc' }];
+    } else if (sortBy === 'displayOnHomepage') {
+      orderBy = [{ displayOnHomepage: sortOrder }, { id: 'desc' }];
+    }
+
+    const reservedByLabels = parseCsv(query.reservedBy);
+    const submitterLabels = parseCsv(query.submitters);
+    const needsPostFilter = reservedByLabels.length > 0 || submitterLabels.length > 0;
 
     const rows = await this.prisma.venueBookings.findMany({
-
-
       where,
-
-
       include: manageBookingRowInclude,
-
-
-      orderBy: [{ bookingDate: 'desc' }, { startTime: 'desc' }, { id: 'desc' }],
-
-
+      orderBy,
+      skip: needsPostFilter || wantAll ? 0 : (page - 1) * pageSize,
+      take: (needsPostFilter || wantAll ? 5000 : pageSize) as number,
     });
 
+    let mapped = rows.map((row) => this.mapManageBookingRow(row));
+    if (reservedByLabels.length) {
+      const set = new Set(reservedByLabels);
+      mapped = mapped.filter((item) => set.has(String((item as any).reservedBy || '')));
+    }
+    if (submitterLabels.length) {
+      const set = new Set(submitterLabels);
+      mapped = mapped.filter((item) => set.has(String((item as any).submitter || '')));
+    }
 
+    const total = needsPostFilter
+      ? mapped.length
+      : await this.prisma.venueBookings.count({ where });
+    const items =
+      needsPostFilter || wantAll
+        ? wantAll
+          ? mapped
+          : mapped.slice((page - 1) * pageSize, page * pageSize)
+        : mapped;
 
+    let filterOptions:
+      | { venues: string[]; reservedBy: string[]; submitters: string[] }
+      | undefined;
+    if (includeOptions) {
+      const optionRows = await this.prisma.venueBookings.findMany({
+        where,
+        include: manageBookingRowInclude,
+        take: 5000,
+      });
+      const optionMapped = optionRows.map((row) => this.mapManageBookingRow(row));
+      filterOptions = {
+        venues: [
+          ...new Set(optionMapped.map((b: any) => String(b.room || '')).filter(Boolean)),
+        ].sort(),
+        reservedBy: [
+          ...new Set(
+            optionMapped.map((b: any) => String(b.reservedBy || '')).filter(Boolean),
+          ),
+        ].sort(),
+        submitters: [
+          ...new Set(
+            optionMapped.map((b: any) => String(b.submitter || '')).filter(Boolean),
+          ),
+        ].sort(),
+      };
+    }
 
-
-    return { bookings: rows.map((row) => this.mapManageBookingRow(row)) };
-
-
+    return {
+      items,
+      bookings: items,
+      total,
+      page: wantAll ? 1 : page,
+      pageSize: wantAll ? items.length : pageSize,
+      ...(filterOptions ? { filterOptions } : {}),
+    };
   }
-
-
-
-
 
   private async assertVenueSlotAvailable(
 

@@ -50,7 +50,7 @@
           </div>
         </div>
 
-        <el-button type="default" class="cancel-btn" @click="handleExport">
+        <el-button type="default" class="cancel-btn" :loading="exportLoading" @click="handleExport">
           <font-awesome-icon :icon="['fas', 'file-excel']" /> Export Excel
         </el-button>
       </div>
@@ -69,8 +69,16 @@
           <div class="table-card">
             <div class="table-view">
               <div class="table-wrapper">
-                <el-table :data="paginatedPendingData" class="meeting-approval-table" height="100%" border stripe
-                  table-layout="auto" style="width: max-content; min-width: 100%">
+                <el-table
+                  v-loading="pendingLoading"
+                  :data="pendingList"
+                  class="meeting-approval-table"
+                  height="100%"
+                  border
+                  stripe
+                  table-layout="auto"
+                  style="width: max-content; min-width: 100%"
+                >
                   <el-table-column type="index" label="#" width="70" align="center" header-align="center" fixed="left"
                     class-name="table-nowrap-col" label-class-name="table-nowrap-col" :index="getPendingRowIndex" />
                   <el-table-column prop="venueName" min-width="200" class-name="table-nowrap-col"
@@ -205,22 +213,22 @@
             </div>
             <div class="pagination-bar">
               <div class="pagination-info">
-                Showing {{ pendingStartIndex + 1 }}-{{ pendingEndIndex }} of {{ columnFilteredPendingList.length }}
+                Showing {{ pendingTotal ? pendingStartIndex + 1 : 0 }}-{{ pendingEndIndex }} of {{ pendingTotal }}
                 records
               </div>
               <div class="pagination-controls">
-                <button class="pagination-btn" :disabled="pendingCurrentPage === 1"
-                  @click="pendingCurrentPage--">Previous</button>
+                <button class="pagination-btn" :disabled="pendingCurrentPage === 1 || pendingLoading"
+                  @click="goPendingPage(pendingCurrentPage - 1)">Previous</button>
                 <button v-for="page in pendingVisiblePages" :key="page"
                   :class="['pagination-btn', 'page-number', { active: page === pendingCurrentPage }]"
-                  @click="pendingCurrentPage = page">
+                  @click="goPendingPage(page)">
                   {{ page }}
                 </button>
-                <button class="pagination-btn" :disabled="pendingCurrentPage === pendingTotalPages"
-                  @click="pendingCurrentPage++">Next</button>
+                <button class="pagination-btn" :disabled="pendingCurrentPage === pendingTotalPages || pendingLoading"
+                  @click="goPendingPage(pendingCurrentPage + 1)">Next</button>
               </div>
               <div class="pagination-size">
-                <select v-model.number="pendingPageSize" class="page-size-select" @change="pendingCurrentPage = 1">
+                <select v-model.number="pendingPageSize" class="page-size-select" @change="onPendingPageSizeChange">
                   <option :value="10">10 / page</option>
                   <option :value="20">20 / page</option>
                   <option :value="50">50 / page</option>
@@ -242,8 +250,16 @@
           <div class="table-card">
             <div class="table-view">
               <div class="table-wrapper">
-                <el-table :data="paginatedExpiredData" class="meeting-approval-table" height="100%" border stripe
-                  table-layout="auto" style="width: max-content; min-width: 100%">
+                <el-table
+                  v-loading="expiredLoading"
+                  :data="expiredList"
+                  class="meeting-approval-table"
+                  height="100%"
+                  border
+                  stripe
+                  table-layout="auto"
+                  style="width: max-content; min-width: 100%"
+                >
                   <el-table-column type="index" label="#" width="70" align="center" header-align="center" fixed="left"
                     class-name="table-nowrap-col" label-class-name="table-nowrap-col" :index="getExpiredRowIndex" />
                   <el-table-column prop="venueName" min-width="200" class-name="table-nowrap-col"
@@ -378,22 +394,22 @@
             </div>
             <div class="pagination-bar">
               <div class="pagination-info">
-                Showing {{ expiredStartIndex + 1 }}-{{ expiredEndIndex }} of {{ columnFilteredExpiredList.length }}
+                Showing {{ expiredTotal ? expiredStartIndex + 1 : 0 }}-{{ expiredEndIndex }} of {{ expiredTotal }}
                 records
               </div>
               <div class="pagination-controls">
-                <button class="pagination-btn" :disabled="expiredCurrentPage === 1"
-                  @click="expiredCurrentPage--">Previous</button>
+                <button class="pagination-btn" :disabled="expiredCurrentPage === 1 || expiredLoading"
+                  @click="goExpiredPage(expiredCurrentPage - 1)">Previous</button>
                 <button v-for="page in expiredVisiblePages" :key="page"
                   :class="['pagination-btn', 'page-number', { active: page === expiredCurrentPage }]"
-                  @click="expiredCurrentPage = page">
+                  @click="goExpiredPage(page)">
                   {{ page }}
                 </button>
-                <button class="pagination-btn" :disabled="expiredCurrentPage === expiredTotalPages"
-                  @click="expiredCurrentPage++">Next</button>
+                <button class="pagination-btn" :disabled="expiredCurrentPage === expiredTotalPages || expiredLoading"
+                  @click="goExpiredPage(expiredCurrentPage + 1)">Next</button>
               </div>
               <div class="pagination-size">
-                <select v-model.number="expiredPageSize" class="page-size-select" @change="expiredCurrentPage = 1">
+                <select v-model.number="expiredPageSize" class="page-size-select" @change="onExpiredPageSizeChange">
                   <option :value="10">10 / page</option>
                   <option :value="20">20 / page</option>
                   <option :value="50">50 / page</option>
@@ -408,8 +424,16 @@
           <div class="table-card">
             <div class="table-view">
               <div class="table-wrapper">
-                <el-table :data="paginatedApprovedData" class="meeting-approval-table" height="100%" border stripe
-                  table-layout="auto" style="width: max-content; min-width: 100%">
+                <el-table
+                  v-loading="approvedLoading"
+                  :data="approvedList"
+                  class="meeting-approval-table"
+                  height="100%"
+                  border
+                  stripe
+                  table-layout="auto"
+                  style="width: max-content; min-width: 100%"
+                >
                   <el-table-column type="index" label="#" width="70" align="center" header-align="center" fixed="left"
                     class-name="table-nowrap-col" label-class-name="table-nowrap-col" :index="getApprovedRowIndex" />
                   <el-table-column prop="venueName" min-width="200" class-name="table-nowrap-col"
@@ -544,22 +568,22 @@
             </div>
             <div class="pagination-bar">
               <div class="pagination-info">
-                Showing {{ approvedStartIndex + 1 }}-{{ approvedEndIndex }} of {{ columnFilteredApprovedList.length }}
+                Showing {{ approvedTotal ? approvedStartIndex + 1 : 0 }}-{{ approvedEndIndex }} of {{ approvedTotal }}
                 records
               </div>
               <div class="pagination-controls">
-                <button class="pagination-btn" :disabled="approvedCurrentPage === 1"
-                  @click="approvedCurrentPage--">Previous</button>
+                <button class="pagination-btn" :disabled="approvedCurrentPage === 1 || approvedLoading"
+                  @click="goApprovedPage(approvedCurrentPage - 1)">Previous</button>
                 <button v-for="page in approvedVisiblePages" :key="page"
                   :class="['pagination-btn', 'page-number', { active: page === approvedCurrentPage }]"
-                  @click="approvedCurrentPage = page">
+                  @click="goApprovedPage(page)">
                   {{ page }}
                 </button>
-                <button class="pagination-btn" :disabled="approvedCurrentPage === approvedTotalPages"
-                  @click="approvedCurrentPage++">Next</button>
+                <button class="pagination-btn" :disabled="approvedCurrentPage === approvedTotalPages || approvedLoading"
+                  @click="goApprovedPage(approvedCurrentPage + 1)">Next</button>
               </div>
               <div class="pagination-size">
-                <select v-model.number="approvedPageSize" class="page-size-select" @change="approvedCurrentPage = 1">
+                <select v-model.number="approvedPageSize" class="page-size-select" @change="onApprovedPageSizeChange">
                   <option :value="10">10 / page</option>
                   <option :value="20">20 / page</option>
                   <option :value="50">50 / page</option>
@@ -678,7 +702,6 @@ const currentSearch = computed({
   get: () => searchState.value[activeTab.value] || '',
   set: (value) => {
     searchState.value[activeTab.value] = value
-    resetTablePage(activeTab.value)
   }
 })
 
@@ -694,26 +717,150 @@ const showNotice = (message, title = 'Notice') => {
 const pendingList = ref([])
 const expiredList = ref([])
 const approvedList = ref([])
-const rejectedList = ref([])
-const listsLoading = ref(false)
+const pendingTotal = ref(0)
+const expiredTotal = ref(0)
+const approvedTotal = ref(0)
+const pendingLoading = ref(false)
+const expiredLoading = ref(false)
+const approvedLoading = ref(false)
+const pendingVenueOptions = ref([])
+const pendingReservedByOptions = ref([])
+const expiredVenueOptions = ref([])
+const expiredReservedByOptions = ref([])
+const approvedVenueOptions = ref([])
+const approvedReservedByOptions = ref([])
+const exportLoading = ref(false)
 
-async function loadMeetingApprovalLists() {
-  listsLoading.value = true
+let searchReloadTimer = null
+
+function normalizeListResponse(payload) {
+  if (Array.isArray(payload)) {
+    return { items: payload, total: payload.length, filterOptions: null }
+  }
+  const items = Array.isArray(payload?.items) ? payload.items : []
+  const total = Number(payload?.total)
+  return {
+    items,
+    total: Number.isFinite(total) ? total : items.length,
+    filterOptions: payload?.filterOptions || null
+  }
+}
+
+function getPrimarySort(state) {
+  const first = state.value?.[0]
+  if (!first?.key) return { sortBy: undefined, sortOrder: undefined }
+  return {
+    sortBy: first.key,
+    sortOrder: first.order === 'asc' ? 'asc' : 'desc'
+  }
+}
+
+function buildListParams(tableKey, { includeOptions = false, all = false } = {}) {
+  const page =
+    tableKey === 'pending'
+      ? pendingCurrentPage.value
+      : tableKey === 'expired'
+        ? expiredCurrentPage.value
+        : approvedCurrentPage.value
+  const pageSize =
+    tableKey === 'pending'
+      ? pendingPageSize.value
+      : tableKey === 'expired'
+        ? expiredPageSize.value
+        : approvedPageSize.value
+  const sortState =
+    tableKey === 'pending'
+      ? pendingSortState
+      : tableKey === 'expired'
+        ? expiredSortState
+        : approvedSortState
+  const { sortBy, sortOrder } = getPrimarySort(sortState)
+  const filters = columnFilterState.value[tableKey] || { venueName: [], reservedBy: [] }
+  const params = {
+    page,
+    pageSize,
+    q: searchState.value[tableKey] || undefined,
+    sortBy,
+    sortOrder,
+    venueNames: filters.venueName?.length ? filters.venueName.join(',') : undefined,
+    reservedBy: filters.reservedBy?.length ? filters.reservedBy.join(',') : undefined,
+    includeOptions: includeOptions ? 1 : undefined,
+    all: all ? 1 : undefined
+  }
+  if (dateRange.value?.length === 2) {
+    params.dateFrom = dateRange.value[0]
+    params.dateTo = dateRange.value[1]
+  }
+  return params
+}
+
+function applyFilterOptions(tableKey, filterOptions) {
+  if (!filterOptions) return
+  const venues = Array.isArray(filterOptions.venues) ? filterOptions.venues : []
+  const reservedBy = Array.isArray(filterOptions.reservedBy) ? filterOptions.reservedBy : []
+  if (tableKey === 'pending') {
+    pendingVenueOptions.value = venues
+    pendingReservedByOptions.value = reservedBy
+  } else if (tableKey === 'expired') {
+    expiredVenueOptions.value = venues
+    expiredReservedByOptions.value = reservedBy
+  } else if (tableKey === 'approved') {
+    approvedVenueOptions.value = venues
+    approvedReservedByOptions.value = reservedBy
+  }
+}
+
+async function loadTable(tableKey, { includeOptions = false } = {}) {
+  const loadingRef =
+    tableKey === 'pending'
+      ? pendingLoading
+      : tableKey === 'expired'
+        ? expiredLoading
+        : approvedLoading
+  const fetcher =
+    tableKey === 'pending'
+      ? getPendingBookings
+      : tableKey === 'expired'
+        ? getExpiredBookings
+        : getApprovedBookings
+
+  loadingRef.value = true
   try {
-    const [pending, expired, approved] = await Promise.all([
-      getPendingBookings(),
-      getExpiredBookings(),
-      getApprovedBookings()
-    ])
-    pendingList.value = Array.isArray(pending) ? pending : []
-    expiredList.value = Array.isArray(expired) ? expired : []
-    approvedList.value = Array.isArray(approved) ? approved : []
+    const payload = await fetcher(buildListParams(tableKey, { includeOptions }))
+    const { items, total, filterOptions } = normalizeListResponse(payload)
+    if (tableKey === 'pending') {
+      pendingList.value = items
+      pendingTotal.value = total
+    } else if (tableKey === 'expired') {
+      expiredList.value = items
+      expiredTotal.value = total
+    } else {
+      approvedList.value = items
+      approvedTotal.value = total
+    }
+    applyFilterOptions(tableKey, filterOptions)
   } catch (error) {
-    console.error('Failed to load meeting approval lists:', error)
+    console.error(`Failed to load ${tableKey} meeting approval list:`, error)
     showNotice('Failed to load meeting approval data', 'Error')
   } finally {
-    listsLoading.value = false
+    loadingRef.value = false
   }
+}
+
+async function loadMeetingApprovalLists({ includeOptions = true } = {}) {
+  await Promise.all([
+    loadTable('pending', { includeOptions }),
+    loadTable('expired', { includeOptions }),
+    loadTable('approved', { includeOptions })
+  ])
+}
+
+function scheduleSearchReload(tableKey) {
+  if (searchReloadTimer) clearTimeout(searchReloadTimer)
+  searchReloadTimer = setTimeout(() => {
+    resetTablePage(tableKey)
+    loadTable(tableKey, { includeOptions: true }).catch((e) => console.error(e))
+  }, 300)
 }
 
 const showDateFilter = ref(false)
@@ -733,8 +880,6 @@ const expiredCurrentPage = ref(1)
 const expiredPageSize = ref(20)
 const approvedCurrentPage = ref(1)
 const approvedPageSize = ref(20)
-const rejectedCurrentPage = ref(1)
-const rejectedPageSize = ref(20)
 const dateFilterLabel = computed(() => {
   if (!dateRange.value || dateRange.value.length !== 2) return 'All dates'
   const [start, end] = dateRange.value
@@ -744,60 +889,6 @@ const dateFilterLabel = computed(() => {
   return `${fmt(startDate)} - ${fmt(endDate)}`
 })
 
-function parseYmdDate(ymd) {
-  const [year, month, day] = String(ymd || '').split('-').map(Number)
-  if (!year || !month || !day) return null
-  return new Date(year, month - 1, day)
-}
-
-function isDateInRange(item) {
-  if (!dateRange.value || dateRange.value.length !== 2) return true
-  const [startDate, endDate] = dateRange.value
-  const itemDate = parseYmdDate(item.date)
-  if (!itemDate) return true
-  const start = new Date(startDate)
-  const end = new Date(endDate)
-  start.setHours(0, 0, 0, 0)
-  end.setHours(23, 59, 59, 999)
-  return itemDate >= start && itemDate <= end
-}
-
-const filteredPendingList = computed(() => pendingList.value.filter(isDateInRange))
-const filteredExpiredList = computed(() => expiredList.value.filter(isDateInRange))
-const filteredApprovedList = computed(() => approvedList.value.filter(isDateInRange))
-const filteredRejectedList = computed(() => rejectedList.value.filter(isDateInRange))
-
-function applyKeywordSearch(rows, query) {
-  const keyword = String(query || '').trim().toLowerCase()
-  if (!keyword) return rows
-  return rows.filter((row) => rowMatchesSearchKeyword(row, keyword))
-}
-
-function rowMatchesSearchKeyword(row, keyword) {
-  const haystack = [
-    row.bookingId,
-    row.venueName,
-    row.userName,
-    row.bookerCorpId,
-    formatReservedBy(row),
-    row.department,
-    row.meetingTitle,
-    row.date,
-    row.time,
-    row.submittedAt,
-    row.approvedBy,
-    row.approvedAt,
-    row.rejectedBy,
-    row.rejectedAt,
-    row.reason
-  ].map((v) => String(v ?? '').toLowerCase()).join(' ')
-  return haystack.includes(keyword)
-}
-
-const searchedPendingList = computed(() => applyKeywordSearch(filteredPendingList.value, searchState.value.pending))
-const searchedExpiredList = computed(() => applyKeywordSearch(filteredExpiredList.value, searchState.value.expired))
-const searchedApprovedList = computed(() => applyKeywordSearch(filteredApprovedList.value, searchState.value.approved))
-const searchedRejectedList = computed(() => applyKeywordSearch(filteredRejectedList.value, searchState.value.rejected))
 const columnFilterState = ref({
   pending: { venueName: [], reservedBy: [] },
   expired: { venueName: [], reservedBy: [] },
@@ -805,284 +896,153 @@ const columnFilterState = ref({
   rejected: { venueName: [], reservedBy: [] }
 })
 
-const getUniqueOptions = (list, mapper) => [...new Set((list || []).map(mapper).filter(v => v != null && `${v}` !== ''))]
-const pendingVenueOptions = computed(() => getUniqueOptions(searchedPendingList.value, row => row.venueName || ''))
-const pendingReservedByOptions = computed(() => getUniqueOptions(searchedPendingList.value, row => formatReservedBy(row)))
-const expiredVenueOptions = computed(() => getUniqueOptions(searchedExpiredList.value, row => row.venueName || ''))
-const expiredReservedByOptions = computed(() => getUniqueOptions(searchedExpiredList.value, row => formatReservedBy(row)))
-const approvedVenueOptions = computed(() => getUniqueOptions(searchedApprovedList.value, row => row.venueName || ''))
-const approvedReservedByOptions = computed(() => getUniqueOptions(searchedApprovedList.value, row => formatReservedBy(row)))
-const rejectedVenueOptions = computed(() => getUniqueOptions(searchedRejectedList.value, row => row.venueName || ''))
-const rejectedReservedByOptions = computed(() => getUniqueOptions(searchedRejectedList.value, row => formatReservedBy(row)))
+const pendingSortState = ref([])
+const expiredSortState = ref([])
+const approvedSortState = ref([])
+const expiredBookingsCount = computed(() => expiredTotal.value)
 
 function getTableSortState(tableKey) {
   if (tableKey === 'pending') return pendingSortState
   if (tableKey === 'expired') return expiredSortState
-  if (tableKey === 'approved') return approvedSortState
-  return rejectedSortState
+  return approvedSortState
 }
 
 function resetTablePage(tableKey) {
   if (tableKey === 'pending') pendingCurrentPage.value = 1
   else if (tableKey === 'expired') expiredCurrentPage.value = 1
   else if (tableKey === 'approved') approvedCurrentPage.value = 1
-  else if (tableKey === 'rejected') rejectedCurrentPage.value = 1
 }
 
 const updateFilter = (tableKey, key, value) => {
   columnFilterState.value[tableKey][key] = value ?? []
   resetTablePage(tableKey)
-}
-
-const selectAllFilterOptions = (tableKey, key, options) => {
-  updateFilter(tableKey, key, [...options])
-}
-
-const clearFilterOptions = (tableKey, key) => {
-  updateFilter(tableKey, key, [])
-}
-
-const applyColumnFilters = (rows, tableKey) => {
-  const state = columnFilterState.value[tableKey]
-  return rows.filter((row) => {
-    const venueSelected = state.venueName || []
-    const reservedSelected = state.reservedBy || []
-    const venueMatch = !venueSelected.length || venueSelected.map(v => String(v)).includes(String(row.venueName || ''))
-    const reservedByValue = formatReservedBy(row)
-    const reservedMatch = !reservedSelected.length || reservedSelected.map(v => String(v)).includes(String(reservedByValue))
-    return venueMatch && reservedMatch
-  })
-}
-
-const columnFilteredPendingList = computed(() => applyColumnFilters(searchedPendingList.value, 'pending'))
-const columnFilteredExpiredList = computed(() => applyColumnFilters(searchedExpiredList.value, 'expired'))
-const columnFilteredApprovedList = computed(() => applyColumnFilters(searchedApprovedList.value, 'approved'))
-const columnFilteredRejectedList = computed(() => applyColumnFilters(searchedRejectedList.value, 'rejected'))
-const expiredBookingsCount = computed(() => columnFilteredExpiredList.value.length)
-const pendingSortState = ref([])
-const expiredSortState = ref([])
-const approvedSortState = ref([])
-const rejectedSortState = ref([])
-
-function parseDisplayDate(dateStr) {
-  if (!dateStr) return new Date(0)
-  const text = String(dateStr).trim()
-  const parts = text.split(' ')
-  if (parts.length < 3) return new Date(text)
-  const day = Number.parseInt(parts[0], 10)
-  const monthMap = {
-    Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
-    Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11
-  }
-  const month = monthMap[parts[1]]
-  const year = Number.parseInt(parts[2], 10)
-  if (!Number.isFinite(day) || !Number.isFinite(year) || month === undefined) return new Date(text)
-  return new Date(year, month, day)
-}
-
-function parseDateTime(dateTimeStr) {
-  if (!dateTimeStr) return new Date(0)
-  const normalized = String(dateTimeStr).replace(',', '')
-  const date = new Date(normalized)
-  return Number.isNaN(date.getTime()) ? new Date(0) : date
-}
-
-function parseStartMinutes(timeRange) {
-  const start = (timeRange || '').split(' - ')[0] || ''
-  const [h = '0', m = '0'] = start.split(':')
-  return (Number.parseInt(h, 10) || 0) * 60 + (Number.parseInt(m, 10) || 0)
-}
-
-function getSortValue(row, key) {
-  switch (key) {
-    case 'venueName':
-      return row.venueName || ''
-    case 'date':
-      return parseDisplayDate(row.date).getTime()
-    case 'time':
-      return parseStartMinutes(row.time)
-    case 'submittedAt':
-      return parseDateTime(row.submittedAt).getTime()
-    case 'approvedBy':
-      return row.approvedBy || ''
-    case 'approvedAt':
-      return parseDateTime(row.approvedAt).getTime()
-    case 'rejectedBy':
-      return row.rejectedBy || ''
-    case 'rejectedAt':
-      return parseDateTime(row.rejectedAt).getTime()
-    case 'reason':
-      return row.reason || ''
-    case 'reservedBy':
-      return formatReservedBy(row)
-    default:
-      return ''
-  }
-}
-
-function sortRowsByState(rows, state) {
-  if (!state.value.length) return rows.slice()
-  return rows.slice().sort((a, b) => {
-    for (const criterion of state.value) {
-      const aValue = getSortValue(a, criterion.key)
-      const bValue = getSortValue(b, criterion.key)
-      const direction = criterion.order === 'asc' ? 1 : -1
-      let cmp = 0
-      if (typeof aValue === 'number' && typeof bValue === 'number') {
-        cmp = aValue - bValue
-      } else {
-        cmp = String(aValue).localeCompare(String(bValue), undefined, { sensitivity: 'base' })
-      }
-      if (cmp !== 0) return cmp * direction
-    }
-    return 0
-  })
+  loadTable(tableKey, { includeOptions: false }).catch((e) => console.error(e))
 }
 
 function toggleSortState(state, key) {
   const idx = state.value.findIndex(item => item.key === key)
   if (idx === -1) {
-    state.value.push({ key, order: 'asc' })
+    state.value = [{ key, order: 'asc' }]
   } else if (state.value[idx].order === 'asc') {
-    state.value[idx].order = 'desc'
+    state.value = [{ key, order: 'desc' }]
   } else {
-    state.value.splice(idx, 1)
+    state.value = []
   }
 }
 
 function getSortIndicatorFromState(state, key) {
   const idx = state.value.findIndex(item => item.key === key)
   if (idx === -1) return ''
-  const arrow = state.value[idx].order === 'asc' ? '↑' : '↓'
-  return `${arrow}${idx + 1}`
+  return state.value[idx].order === 'asc' ? '↑' : '↓'
 }
 
-const sortedPendingList = computed(() => sortRowsByState(columnFilteredPendingList.value, pendingSortState))
-const sortedExpiredList = computed(() => sortRowsByState(columnFilteredExpiredList.value, expiredSortState))
-const sortedApprovedList = computed(() => sortRowsByState(columnFilteredApprovedList.value, approvedSortState))
-const sortedRejectedList = computed(() => sortRowsByState(columnFilteredRejectedList.value, rejectedSortState))
+function reloadAfterSort(tableKey) {
+  resetTablePage(tableKey)
+  loadTable(tableKey, { includeOptions: false }).catch((e) => console.error(e))
+}
 
 const togglePendingSort = (key) => {
   toggleSortState(pendingSortState, key)
-  pendingCurrentPage.value = 1
+  reloadAfterSort('pending')
 }
 
 const toggleExpiredSort = (key) => {
   toggleSortState(expiredSortState, key)
-  expiredCurrentPage.value = 1
+  reloadAfterSort('expired')
 }
 
 const toggleApprovedSort = (key) => {
   toggleSortState(approvedSortState, key)
-  approvedCurrentPage.value = 1
-}
-
-const toggleRejectedSort = (key) => {
-  toggleSortState(rejectedSortState, key)
+  reloadAfterSort('approved')
 }
 
 const getPendingSortIndicator = (key) => getSortIndicatorFromState(pendingSortState, key)
 const getExpiredSortIndicator = (key) => getSortIndicatorFromState(expiredSortState, key)
 const getApprovedSortIndicator = (key) => getSortIndicatorFromState(approvedSortState, key)
-const getRejectedSortIndicator = (key) => getSortIndicatorFromState(rejectedSortState, key)
 
 const setSortByMenu = (tableKey, key, order) => {
   const state = getTableSortState(tableKey)
-  const idx = state.value.findIndex(item => item.key === key)
-  if (idx === -1) {
-    state.value.push({ key, order })
-  } else {
-    state.value[idx].order = order
-  }
-  resetTablePage(tableKey)
+  state.value = [{ key, order }]
+  reloadAfterSort(tableKey)
 }
 
 const clearSortByMenu = (tableKey, key) => {
   const state = getTableSortState(tableKey)
   const idx = state.value.findIndex(item => item.key === key)
   if (idx !== -1) state.value.splice(idx, 1)
-  resetTablePage(tableKey)
+  reloadAfterSort(tableKey)
 }
 
-const paginatedPendingData = computed(() => {
-  const start = (pendingCurrentPage.value - 1) * pendingPageSize.value
-  const end = start + pendingPageSize.value
-  return sortedPendingList.value.slice(start, end)
-})
-
-const pendingTotalPages = computed(() => Math.max(1, Math.ceil(sortedPendingList.value.length / pendingPageSize.value)))
-const pendingStartIndex = computed(() => (pendingCurrentPage.value - 1) * pendingPageSize.value)
-const pendingEndIndex = computed(() => Math.min(pendingStartIndex.value + pendingPageSize.value, sortedPendingList.value.length))
-const pendingVisiblePages = computed(() => {
+function buildVisiblePages(currentPage, totalPages) {
   const pages = []
   const maxVisible = 5
-  let start = Math.max(1, pendingCurrentPage.value - Math.floor(maxVisible / 2))
-  let end = Math.min(pendingTotalPages.value, start + maxVisible - 1)
+  let start = Math.max(1, currentPage - Math.floor(maxVisible / 2))
+  let end = Math.min(totalPages, start + maxVisible - 1)
   if (end - start < maxVisible - 1) start = Math.max(1, end - maxVisible + 1)
   for (let i = start; i <= end; i++) pages.push(i)
   return pages
-})
+}
 
-const paginatedExpiredData = computed(() => {
-  const start = (expiredCurrentPage.value - 1) * expiredPageSize.value
-  const end = start + expiredPageSize.value
-  return sortedExpiredList.value.slice(start, end)
+const pendingTotalPages = computed(() => Math.max(1, Math.ceil(pendingTotal.value / pendingPageSize.value)))
+const pendingStartIndex = computed(() => {
+  if (!pendingTotal.value) return 0
+  return (pendingCurrentPage.value - 1) * pendingPageSize.value
 })
+const pendingEndIndex = computed(() => Math.min(pendingStartIndex.value + pendingList.value.length, pendingTotal.value))
+const pendingVisiblePages = computed(() => buildVisiblePages(pendingCurrentPage.value, pendingTotalPages.value))
 
-const expiredTotalPages = computed(() => Math.max(1, Math.ceil(sortedExpiredList.value.length / expiredPageSize.value)))
-const expiredStartIndex = computed(() => (expiredCurrentPage.value - 1) * expiredPageSize.value)
-const expiredEndIndex = computed(() => Math.min(expiredStartIndex.value + expiredPageSize.value, sortedExpiredList.value.length))
+const expiredTotalPages = computed(() => Math.max(1, Math.ceil(expiredTotal.value / expiredPageSize.value)))
+const expiredStartIndex = computed(() => {
+  if (!expiredTotal.value) return 0
+  return (expiredCurrentPage.value - 1) * expiredPageSize.value
+})
+const expiredEndIndex = computed(() => Math.min(expiredStartIndex.value + expiredList.value.length, expiredTotal.value))
 const getExpiredRowIndex = (index) => (expiredCurrentPage.value - 1) * expiredPageSize.value + index + 1
+const expiredVisiblePages = computed(() => buildVisiblePages(expiredCurrentPage.value, expiredTotalPages.value))
 
-const expiredVisiblePages = computed(() => {
-  const pages = []
-  const maxVisible = 5
-  let start = Math.max(1, expiredCurrentPage.value - Math.floor(maxVisible / 2))
-  let end = Math.min(expiredTotalPages.value, start + maxVisible - 1)
-  if (end - start < maxVisible - 1) start = Math.max(1, end - maxVisible + 1)
-  for (let i = start; i <= end; i++) pages.push(i)
-  return pages
+const approvedTotalPages = computed(() => Math.max(1, Math.ceil(approvedTotal.value / approvedPageSize.value)))
+const approvedStartIndex = computed(() => {
+  if (!approvedTotal.value) return 0
+  return (approvedCurrentPage.value - 1) * approvedPageSize.value
 })
+const approvedEndIndex = computed(() => Math.min(approvedStartIndex.value + approvedList.value.length, approvedTotal.value))
+const approvedVisiblePages = computed(() => buildVisiblePages(approvedCurrentPage.value, approvedTotalPages.value))
 
-const paginatedApprovedData = computed(() => {
-  const start = (approvedCurrentPage.value - 1) * approvedPageSize.value
-  const end = start + approvedPageSize.value
-  return sortedApprovedList.value.slice(start, end)
-})
+function goPendingPage(page) {
+  const next = Math.min(Math.max(1, page), pendingTotalPages.value)
+  if (next === pendingCurrentPage.value) return
+  pendingCurrentPage.value = next
+  loadTable('pending', { includeOptions: false }).catch((e) => console.error(e))
+}
 
-const approvedTotalPages = computed(() => Math.max(1, Math.ceil(sortedApprovedList.value.length / approvedPageSize.value)))
-const approvedStartIndex = computed(() => (approvedCurrentPage.value - 1) * approvedPageSize.value)
-const approvedEndIndex = computed(() => Math.min(approvedStartIndex.value + approvedPageSize.value, sortedApprovedList.value.length))
+function goExpiredPage(page) {
+  const next = Math.min(Math.max(1, page), expiredTotalPages.value)
+  if (next === expiredCurrentPage.value) return
+  expiredCurrentPage.value = next
+  loadTable('expired', { includeOptions: false }).catch((e) => console.error(e))
+}
 
-const approvedVisiblePages = computed(() => {
-  const pages = []
-  const maxVisible = 5
-  let start = Math.max(1, approvedCurrentPage.value - Math.floor(maxVisible / 2))
-  let end = Math.min(approvedTotalPages.value, start + maxVisible - 1)
-  if (end - start < maxVisible - 1) start = Math.max(1, end - maxVisible + 1)
-  for (let i = start; i <= end; i++) pages.push(i)
-  return pages
-})
+function goApprovedPage(page) {
+  const next = Math.min(Math.max(1, page), approvedTotalPages.value)
+  if (next === approvedCurrentPage.value) return
+  approvedCurrentPage.value = next
+  loadTable('approved', { includeOptions: false }).catch((e) => console.error(e))
+}
 
-const paginatedRejectedData = computed(() => {
-  const start = (rejectedCurrentPage.value - 1) * rejectedPageSize.value
-  const end = start + rejectedPageSize.value
-  return sortedRejectedList.value.slice(start, end)
-})
+function onPendingPageSizeChange() {
+  pendingCurrentPage.value = 1
+  loadTable('pending', { includeOptions: false }).catch((e) => console.error(e))
+}
 
-const rejectedTotalPages = computed(() => Math.max(1, Math.ceil(sortedRejectedList.value.length / rejectedPageSize.value)))
-const rejectedStartIndex = computed(() => (rejectedCurrentPage.value - 1) * rejectedPageSize.value)
-const rejectedEndIndex = computed(() => Math.min(rejectedStartIndex.value + rejectedPageSize.value, sortedRejectedList.value.length))
+function onExpiredPageSizeChange() {
+  expiredCurrentPage.value = 1
+  loadTable('expired', { includeOptions: false }).catch((e) => console.error(e))
+}
 
-const rejectedVisiblePages = computed(() => {
-  const pages = []
-  const maxVisible = 5
-  let start = Math.max(1, rejectedCurrentPage.value - Math.floor(maxVisible / 2))
-  let end = Math.min(rejectedTotalPages.value, start + maxVisible - 1)
-  if (end - start < maxVisible - 1) start = Math.max(1, end - maxVisible + 1)
-  for (let i = start; i <= end; i++) pages.push(i)
-  return pages
-})
+function onApprovedPageSizeChange() {
+  approvedCurrentPage.value = 1
+  loadTable('approved', { includeOptions: false }).catch((e) => console.error(e))
+}
 
 function toggleDateFilter(event) {
   event.stopPropagation()
@@ -1175,7 +1135,22 @@ watch(dateRange, () => {
   pendingCurrentPage.value = 1
   expiredCurrentPage.value = 1
   approvedCurrentPage.value = 1
+  loadMeetingApprovalLists({ includeOptions: true }).catch((e) => console.error(e))
 })
+
+watch(
+  () => searchState.value.pending,
+  () => scheduleSearchReload('pending')
+)
+watch(
+  () => searchState.value.expired,
+  () => scheduleSearchReload('expired')
+)
+watch(
+  () => searchState.value.approved,
+  () => scheduleSearchReload('approved')
+)
+
 const showHandleDialog = ref(false)
 const currentHandleRow = ref(null)
 /** 14" 视口（1100–1599）：Handle Booking 弹窗略增高，与 UserManagement 一致 */
@@ -1192,7 +1167,7 @@ let handleBookingModalMq = null
 watch(
   () => adminStore.pendingBookingsListRevision,
   () => {
-    loadMeetingApprovalLists().catch((e) => console.error(e))
+    loadMeetingApprovalLists({ includeOptions: true }).catch((e) => console.error(e))
   }
 )
 
@@ -1203,10 +1178,11 @@ onMounted(() => {
   void fetchMeetingEventTitleMaxLength().then((maxLength) => {
     meetingEventTitleMaxLength.value = maxLength
   })
-  loadMeetingApprovalLists()
+  loadMeetingApprovalLists({ includeOptions: true })
 })
 
 onUnmounted(() => {
+  if (searchReloadTimer) clearTimeout(searchReloadTimer)
   if (handleBookingModalMq) {
     handleBookingModalMq.removeEventListener('change', updateHandleBookingModalMaxHeight)
   }
@@ -1305,7 +1281,6 @@ function formatDisplayOnHomepage(row) {
 
 const getPendingRowIndex = (index) => (pendingCurrentPage.value - 1) * pendingPageSize.value + index + 1
 const getApprovedRowIndex = (index) => (approvedCurrentPage.value - 1) * approvedPageSize.value + index + 1
-const getRejectedRowIndex = (index) => (rejectedCurrentPage.value - 1) * rejectedPageSize.value + index + 1
 
 /** 展示姓名 + corpId */
 function formatReservedBy(row) {
@@ -1317,34 +1292,56 @@ function formatReservedBy(row) {
   return name || '-'
 }
 
-const handleExport = () => {
-  const allData = [
-    ...pendingList.value.map(item => ({ ...item, status: 'Pending' })),
-    ...expiredList.value.map(item => ({ ...item, status: 'Expired' })),
-    ...approvedList.value.map(item => ({ ...item, status: 'Approved' })),
-  ]
-  const exportData = allData.map(item => ({
-    'Booking ID': item.bookingId,
-    'Room / Venue': item.venueName,
-    'Reserved By': formatReservedBy(item),
-    'Department / Unit': item.department || '',
-    'Meeting / Event Title': item.meetingTitle,
-    'Date': item.date,
-    'Time': item.time,
-    'Submitted': item.submittedAt || '',
-    'Tea Service': formatTeaServiceStatus(item),
-    'Tea Special Requests': formatTeaSpecialRequest(item),
-    'Display on Homepage': formatDisplayOnHomepage(item),
-    'Status': item.status,
-    'Processed At': item.approvedAt || item.rejectedAt || '',
-    'Processed By': item.approvedBy || item.rejectedBy || '',
-    'Reason': item.reason || ''
-  }))
-  const ws = XLSX.utils.json_to_sheet(exportData)
-  const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, 'Meeting Approvals')
-  XLSX.writeFile(wb, `Meeting_Approval_${new Date().toISOString().split('T')[0]}.xlsx`)
-  showNotice('Excel file exported successfully', 'Success')
+const handleExport = async () => {
+  if (exportLoading.value) return
+  exportLoading.value = true
+  try {
+    const exportParams = { all: 1 }
+    if (dateRange.value?.length === 2) {
+      exportParams.dateFrom = dateRange.value[0]
+      exportParams.dateTo = dateRange.value[1]
+    }
+    const [pendingPayload, expiredPayload, approvedPayload] = await Promise.all([
+      getPendingBookings(exportParams),
+      getExpiredBookings(exportParams),
+      getApprovedBookings(exportParams)
+    ])
+    const pendingItems = normalizeListResponse(pendingPayload).items
+    const expiredItems = normalizeListResponse(expiredPayload).items
+    const approvedItems = normalizeListResponse(approvedPayload).items
+    const allData = [
+      ...pendingItems.map(item => ({ ...item, status: 'Pending' })),
+      ...expiredItems.map(item => ({ ...item, status: 'Expired' })),
+      ...approvedItems.map(item => ({ ...item, status: 'Approved' })),
+    ]
+    const exportData = allData.map(item => ({
+      'Booking ID': item.bookingId,
+      'Room / Venue': item.venueName,
+      'Reserved By': formatReservedBy(item),
+      'Department / Unit': item.department || '',
+      'Meeting / Event Title': item.meetingTitle,
+      'Date': item.date,
+      'Time': item.time,
+      'Submitted': item.submittedAt || '',
+      'Tea Service': formatTeaServiceStatus(item),
+      'Tea Special Requests': formatTeaSpecialRequest(item),
+      'Display on Homepage': formatDisplayOnHomepage(item),
+      'Status': item.status,
+      'Processed At': item.approvedAt || item.rejectedAt || '',
+      'Processed By': item.approvedBy || item.rejectedBy || '',
+      'Reason': item.reason || ''
+    }))
+    const ws = XLSX.utils.json_to_sheet(exportData)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Meeting Approvals')
+    XLSX.writeFile(wb, `Meeting_Approval_${new Date().toISOString().split('T')[0]}.xlsx`)
+    showNotice('Excel file exported successfully', 'Success')
+  } catch (error) {
+    console.error('Failed to export meeting approval data:', error)
+    showNotice('Failed to export Excel file', 'Error')
+  } finally {
+    exportLoading.value = false
+  }
 }
 
 const handleOpen = (row) => {
@@ -1384,8 +1381,10 @@ const confirmHandleApprove = async () => {
     })
     showHandleDialog.value = false
     currentHandleRow.value = null
-    await loadMeetingApprovalLists()
-    await adminStore.fetchPendingCounts()
+    await Promise.all([
+      loadMeetingApprovalLists({ includeOptions: true }),
+      adminStore.fetchPendingCounts()
+    ])
     notifyAdminPendingUpdated({ source: 'bookings' })
     showNotice('Booking approved successfully', 'Success')
   } catch (error) {

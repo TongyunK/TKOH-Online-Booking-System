@@ -1,7 +1,7 @@
 import request from './request'
 
-export function listUsers () {
-  return request.get('/user-management/users')
+export function listUsers (params) {
+  return request.get('/user-management/users', { params })
 }
 
 export function listUserOwnerOptions (params) {
@@ -44,10 +44,13 @@ export function updateUserStatus (id, status) {
   return request.patch(`/user-management/users/${id}/status`, { status })
 }
 
-export function listPendingUsers (status) {
-  return request.get('/user-management/pending-users', {
-    params: status ? { status } : undefined
-  })
+/** @param {string|Record<string, unknown>} statusOrParams */
+export function listPendingUsers (statusOrParams) {
+  const params =
+    typeof statusOrParams === 'string'
+      ? { status: statusOrParams }
+      : statusOrParams
+  return request.get('/user-management/pending-users', { params })
 }
 
 export function approvePendingUser (id, payload) {

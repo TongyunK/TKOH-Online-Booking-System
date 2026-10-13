@@ -4,6 +4,10 @@ import { Public } from '../auth/decorators/public.decorator';
 import { AdminRoleGuard } from '../auth/guards/admin-role.guard';
 import { ApprovePendingDto } from './dto/approve-pending.dto';
 import { CreateUserDto } from './dto/create-user.dto';
+import {
+  ListPendingUsersQuery,
+  ListUsersQuery,
+} from './dto/list-users-query.dto';
 import { RejectPendingDto } from './dto/reject-pending.dto';
 import { ReplacePasswordDto } from './dto/replace-password.dto';
 import { SubmitPendingUserDto } from './dto/submit-pending-user.dto';
@@ -31,8 +35,8 @@ export class UserManagementController {
   @ApiBearerAuth()
   @UseGuards(AdminRoleGuard)
   @Get('users')
-  listUsers(@Req() req: any) {
-    return this.userManagementService.listUsers(req?.user);
+  listUsers(@Req() req: any, @Query() query: ListUsersQuery) {
+    return this.userManagementService.listUsers(req?.user, query);
   }
 
   @ApiBearerAuth()
@@ -106,8 +110,8 @@ export class UserManagementController {
   @ApiBearerAuth()
   @UseGuards(AdminRoleGuard)
   @Get('pending-users')
-  listPendingUsers(@Query('status') status?: string) {
-    return this.userManagementService.listPendingUsersByStatus(status);
+  listPendingUsers(@Query() query: ListPendingUsersQuery) {
+    return this.userManagementService.listPendingUsersByStatus(query);
   }
 
   @ApiBearerAuth()
