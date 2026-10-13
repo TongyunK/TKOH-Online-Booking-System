@@ -932,8 +932,8 @@ function toggleSortState(state, key) {
 
 function getSortIndicatorFromState(state, key) {
   const idx = state.value.findIndex(item => item.key === key)
-  if (idx === -1) return ''
-  return state.value[idx].order === 'asc' ? '↑' : '↓'
+  if (idx === -1) return '↕'
+  return state.value[idx].order === 'asc' ? '▲' : '▼'
 }
 
 function reloadAfterSort(tableKey) {

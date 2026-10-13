@@ -935,8 +935,8 @@ const toggleSort = (key) => {
 
 const getSortIndicator = (key) => {
   const idx = sortState.value.findIndex(item => item.key === key)
-  if (idx === -1) return ''
-  return sortState.value[idx].order === 'asc' ? '↑' : '↓'
+  if (idx === -1) return '↕'
+  return sortState.value[idx].order === 'asc' ? '▲' : '▼'
 }
 
 const setSortByMenu = (key, order) => {

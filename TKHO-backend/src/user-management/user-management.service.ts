@@ -513,6 +513,13 @@ export class UserManagementService {
     const sortOrder =
       String(query.sortOrder ?? '').trim().toLowerCase() === 'asc' ? 'asc' : 'desc';
     const tieBreaker: Prisma.UserOrderByWithRelationInput = { id: 'asc' };
+    // Keep null timestamps at the bottom for both directions so "desc" shows
+    // newest real logins first (matches prior client sort treating null as 0).
+    const dateOrder = (
+      field: 'lastLoginTime' | 'inactiveTime',
+    ): Prisma.UserOrderByWithRelationInput => ({
+      [field]: { sort: sortOrder, nulls: 'last' },
+    });
     switch (sortBy) {
       case 'corpId':
         return [{ corpId: sortOrder }, tieBreaker];
@@ -523,9 +530,9 @@ export class UserManagementService {
       case 'status':
         return [{ status: sortOrder }, tieBreaker];
       case 'lastLoginTime':
-        return [{ lastLoginTime: sortOrder }, tieBreaker];
+        return [dateOrder('lastLoginTime'), tieBreaker];
       case 'inactiveTime':
-        return [{ inactiveTime: sortOrder }, tieBreaker];
+        return [dateOrder('inactiveTime'), tieBreaker];
       case 'inactivedBy':
         return [{ inactivedBy: sortOrder }, tieBreaker];
       case 'evQuota':
@@ -951,16 +958,21 @@ export class UserManagementService {
     const sortOrder =
       String(query.sortOrder ?? '').trim().toLowerCase() === 'asc' ? 'asc' : 'desc';
     const tieBreaker: Prisma.pending_usersOrderByWithRelationInput = { id: 'asc' };
+    const dateOrder = (
+      field: 'submitted_at' | 'handled_at',
+    ): Prisma.pending_usersOrderByWithRelationInput => ({
+      [field]: { sort: sortOrder, nulls: 'last' },
+    });
     switch (sortBy) {
       case 'corpId':
         return [{ corp_id: sortOrder }, tieBreaker];
       case 'department':
         return [{ departments: { department_name: sortOrder } }, tieBreaker];
       case 'submittedAt':
-        return [{ submitted_at: sortOrder }, tieBreaker];
+        return [dateOrder('submitted_at'), tieBreaker];
       case 'approvedAt':
       case 'rejectedAt':
-        return [{ handled_at: sortOrder }, tieBreaker];
+        return [dateOrder('handled_at'), tieBreaker];
       case 'approvedBy':
       case 'rejectedBy':
         return [{ approver_name: sortOrder }, tieBreaker];
