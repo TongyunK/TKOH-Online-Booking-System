@@ -76,12 +76,8 @@ export class DataBackupSchedulerService {
 
     try {
       const settings = await this.systemSettingsService.getSettings();
-      if (!settings.dataBackupEmailEnabled) {
-        this.logger.debug(
-          'Data backup cron skipped: auto-send email is disabled',
-        );
-        return;
-      }
+      // Auto-send off: skip silently (avoid per-minute DEBUG noise in local/cloud).
+      if (!settings.dataBackupEmailEnabled) return;
 
       const receivingEmail = String(
         settings.dataBackupReceivingEmail ?? '',

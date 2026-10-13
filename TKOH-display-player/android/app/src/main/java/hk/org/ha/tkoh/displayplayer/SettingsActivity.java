@@ -84,7 +84,19 @@ public class SettingsActivity extends Activity {
 
     titles.addView(title);
     titles.addView(subtitle);
-    header.addView(titles);
+    LinearLayout.LayoutParams titlesLp = new LinearLayout.LayoutParams(
+        0,
+        ViewGroup.LayoutParams.WRAP_CONTENT,
+        1
+    );
+    header.addView(titles, titlesLp);
+
+    TextView versionView = new TextView(this);
+    versionView.setText("v" + appVersionName());
+    versionView.setTextColor(0xFF94A3B8);
+    versionView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+    versionView.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+    header.addView(versionView);
 
     TextView linkLabel = label("Link");
     linkInput = input(config.optString("link", ""),
@@ -337,6 +349,14 @@ public class SettingsActivity extends Activity {
     );
     drawable.setCornerRadius(dp(14));
     return drawable;
+  }
+
+  private String appVersionName() {
+    try {
+      return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+    } catch (Exception e) {
+      return "?";
+    }
   }
 
   private void saveConfig() {

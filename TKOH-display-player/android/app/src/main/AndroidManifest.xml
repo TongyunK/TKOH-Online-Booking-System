@@ -26,5 +26,18 @@
       android:name=".SettingsActivity"
       android:exported="false"
       android:theme="@style/Theme.DisplayPlayer" />
+
+    <!-- 开机广播拉起大屏（配合默认 Home 更稳） -->
+    <receiver
+      android:name=".BootReceiver"
+      android:exported="true"
+      android:enabled="true">
+      <intent-filter>
+        <action android:name="android.intent.action.BOOT_COMPLETED" />
+        <!-- 部分厂商快速开机广播 -->
+        <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+        <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+      </intent-filter>
+    </receiver>
   </application>
 </manifest>
