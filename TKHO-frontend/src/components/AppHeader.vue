@@ -1,7 +1,7 @@
 <template>
   <header ref="headerRef" class="app-header w-full bg-[#0A3D1F] text-white">
     <div class="header-left flex items-center gap-3">
-      <img src="../assets/TKOH_logo.png" alt="TKOH Logo" class="header-logo" />
+      <img src="../assets/Wise_logo.png" alt="Wise Logo" class="header-logo" />
       <h1 class="text-lg font-semibold">
         {{ headerTitle }}
       </h1>
@@ -363,7 +363,7 @@ const saveCurrentPath = () => {
 }
 
 .header-logo {
-  height: 32px;
+  height: 36px;
   width: auto;
   object-fit: contain;
 }
@@ -650,7 +650,7 @@ const saveCurrentPath = () => {
   }
 
   .header-logo {
-    height: 24px;
+    height: 28px;
   }
 
   .header-actions :deep(.tips-button),
@@ -672,7 +672,7 @@ const saveCurrentPath = () => {
   }
 
   .header-logo {
-    height: 24px;
+    height: 28px;
   }
 
   .header-actions :deep(.tips-button),
