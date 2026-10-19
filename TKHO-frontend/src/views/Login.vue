@@ -2,7 +2,7 @@
   <div class="login-container flex flex-col min-h-screen bg-[#f8ecdd]">
     <header class="login-header w-full">
       <div class="header-content">
-        <img src="../assets/Wise_logo.png" alt="Wise Logo" class="login-header-logo" />
+        <img src="../assets/WiseSystem_icon.png" alt="Wise Logo" class="login-header-logo" />
         <h1 class="login-title">
           <span class="title-main">TKOH</span>
           <span class="title-subtitle">GA Service Center</span>
