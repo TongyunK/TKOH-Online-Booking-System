@@ -743,10 +743,11 @@ html.light-display-fullscreen #app {
 .light-schedule-panel {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: calc(10px * var(--layout-scale, 1));
+  gap: calc(12px * var(--layout-scale, 1));
   padding: calc(12px * var(--layout-scale, 1));
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.72);
@@ -756,10 +757,10 @@ html.light-display-fullscreen #app {
 .light-schedule-row {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr) auto;
-  align-items: center;
+  align-items: start;
   gap: calc(24px * var(--layout-scale, 1));
-  min-height: calc(110px * var(--layout-scale, 1));
-  padding: calc(22px * var(--layout-scale, 1)) calc(24px * var(--layout-scale, 1));
+  min-height: 0;
+  padding: calc(20px * var(--layout-scale, 1)) calc(24px * var(--layout-scale, 1));
   border-radius: 14px;
   background: transparent;
   border: 1.5px solid transparent;
@@ -793,29 +794,31 @@ html.light-display-fullscreen #app {
 }
 
 .light-row-range {
-  font-size: calc(40px * var(--layout-scale, 1));
+  display: block;
+  padding-block: calc(4px * var(--layout-scale, 1));
+  font-size: calc(44px * var(--layout-scale, 1));
   font-weight: 700;
   letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  line-height: 1.3;
+  line-height: 1.4;
 }
 
 .light-row-topic {
-  font-size: calc(36px * var(--layout-scale, 1));
+  font-size: calc(48px * var(--layout-scale, 1));
   font-weight: 600;
-  line-height: 1.35;
+  line-height: 1.4;
   min-width: 0;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
+  width: 100%;
   word-break: break-word;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .light-row-dot {
   width: calc(22px * var(--layout-scale, 1));
   height: calc(22px * var(--layout-scale, 1));
+  margin-top: calc(14px * var(--layout-scale, 1));
   border-radius: 50%;
   flex-shrink: 0;
   justify-self: end;
