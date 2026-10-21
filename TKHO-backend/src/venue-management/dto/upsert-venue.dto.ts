@@ -59,8 +59,8 @@ export class UpsertVenueDto {
   dailyBookingEndTime?: string | null;
 
   @IsOptional()
-  @IsIn(['single', 'merge'])
-  displayType?: 'single' | 'merge';
+  @IsIn(['single', 'merge', 'wise', 'light'])
+  displayType?: 'single' | 'merge' | 'wise' | 'light';
 
   @IsOptional()
   @IsString()

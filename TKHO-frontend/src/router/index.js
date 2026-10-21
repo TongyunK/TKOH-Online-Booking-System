@@ -42,6 +42,22 @@ const routes = [
     }
   },
   {
+    path: '/VenueBooking/Display/Wise',
+    name: 'VenueWiseDisplayView',
+    component: () => import('../views/display/VenueWiseDisplayView.vue'),
+    meta: {
+      title: 'Venue Wise Display'
+    }
+  },
+  {
+    path: '/VenueBooking/Display/Light',
+    name: 'VenueLightDisplayView',
+    component: () => import('../views/display/VenueLightDisplayView.vue'),
+    meta: {
+      title: 'Venue Light Display'
+    }
+  },
+  {
     path: '/VenueBooking/Display/Merge',
     name: 'VenueMergeDisplayView',
     component: () => import('../views/display/VenueMergeDisplayView.vue'),

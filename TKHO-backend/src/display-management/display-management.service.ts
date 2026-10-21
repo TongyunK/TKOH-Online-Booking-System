@@ -112,16 +112,24 @@ export class DisplayManagementService {
 
   private normalizeVenueDisplayType(value: string | null | undefined): string {
     const x = String(value ?? '').trim().toLowerCase();
-    return x === 'merge' ? 'merge' : 'single';
+    if (x === 'merge') return 'merge';
+    if (x === 'wise') return 'wise';
+    if (x === 'light') return 'light';
+    return 'single';
   }
 
   private computeVenueDisplayMode(
     venueRules: VenueDisplayRuleDto[],
   ): 'single' | 'merge' | 'mixed' {
     const editable = venueRules.filter((r) => r.venueId != null && r.venueId !== '');
-    const hasSingle = editable.some((r) => r.displayType === 'single');
+    const hasIndependent = editable.some(
+      (r) =>
+        r.displayType === 'single' ||
+        r.displayType === 'wise' ||
+        r.displayType === 'light',
+    );
     const hasMerge = editable.some((r) => r.displayType === 'merge');
-    if (hasSingle && hasMerge) return 'mixed';
+    if (hasIndependent && hasMerge) return 'mixed';
     if (hasMerge) return 'merge';
     return 'single';
   }

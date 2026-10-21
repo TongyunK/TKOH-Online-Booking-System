@@ -361,6 +361,7 @@ function createWindow () {
 }
 
 ipcMain.handle('settings-get-config', () => readConfig())
+ipcMain.handle('settings-get-version', () => app.getVersion())
 
 ipcMain.handle('settings-save-config', (_event, config) => {
   writeConfig(config)

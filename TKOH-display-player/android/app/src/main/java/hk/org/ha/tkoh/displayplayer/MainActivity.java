@@ -89,7 +89,7 @@ public class MainActivity extends Activity {
     root.setBackgroundColor(BRAND_NAVY);
 
     loadingView = new TextView(this);
-    loadingView.setText("TKOH Display Player\nConnecting…");
+    loadingView.setText("Room Display Player Demo\nConnecting…");
     loadingView.setTextColor(0xFFE2E8F0);
     loadingView.setBackgroundColor(BRAND_NAVY);
     loadingView.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
@@ -294,7 +294,7 @@ public class MainActivity extends Activity {
         ? "Server unreachable\n(check VPN / firewall / IP)"
         : "No network connection\nWaiting for Wi‑Fi…";
     showLoading(
-        "TKOH Display Player\n"
+        "Room Display Player Demo\n"
             + netHint + "\n"
             + desc + "\n"
             + (online ? "Retrying…" : "Will retry when online")
@@ -340,7 +340,7 @@ public class MainActivity extends Activity {
     failReload = () -> {
       if (webView == null || targetUrl == null || targetUrl.isEmpty()) return;
       if (!isNetworkLikelyUp()) {
-        showLoading("TKOH Display Player\nNo network connection\nWaiting for Wi‑Fi…");
+        showLoading("Room Display Player Demo\nNo network connection\nWaiting for Wi‑Fi…");
         scheduleFailReload();
         return;
       }
@@ -447,7 +447,7 @@ public class MainActivity extends Activity {
   private void beginWaitForContentReady() {
     stopContentReadyPoll();
     contentReadyAttempts = 0;
-    showLoading("TKOH Display Player\nLoading content…\n(slow network, please wait)");
+    showLoading("Room Display Player Demo\nLoading content…\n(slow network, please wait)");
     contentReadyPoll = new Runnable() {
       @Override
       public void run() {
@@ -462,7 +462,7 @@ public class MainActivity extends Activity {
           int sec = contentReadyAttempts * (int) (CONTENT_READY_POLL_MS / 1000);
           if (sec < 1) sec = contentReadyAttempts * 300 / 1000;
           showLoading(
-              "TKOH Display Player\nLoading content…\n"
+              "Room Display Player Demo\nLoading content…\n"
                   + "(network may be slow: " + Math.max(1, contentReadyAttempts * 300 / 1000) + "s)"
           );
         }
@@ -589,7 +589,7 @@ public class MainActivity extends Activity {
     JSONObject config = configStore.load();
     targetUrl = DisplayUrl.build(config);
     stopContentReadyPoll();
-    showLoading("TKOH Display Player\nConnecting…\n" + targetUrl);
+    showLoading("Room Display Player Demo\nConnecting…\n" + targetUrl);
     loadDisplayUrl(targetUrl, bypassCache);
     schedulePeriodicReload(config.optInt("reloadHours", 12));
   }

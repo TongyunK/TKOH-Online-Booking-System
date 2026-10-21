@@ -136,8 +136,16 @@
             />
           </template>
           <template #default="{ row }">
-            <el-tag effect="light" :class="row.displayType === 'single' ? 'display-tag-single' : 'display-tag-merge'">
-              {{ row.displayType === 'single' ? 'Single' : 'Merge' }}
+            <el-tag
+              effect="light"
+              :class="{
+                'display-tag-single': row.displayType === 'single',
+                'display-tag-wise': row.displayType === 'wise',
+                'display-tag-light': row.displayType === 'light',
+                'display-tag-merge': row.displayType === 'merge'
+              }"
+            >
+              {{ displayTypeLabel(row.displayType) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -320,6 +328,20 @@
               @click="formData.displayType = 'single'"
             >
               Single
+            </button>
+            <button
+              type="button"
+              :class="['type-btn', 'type-btn-wise', { active: formData.displayType === 'wise' }]"
+              @click="formData.displayType = 'wise'"
+            >
+              Wise Dark
+            </button>
+            <button
+              type="button"
+              :class="['type-btn', 'type-btn-light', { active: formData.displayType === 'light' }]"
+              @click="formData.displayType = 'light'"
+            >
+              Wise Light
             </button>
             <button
               type="button"
@@ -622,7 +644,7 @@ const getSortValue = (item, key) => {
     case 'type':
       return getTypeLabel(item.type)
     case 'displayType':
-      return item.displayType === 'single' ? 'Single' : 'Merge'
+      return displayTypeLabel(item.displayType)
     case 'status':
       return item.status || ''
     default:
@@ -826,6 +848,13 @@ const getTypeLabel = (type) => {
   return 'Other'
 }
 
+const displayTypeLabel = (displayType) => {
+  if (displayType === 'merge') return 'Merge'
+  if (displayType === 'wise') return 'Wise Dark'
+  if (displayType === 'light') return 'Wise Light'
+  return 'Single'
+}
+
 const getTypeTagClass = (type) => {
   if (type === 'conference') return 'type-tag type-tag-conference'
   if (type === 'discussion') return 'type-tag type-tag-discussion'
@@ -975,7 +1004,7 @@ const handleExport = () => {
     'Daily Open Hours': formatVenueDailyBookingWindowLabel(item) || '-',
     'Tea Service': normalizeTeaServiceAvailable(item.teaServiceAvailable) ? 'Yes' : 'No',
     'Display on homepage': normalizeUserDefinedUploadEventTitle(item.userDefinedUploadEventTitle) ? 'Yes' : 'No',
-    'Display Type': item.displayType === 'single' ? 'Single' : 'Merge',
+    'Display Type': displayTypeLabel(item.displayType),
     'Status': item.status === 'active' ? 'Active' : 'Inactive'
   }))
 
@@ -2118,6 +2147,18 @@ const handlePreview = (file) => {
   color: #16a34a;
 }
 
+.type-btn-wise.active {
+  border-color: #b45309;
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.type-btn-light.active {
+  border-color: #ea580c;
+  background: #ffedd5;
+  color: #c2410c;
+}
+
 .type-btn-merge.active {
   border-color: #2563eb;
   background: #dbeafe;
@@ -2174,6 +2215,22 @@ const handlePreview = (file) => {
   padding: 0 10px;
   background-color: #dcfce7;
   color: #16a34a;
+}
+
+.page-content :deep(.display-tag-wise) {
+  border-radius: 999px;
+  font-weight: 600;
+  padding: 0 10px;
+  background-color: #fef3c7;
+  color: #b45309;
+}
+
+.page-content :deep(.display-tag-light) {
+  border-radius: 999px;
+  font-weight: 600;
+  padding: 0 10px;
+  background-color: #ffedd5;
+  color: #c2410c;
 }
 
 .page-content :deep(.display-tag-merge) {

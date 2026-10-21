@@ -1,6 +1,6 @@
 import { IsIn, IsOptional, IsString } from 'class-validator';
 
-const DISPLAY_TYPES = ['single', 'merge'] as const;
+const DISPLAY_TYPES = ['single', 'merge', 'wise', 'light'] as const;
 const ARROW_DIRECTIONS = [
   'up',
   'up-right',

@@ -1,6 +1,6 @@
 {
   "name": "tkoh-display-player",
-  "version": "1.0.12",
+  "version": "2.0.1",
   "description": "TKOH hospital display kiosk player for Windows",
   "main": "main.js",
   "scripts": {
@@ -15,7 +15,7 @@
   },
   "build": {
     "appId": "hk.org.ha.tkoh.displayplayer",
-    "productName": "TKOH Display Player",
+    "productName": "Room Display Player Demo",
     "files": [
       "main.js",
       "displayUrl.js",
@@ -23,7 +23,8 @@
       "settings.html",
       "settingsPreload.js",
       "config.json",
-      "icon.ico"
+      "icon.ico",
+      "WiseSystem_icon.svg"
     ],
     "directories": {
       "buildResources": "build"
@@ -35,18 +36,19 @@
       },
       {
         "from": "icon.ico",
-        "to": "icon.ico"
+        "to": "WiseSystem.ico"
       }
     ],
     "win": {
       "target": "nsis",
-      "icon": "icon.ico"
+      "icon": "icon.ico",
+      "artifactName": "Room Display Player Demo ${version}.${ext}"
     },
     "nsis": {
       "runAfterFinish": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "TKOH Display Player",
+      "shortcutName": "Room Display Player Demo",
       "include": "installer.nsh",
       "installerIcon": "icon.ico",
       "uninstallerIcon": "icon.ico"

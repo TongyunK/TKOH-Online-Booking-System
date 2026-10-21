@@ -15,7 +15,7 @@
               <el-table v-loading="loading" :data="paginatedVenueRules" height="100%" border stripe table-layout="auto" style="width: 100%">
                 <el-table-column type="index" label="#" width="70" align="center" />
                 <el-table-column prop="venueName" label="Venue" min-width="180" />
-                <el-table-column label="Display Type" min-width="180">
+                <el-table-column label="Display Type" min-width="340">
                   <template #default="{ row }">
                     <div class="display-type-buttons">
                       <button
@@ -24,6 +24,20 @@
                         @click="row.displayType = 'single'"
                       >
                         Single
+                      </button>
+                      <button
+                        :class="['type-btn', 'type-btn-wise', { active: row.displayType === 'wise' }]"
+                        :disabled="row.venueId == null"
+                        @click="row.displayType = 'wise'"
+                      >
+                        Wise Dark
+                      </button>
+                      <button
+                        :class="['type-btn', 'type-btn-light', { active: row.displayType === 'light' }]"
+                        :disabled="row.venueId == null"
+                        @click="row.displayType = 'light'"
+                      >
+                        Wise Light
                       </button>
                       <button
                         :class="['type-btn', 'type-btn-merge', { active: row.displayType === 'merge' }]"
@@ -86,6 +100,29 @@
                     <span class="link-label">{{ item.label }}</span>
                     <a :href="item.url" target="_blank" rel="noopener noreferrer" class="link-url">{{ item.url }}</a>
                   </div>
+                  <div v-if="independentPreviewLinks.length === 0" class="empty-text">No venue is set to single display</div>
+                </div>
+              </div>
+
+              <div class="table-card">
+                <div class="card-title">Wise Dark Portrait Display</div>
+                <div class="link-list">
+                  <div v-for="item in wisePreviewLinks" :key="item.key" class="link-row">
+                    <span class="link-label">{{ item.label }}</span>
+                    <a :href="item.url" target="_blank" rel="noopener noreferrer" class="link-url">{{ item.url }}</a>
+                  </div>
+                  <div v-if="wisePreviewLinks.length === 0" class="empty-text">No venue is set to wise dark display</div>
+                </div>
+              </div>
+
+              <div class="table-card">
+                <div class="card-title">Wise Light Portrait Display</div>
+                <div class="link-list">
+                  <div v-for="item in lightPreviewLinks" :key="item.key" class="link-row">
+                    <span class="link-label">{{ item.label }}</span>
+                    <a :href="item.url" target="_blank" rel="noopener noreferrer" class="link-url">{{ item.url }}</a>
+                  </div>
+                  <div v-if="lightPreviewLinks.length === 0" class="empty-text">No venue is set to wise light display</div>
                 </div>
               </div>
 
@@ -304,7 +341,35 @@ const independentPreviewLinks = computed(() =>
     .map(item => ({
       key: `single-${item.venueId}`,
       label: item.venueName,
-      url: `${baseUrl}/VenueBooking/Display?displayType=single&venueId=${item.venueId}`
+      url: `${baseUrl}/VenueBooking/Display?venueId=${item.venueId}`
+    }))
+)
+
+const wisePreviewLinks = computed(() =>
+  form.value.venueRules
+    .filter(item =>
+      item.displayType === 'wise' &&
+      item.venueId != null &&
+      String(item.status || 'active').toLowerCase() === 'active'
+    )
+    .map(item => ({
+      key: `wise-${item.venueId}`,
+      label: item.venueName,
+      url: `${baseUrl}/VenueBooking/Display?venueId=${item.venueId}`
+    }))
+)
+
+const lightPreviewLinks = computed(() =>
+  form.value.venueRules
+    .filter(item =>
+      item.displayType === 'light' &&
+      item.venueId != null &&
+      String(item.status || 'active').toLowerCase() === 'active'
+    )
+    .map(item => ({
+      key: `light-${item.venueId}`,
+      label: item.venueName,
+      url: `${baseUrl}/VenueBooking/Display?venueId=${item.venueId}`
     }))
 )
 
@@ -367,9 +432,14 @@ const evPreviewLink = computed(() => ({
 
 const buildSavePayload = () => {
   const editableVenueRules = form.value.venueRules.filter((item) => item.venueId != null)
-  const hasSingle = editableVenueRules.some((item) => item.displayType === 'single')
+  const hasIndependent = editableVenueRules.some(
+    (item) =>
+      item.displayType === 'single' ||
+      item.displayType === 'wise' ||
+      item.displayType === 'light'
+  )
   const hasMerge = editableVenueRules.some((item) => item.displayType === 'merge')
-  const venueDisplayMode = hasSingle && hasMerge ? 'mixed' : hasMerge ? 'merge' : 'single'
+  const venueDisplayMode = hasIndependent && hasMerge ? 'mixed' : hasMerge ? 'merge' : 'single'
   const evRule = form.value.venueRules.find((item) => item.venueId == null)
 
   return {
@@ -774,6 +844,7 @@ const handleClearQrImage = async () => {
 
 .display-type-buttons {
   display: inline-flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
 }
@@ -804,6 +875,18 @@ const handleClearQrImage = async () => {
   border-color: #16a34a;
   background: #dcfce7;
   color: #16a34a;
+}
+
+.type-btn-wise.active {
+  border-color: #b45309;
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.type-btn-light.active {
+  border-color: #ea580c;
+  background: #ffedd5;
+  color: #c2410c;
 }
 
 .type-btn-merge.active {

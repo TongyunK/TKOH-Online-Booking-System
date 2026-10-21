@@ -68,7 +68,7 @@
 
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   getVenueMergePublicDisplay,
   getVenuePublicDisplay
@@ -77,11 +77,13 @@ import { useDisplayLiveRefresh, useDisplayDataPollTimer } from '@/composables/us
 import { todayYmdInAppTimeZone } from '@/utils/appTimezone'
 import { pickRouteQuery, pickRouteQueryDate } from '@/utils/routeQuery'
 import { measureDisplayViewport } from '@/utils/displayFullscreenScale'
+import { replaceVenueDisplayRoute } from '@/utils/venueDisplayRoute'
 import { resetDisplayReady, signalDisplayReady } from '@/utils/displayReadySignal'
 import DisplayFullscreenHint from '@/components/display/DisplayFullscreenHint.vue'
 import VenueDisplayClock from './VenueDisplayClock.vue'
 
 const route = useRoute()
+const router = useRouter()
 
 /** 竖向 9:16（与横屏 16:9 同比例，旋转 90°） */
 const BASE_WIDTH = 1080
@@ -386,6 +388,7 @@ async function refreshDisplayData () {
   }
 
   const data = await getVenuePublicDisplay(venueId.value, date)
+  if (replaceVenueDisplayRoute(router, route, data?.venue?.displayType)) return
   dataPoll.applyFromPayload(data?.dataPollIntervalMs)
   applyVenueInfo(data?.venue)
   if (qrCodeImage.value) qrCodeImage.value = ''

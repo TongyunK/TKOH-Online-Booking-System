@@ -4027,14 +4027,11 @@ export class VenueManagementService {
 
 
   private normalizeVenueDisplayType(value: string | null | undefined): string {
-
-
     const x = String(value ?? '').trim().toLowerCase();
-
-
-    return x === 'merge' ? 'merge' : 'single';
-
-
+    if (x === 'merge') return 'merge';
+    if (x === 'wise') return 'wise';
+    if (x === 'light') return 'light';
+    return 'single';
   }
 
 

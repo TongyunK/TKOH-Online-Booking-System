@@ -1,6 +1,8 @@
 package hk.org.ha.tkoh.displayplayer;
 
 import android.app.Activity;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
@@ -13,17 +15,22 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.caverock.androidsvg.SVG;
+
 import org.json.JSONObject;
 
 public class SettingsActivity extends Activity {
   static final int RESULT_EXIT = RESULT_FIRST_USER;
-  private static final String DEFAULT_ORIGIN = "http://103.68.62.241:3200";
+  private static final String DEFAULT_ORIGIN = "http://183.179.131.82:3200";
   private static final String[][] PRESETS = {
+    { "wise 1", "/VenueBooking/Display?venueId=8" },
+    { "wise 2", "/VenueBooking/Display?venueId=9" },
     { "Discussion Room", "/VenueBooking/Display?displayType=single&venueId=4" },
     { "Function Room", "/VenueBooking/Display?displayType=single&venueId=5" },
     { "Lecture Theatre", "/VenueBooking/Display?displayType=single&venueId=6" },
@@ -58,12 +65,7 @@ public class SettingsActivity extends Activity {
     header.setGravity(Gravity.CENTER_VERTICAL);
     header.setPadding(0, 0, 0, dp(14));
 
-    TextView badge = new TextView(this);
-    badge.setText("TK");
-    badge.setTextColor(Color.WHITE);
-    badge.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-    badge.setGravity(Gravity.CENTER);
-    badge.setBackground(rounded(0xFF16A34A, dp(10)));
+    ImageView badge = wiseIcon();
     LinearLayout.LayoutParams badgeLp = new LinearLayout.LayoutParams(dp(36), dp(36));
     badgeLp.rightMargin = dp(12);
     header.addView(badge, badgeLp);
@@ -325,6 +327,23 @@ public class SettingsActivity extends Activity {
         ViewGroup.LayoutParams.MATCH_PARENT,
         ViewGroup.LayoutParams.WRAP_CONTENT
     );
+  }
+
+  private ImageView wiseIcon() {
+    ImageView view = new ImageView(this);
+    view.setScaleType(ImageView.ScaleType.FIT_CENTER);
+    int size = dp(36);
+    try {
+      SVG svg = SVG.getFromAsset(getAssets(), "WiseSystem_icon.svg");
+      svg.setDocumentWidth(size);
+      svg.setDocumentHeight(size);
+      Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+      svg.renderToCanvas(new Canvas(bitmap));
+      view.setImageBitmap(bitmap);
+    } catch (Exception ignored) {
+      view.setImageResource(R.mipmap.ic_launcher);
+    }
+    return view;
   }
 
   private int dp(int value) {
