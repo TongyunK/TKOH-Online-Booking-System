@@ -547,7 +547,7 @@ html.light-display-fullscreen #app {
   position: fixed;
   inset: 0;
   overflow: hidden;
-  background: #e8eef5;
+  background: #05080f;
   user-select: none;
   touch-action: none;
 }
@@ -805,7 +805,7 @@ html.light-display-fullscreen #app {
 }
 
 .light-row-topic {
-  font-size: calc(48px * var(--layout-scale, 1));
+  font-size: calc(52px * var(--layout-scale, 1));
   font-weight: 600;
   line-height: 1.4;
   min-width: 0;

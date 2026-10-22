@@ -83,12 +83,6 @@
           </div>
         </section>
 
-        <div class="wise-divider wise-divider-sm" aria-hidden="true">
-          <span class="wise-divider-line" />
-          <span class="wise-divider-diamond" />
-          <span class="wise-divider-line" />
-        </div>
-
         <!-- 今日预定：进行中红色，其余绿色 -->
         <section class="wise-schedule" :style="contentLayoutStyle">
           <div class="wise-section-label wise-section-label-schedule">
@@ -1030,6 +1024,7 @@ html.wise-display-fullscreen #app {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  margin-top: calc(20px * var(--layout-scale, 1));
   padding: 0 4px;
   overflow: visible;
 }

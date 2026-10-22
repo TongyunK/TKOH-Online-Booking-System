@@ -1,7 +1,11 @@
 <template>
   <!-- 视口铺满；内部固定 1080×1920 竖向设计稿，整体 transform 等比缩放并居中 -->
   <div ref="displayViewport" class="venue-display-viewport">
-    <div ref="displayRoot" class="venue-display-root">
+    <div
+      ref="displayRoot"
+      class="venue-display-root"
+      :class="{ 'is-pending-route': !shellReady }"
+    >
       <div class="display-above-footer">
         <!-- Header -->
         <div class="display-header">
@@ -92,6 +96,8 @@ let adaptRetryCount = 0
 
 const displayViewport = ref(null)
 const displayRoot = ref(null)
+/** 未确认 displayType 前不渲染橙色单会议室 UI，避免跳转到 Wise/Light 前闪屏 */
+const shellReady = ref(false)
 
 function readDisplayQuery () {
   return {
@@ -362,6 +368,11 @@ function replaceTodayEvents (nextEvents) {
   return true
 }
 
+function isExplicitDisplayTypeQuery () {
+  const raw = pickRouteQuery(route.query, 'displayType', 'DisplayType', 'display_type')
+  return Boolean(String(raw || '').trim())
+}
+
 async function refreshDisplayData () {
   const date = resolveDisplayDate()
 
@@ -373,8 +384,9 @@ async function refreshDisplayData () {
     const nextQr = settings.qrCodeImage || ''
     if (qrCodeImage.value !== nextQr) qrCodeImage.value = nextQr
     replaceTodayEvents([])
+    shellReady.value = true
     signalDisplayReady()
-    return
+    return false
   }
 
   if (!venueId.value) {
@@ -383,17 +395,22 @@ async function refreshDisplayData () {
     venueNameZh.value = ''
     venueLocation.value = ''
     venueLocationZh.value = ''
+    shellReady.value = true
     signalDisplayReady()
-    return
+    return false
   }
 
   const data = await getVenuePublicDisplay(venueId.value, date)
-  if (replaceVenueDisplayRoute(router, route, data?.venue?.displayType)) return
+  if (replaceVenueDisplayRoute(router, route, data?.venue?.displayType)) {
+    return true
+  }
   dataPoll.applyFromPayload(data?.dataPollIntervalMs)
   applyVenueInfo(data?.venue)
   if (qrCodeImage.value) qrCodeImage.value = ''
   replaceTodayEvents(data?.events)
+  shellReady.value = true
   signalDisplayReady()
+  return false
 }
 
 let dataPollInFlight = false
@@ -436,6 +453,9 @@ watch(
     displayType.value = nextType
     displayDate.value = next.date
     if (changed) {
+      if (!isExplicitDisplayTypeQuery() && next.venueId) {
+        shellReady.value = false
+      }
       void pollDisplayDataFromServer()
     }
   },
@@ -476,11 +496,18 @@ onMounted(() => {
   window.visualViewport?.addEventListener('resize', adaptFullscreen)
 
   void refreshDisplayData()
-    .catch(() => { /* 首次失敗仍顯示框架 */ })
-    .finally(() => {
-      nextTick(() => {
+    .then((redirected) => {
+      if (redirected) return
+      return nextTick(() => {
         adaptFullscreen()
-        signalDisplayReady()
+      })
+    })
+    .catch(() => {
+      /* 首次失敗仍顯示框架，避免一直黑屏 */
+      shellReady.value = true
+      signalDisplayReady()
+      return nextTick(() => {
+        adaptFullscreen()
       })
     })
 
@@ -570,6 +597,11 @@ html.venue-display-fullscreen #app {
   -moz-user-select: none;
   -ms-user-select: none;
   -webkit-touch-callout: none;
+}
+
+.venue-display-root.is-pending-route {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .venue-display-root,
