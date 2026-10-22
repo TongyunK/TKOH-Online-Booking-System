@@ -832,20 +832,20 @@ html.wise-display-fullscreen #app {
 .wise-section-label-schedule {
   flex-direction: column;
   align-items: center;
-  gap: calc(12px * var(--layout-scale, 1));
+  gap: calc(3px * var(--layout-scale, 1));
   margin-bottom: calc(20px * var(--layout-scale, 1));
 }
 
 .wise-section-label-schedule .wise-section-zh {
   font-size: calc(46px * var(--layout-scale, 1));
   letter-spacing: 0.16em;
-  line-height: 1.4;
+  line-height: 1.15;
 }
 
 .wise-section-label-schedule .wise-section-en {
   font-size: calc(28px * var(--layout-scale, 1));
   letter-spacing: 0.18em;
-  line-height: 1.45;
+  line-height: 1.15;
 }
 
 .wise-section-zh {

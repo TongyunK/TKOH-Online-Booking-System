@@ -111,7 +111,8 @@ let clockTimer = null
 let lastClockTime = ''
 let lastYmd = ''
 let activeEventKeysSig = ''
-let fitLayoutTimer = null
+let fitTitleTimer = null
+let fitScheduleTimer = null
 
 const displayViewport = ref(null)
 const displayRoot = ref(null)
@@ -412,21 +413,39 @@ async function fitRoomTitle () {
   el.style.setProperty('--title-scale', String(Math.max(0.45, low)))
 }
 
-function scheduleFitLayout () {
-  if (fitLayoutTimer) clearTimeout(fitLayoutTimer)
-  fitLayoutTimer = setTimeout(() => {
-    fitLayoutTimer = null
+function scheduleFitRoomTitle () {
+  if (fitTitleTimer) clearTimeout(fitTitleTimer)
+  fitTitleTimer = setTimeout(() => {
+    fitTitleTimer = null
     void fitRoomTitle()
+  }, 40)
+}
+
+function scheduleFitScheduleLayout () {
+  if (fitScheduleTimer) clearTimeout(fitScheduleTimer)
+  fitScheduleTimer = setTimeout(() => {
+    fitScheduleTimer = null
     void fitScheduleLayout()
   }, 40)
 }
 
+function scheduleFitLayout () {
+  scheduleFitRoomTitle()
+  scheduleFitScheduleLayout()
+}
+
 watch(roomTitle, () => {
-  scheduleFitLayout()
+  scheduleFitRoomTitle()
 })
 
+/** 状态胶囊文案变宽/变窄时，会议室名称可用宽度会变，需重算字号 */
+watch(roomStatusEn, () => {
+  scheduleFitRoomTitle()
+})
+
+/** 分钟更新只改 phase，不应重算会议室名称字号，否则会先放大再缩小造成跳动 */
 watch(scheduleRows, () => {
-  scheduleFitLayout()
+  scheduleFitScheduleLayout()
 })
 
 watch(
@@ -510,7 +529,8 @@ onUnmounted(() => {
   document.documentElement.classList.remove('light-display-fullscreen')
   dataPoll.stop()
   if (clockTimer) clearTimeout(clockTimer)
-  if (fitLayoutTimer) clearTimeout(fitLayoutTimer)
+  if (fitTitleTimer) clearTimeout(fitTitleTimer)
+  if (fitScheduleTimer) clearTimeout(fitScheduleTimer)
   document.removeEventListener('visibilitychange', onDocumentVisibilityChange)
   window.removeEventListener('resize', adaptFullscreen)
   window.visualViewport?.removeEventListener('resize', adaptFullscreen)
