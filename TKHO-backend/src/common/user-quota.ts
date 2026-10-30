@@ -9,10 +9,11 @@ type DbClient = PrismaClient | Prisma.TransactionClient;
 
 type QuotaKind = 'ev' | 'venue';
 
-const QUOTA_EXCEEDED: Record<QuotaKind, string> = {
-  ev: 'EV booking quota exceeded.',
-  venue: 'Venue booking quota exceeded.',
-};
+function quotaExceededMessage(kind: QuotaKind, year: number): string {
+  return kind === 'ev'
+    ? `EV booking quota exceeded for year ${year}.`
+    : `Venue booking quota exceeded for year ${year}.`;
+}
 
 /** EV 占用年额度的活跃状态（与创建扣减口径一致） */
 const EV_ACTIVE_STATUSES = ['pending', 'confirmed'] as const;
@@ -288,7 +289,7 @@ async function assertQuotaAvailable(
       : await countVenueUsedForYear(tx, userId, year);
 
   if (used >= (annual ?? 0)) {
-    throw new ForbiddenException(QUOTA_EXCEEDED[kind]);
+    throw new ForbiddenException(quotaExceededMessage(kind, year));
   }
 }
 

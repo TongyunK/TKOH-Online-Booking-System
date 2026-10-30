@@ -977,18 +977,22 @@ export class UserManagementService {
           override?.annualQuotaVenue !== null
             ? override.annualQuotaVenue
             : user.annualQuotaVenue;
-        const hasCustomLimit = Boolean(
-          override &&
-            (Number(annualQuotaEv ?? 0) !== Number(defaultEv) ||
-              Number(annualQuotaVenue ?? 0) !== Number(defaultVenue)),
+        const hasCustomEvLimit = Boolean(
+          override && Number(annualQuotaEv ?? 0) !== Number(defaultEv),
         );
+        const hasCustomVenueLimit = Boolean(
+          override && Number(annualQuotaVenue ?? 0) !== Number(defaultVenue),
+        );
+        const hasCustomLimit = hasCustomEvLimit || hasCustomVenueLimit;
         return {
           year,
           usedEv,
           usedVenue,
           annualQuotaEv,
           annualQuotaVenue,
-          /** 该年额度是否与默认不同 */
+          /** 该年 EV / Venue 是否各自与默认不同（分别打 custom 标签） */
+          hasCustomEvLimit,
+          hasCustomVenueLimit,
           hasCustomLimit,
           hasOverride: hasCustomLimit,
           hasBooking: true,

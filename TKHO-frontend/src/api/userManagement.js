@@ -44,8 +44,8 @@ export function getUserYearlyQuotas (id) {
   return request.get(`/user-management/users/${id}/quotas/yearly`)
 }
 
-export function upsertUserYearlyQuota (id, payload) {
-  return request.patch(`/user-management/users/${id}/quotas/yearly`, payload)
+export function upsertUserYearlyQuota (id, payload, config) {
+  return request.patch(`/user-management/users/${id}/quotas/yearly`, payload, config)
 }
 
 export function updateUserStatus (id, status) {

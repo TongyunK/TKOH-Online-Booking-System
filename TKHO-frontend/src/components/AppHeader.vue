@@ -21,7 +21,7 @@
             <span v-if="totalPendingCount > 0" class="badge-dot">{{ totalPendingCount > 99 ? '99+' : totalPendingCount }}</span>
           </div>
 
-      <!-- 仅管理员：Calendar / Manage Booking 悬停下拉，顺序 EV 上、Venue 下 -->
+      <!-- 仅管理员：Calendar / Manage Booking 悬停下拉，顺序 Venue 上、EV 下 -->
       <template v-if="isAdmin">
         <div class="nav-dropdown">
           <button
@@ -34,18 +34,18 @@
           <div class="dropdown-panel">
             <div class="dropdown-panel-inner">
               <RouterLink
-                to="/evBooking/Calendar"
-                class="dropdown-link"
-                :class="{ 'is-active-sub': route.path === '/evBooking/Calendar' || route.path === '/evBooking' }"
-              >
-                EV
-              </RouterLink>
-              <RouterLink
                 to="/VenueBooking/Calendar"
                 class="dropdown-link"
                 :class="{ 'is-active-sub': route.path === '/VenueBooking/Calendar' }"
               >
                 Venue
+              </RouterLink>
+              <RouterLink
+                to="/evBooking/Calendar"
+                class="dropdown-link"
+                :class="{ 'is-active-sub': route.path === '/evBooking/Calendar' || route.path === '/evBooking' }"
+              >
+                EV
               </RouterLink>
             </div>
           </div>
@@ -62,18 +62,18 @@
           <div class="dropdown-panel">
             <div class="dropdown-panel-inner">
               <RouterLink
-                to="/evBooking/ManageBooking"
-                class="dropdown-link"
-                :class="{ 'is-active-sub': route.path === '/evBooking/ManageBooking' }"
-              >
-                EV
-              </RouterLink>
-              <RouterLink
                 to="/VenueBooking/ManageBooking"
                 class="dropdown-link"
                 :class="{ 'is-active-sub': route.path === '/VenueBooking/ManageBooking' }"
               >
                 Venue
+              </RouterLink>
+              <RouterLink
+                to="/evBooking/ManageBooking"
+                class="dropdown-link"
+                :class="{ 'is-active-sub': route.path === '/evBooking/ManageBooking' }"
+              >
+                EV
               </RouterLink>
             </div>
           </div>

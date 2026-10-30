@@ -83,24 +83,6 @@
                       />
                     </template>
                   </el-table-column>
-                  <el-table-column width="160" class-name="table-nowrap-col quota-col" label-class-name="table-nowrap-col quota-col">
-                    <template #header>
-                      <button type="button" class="th-sort-btn" @click="toggleSort('user', 'evQuota')">
-                        EV Quota
-                        <span class="sort-indicator">{{ getSortIndicator('user', 'evQuota') }}</span>
-                      </button>
-                    </template>
-                    <template #default="{ row }">
-                      <button
-                        type="button"
-                        class="quota-cell-btn"
-                        :title="`Current year (${row.quotaYear || currentQuotaYear}) — click for yearly details`"
-                        @click="openYearlyQuotaModal(row, 'ev')"
-                      >
-                        {{ formatQuotaDisplay(row.usedQuotaEV, row.annualQuotaEV) }}
-                      </button>
-                    </template>
-                  </el-table-column>
                   <el-table-column width="170" class-name="table-nowrap-col quota-col" label-class-name="table-nowrap-col quota-col">
                     <template #header>
                       <button type="button" class="th-sort-btn" @click="toggleSort('user', 'venueQuota')">
@@ -116,6 +98,24 @@
                         @click="openYearlyQuotaModal(row, 'venue')"
                       >
                         {{ formatQuotaDisplay(row.usedQuotaVenue, row.annualQuotaVenue) }}
+                      </button>
+                    </template>
+                  </el-table-column>
+                  <el-table-column width="160" class-name="table-nowrap-col quota-col" label-class-name="table-nowrap-col quota-col">
+                    <template #header>
+                      <button type="button" class="th-sort-btn" @click="toggleSort('user', 'evQuota')">
+                        EV Quota
+                        <span class="sort-indicator">{{ getSortIndicator('user', 'evQuota') }}</span>
+                      </button>
+                    </template>
+                    <template #default="{ row }">
+                      <button
+                        type="button"
+                        class="quota-cell-btn"
+                        :title="`Current year (${row.quotaYear || currentQuotaYear}) — click for yearly details`"
+                        @click="openYearlyQuotaModal(row, 'ev')"
+                      >
+                        {{ formatQuotaDisplay(row.usedQuotaEV, row.annualQuotaEV) }}
                       </button>
                     </template>
                   </el-table-column>
@@ -265,24 +265,6 @@
                       />
                     </template>
                   </el-table-column>
-                  <el-table-column width="160" class-name="table-nowrap-col quota-col" label-class-name="table-nowrap-col quota-col">
-                    <template #header>
-                      <button type="button" class="th-sort-btn" @click="toggleSort('expired', 'evQuota')">
-                        EV Quota
-                        <span class="sort-indicator">{{ getSortIndicator('expired', 'evQuota') }}</span>
-                      </button>
-                    </template>
-                    <template #default="{ row }">
-                      <button
-                        type="button"
-                        class="quota-cell-btn"
-                        :title="`Current year (${row.quotaYear || currentQuotaYear}) — click for yearly details`"
-                        @click="openYearlyQuotaModal(row, 'ev')"
-                      >
-                        {{ formatQuotaDisplay(row.usedQuotaEV, row.annualQuotaEV) }}
-                      </button>
-                    </template>
-                  </el-table-column>
                   <el-table-column width="170" class-name="table-nowrap-col quota-col" label-class-name="table-nowrap-col quota-col">
                     <template #header>
                       <button type="button" class="th-sort-btn" @click="toggleSort('expired', 'venueQuota')">
@@ -298,6 +280,24 @@
                         @click="openYearlyQuotaModal(row, 'venue')"
                       >
                         {{ formatQuotaDisplay(row.usedQuotaVenue, row.annualQuotaVenue) }}
+                      </button>
+                    </template>
+                  </el-table-column>
+                  <el-table-column width="160" class-name="table-nowrap-col quota-col" label-class-name="table-nowrap-col quota-col">
+                    <template #header>
+                      <button type="button" class="th-sort-btn" @click="toggleSort('expired', 'evQuota')">
+                        EV Quota
+                        <span class="sort-indicator">{{ getSortIndicator('expired', 'evQuota') }}</span>
+                      </button>
+                    </template>
+                    <template #default="{ row }">
+                      <button
+                        type="button"
+                        class="quota-cell-btn"
+                        :title="`Current year (${row.quotaYear || currentQuotaYear}) — click for yearly details`"
+                        @click="openYearlyQuotaModal(row, 'ev')"
+                      >
+                        {{ formatQuotaDisplay(row.usedQuotaEV, row.annualQuotaEV) }}
                       </button>
                     </template>
                   </el-table-column>
@@ -810,16 +810,16 @@
             @input="onAddUserCarPlateInput"
           />
         </el-form-item>
-        <el-form-item :label="formMode === 'edit' ? 'Default EV Quota' : 'EV Quota'">
-          <div class="quota-input-row">
-            <el-input-number v-model="formData.annualQuotaEV" :min="0" :disabled="isEvQuotaUnlimited" />
-            <el-checkbox v-model="isEvQuotaUnlimited">Unlimited</el-checkbox>
-          </div>
-        </el-form-item>
-        <el-form-item :label="formMode === 'edit' ? 'Default Venue Quota' : 'Venue Quota'">
+        <el-form-item label="Venue Quota">
           <div class="quota-input-row">
             <el-input-number v-model="formData.annualQuotaVenue" :min="0" :disabled="isVenueQuotaUnlimited" />
             <el-checkbox v-model="isVenueQuotaUnlimited">Unlimited</el-checkbox>
+          </div>
+        </el-form-item>
+        <el-form-item label="EV Quota">
+          <div class="quota-input-row">
+            <el-input-number v-model="formData.annualQuotaEV" :min="0" :disabled="isEvQuotaUnlimited" />
+            <el-checkbox v-model="isEvQuotaUnlimited">Unlimited</el-checkbox>
           </div>
         </el-form-item>
         <el-form-item label="Status">
@@ -904,16 +904,16 @@
             @row-click="onYearlyUsageRowClick"
           >
             <el-table-column prop="year" label="Year" width="100" />
-            <el-table-column label="EV" min-width="150">
-              <template #default="{ row }">
-                <span class="yearly-quota-value">{{ formatQuotaDisplay(row.usedEv, row.annualQuotaEv) }}</span>
-                <span v-if="row.hasCustomLimit || row.hasOverride" class="override-tag">custom</span>
-              </template>
-            </el-table-column>
             <el-table-column label="Venue" min-width="150">
               <template #default="{ row }">
                 <span class="yearly-quota-value">{{ formatQuotaDisplay(row.usedVenue, row.annualQuotaVenue) }}</span>
-                <span v-if="row.hasCustomLimit || row.hasOverride" class="override-tag">custom</span>
+                <span v-if="row.hasCustomVenueLimit" class="override-tag">custom</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="EV" min-width="150">
+              <template #default="{ row }">
+                <span class="yearly-quota-value">{{ formatQuotaDisplay(row.usedEv, row.annualQuotaEv) }}</span>
+                <span v-if="row.hasCustomEvLimit" class="override-tag">custom</span>
               </template>
             </el-table-column>
           </el-table>
@@ -943,19 +943,6 @@
           </div>
           <template v-if="yearlyEditYearOptions.length">
             <el-form label-width="130px" class="yearly-quota-edit-form" label-position="left">
-              <el-form-item label="EV Quota">
-                <div class="quota-input-row">
-                  <el-input-number
-                    v-model="yearlyEditForm.annualQuotaEV"
-                    :min="0"
-                    size="large"
-                    :disabled="yearlyEditEvUnlimited"
-                  />
-                  <el-checkbox v-model="yearlyEditEvUnlimited" class="yearly-quota-checkbox">
-                    Unlimited
-                  </el-checkbox>
-                </div>
-              </el-form-item>
               <el-form-item label="Venue Quota">
                 <div class="quota-input-row">
                   <el-input-number
@@ -969,12 +956,25 @@
                   </el-checkbox>
                 </div>
               </el-form-item>
+              <el-form-item label="EV Quota">
+                <div class="quota-input-row">
+                  <el-input-number
+                    v-model="yearlyEditForm.annualQuotaEV"
+                    :min="0"
+                    size="large"
+                    :disabled="yearlyEditEvUnlimited"
+                  />
+                  <el-checkbox v-model="yearlyEditEvUnlimited" class="yearly-quota-checkbox">
+                    Unlimited
+                  </el-checkbox>
+                </div>
+              </el-form-item>
             </el-form>
             <p class="yearly-quota-defaults">
               Editing <strong>{{ yearlyEditForm.year }}</strong>.
               Default quotas:
-              <strong>EV {{ formatQuotaLimit(yearlyQuotaMeta.defaultAnnualQuotaEv) }}</strong>,
-              <strong>Venue {{ formatQuotaLimit(yearlyQuotaMeta.defaultAnnualQuotaVenue) }}</strong>
+              <strong>Venue {{ formatQuotaLimit(yearlyQuotaMeta.defaultAnnualQuotaVenue) }}</strong>,
+              <strong>EV {{ formatQuotaLimit(yearlyQuotaMeta.defaultAnnualQuotaEv) }}</strong>
             </p>
           </template>
         </div>
@@ -1093,16 +1093,6 @@
         <el-form-item label="Initial Password">
           <el-input v-model="pendingHandleForm.password" type="text" autocomplete="new-password" />
         </el-form-item>
-        <el-form-item label="EV Quota">
-          <div class="quota-input-row">
-            <el-input-number
-              v-model="pendingHandleForm.annualQuotaEV"
-              :min="0"
-              :disabled="isPendingEvQuotaUnlimited"
-            />
-            <el-checkbox v-model="isPendingEvQuotaUnlimited">Unlimited</el-checkbox>
-          </div>
-        </el-form-item>
         <el-form-item label="Venue Quota">
           <div class="quota-input-row">
             <el-input-number
@@ -1111,6 +1101,16 @@
               :disabled="isPendingVenueQuotaUnlimited"
             />
             <el-checkbox v-model="isPendingVenueQuotaUnlimited">Unlimited</el-checkbox>
+          </div>
+        </el-form-item>
+        <el-form-item label="EV Quota">
+          <div class="quota-input-row">
+            <el-input-number
+              v-model="pendingHandleForm.annualQuotaEV"
+              :min="0"
+              :disabled="isPendingEvQuotaUnlimited"
+            />
+            <el-checkbox v-model="isPendingEvQuotaUnlimited">Unlimited</el-checkbox>
           </div>
         </el-form-item>
         <el-form-item label="Submitted At">
@@ -2304,10 +2304,10 @@ const handleExport = async () => {
       'Contact No.': item.contact || '',
       'Role': item.role,
       'Quota Year': item.quotaYear || currentQuotaYear.value,
-      'EV Quota': item.annualQuotaEV,
-      'Used Quota (EV)': item.usedQuotaEV,
       'Venue Quota': item.annualQuotaVenue,
       'Used Quota (Venue)': item.usedQuotaVenue,
+      'EV Quota': item.annualQuotaEV,
+      'Used Quota (EV)': item.usedQuotaEV,
       'Status': item.status === 'active' ? 'Active' : item.status === 'inactive' ? 'Inactive' : 'Expired',
       'Last login time': formatDateTimeDisplay(item.lastLoginTime),
       'Inactive Time': formatDateTimeDisplay(item.inactiveTime),
@@ -2354,16 +2354,17 @@ const handleAdd = () => {
 
 const handleEdit = (row) => {
   formMode.value = 'edit'
-  const defaultEv = row.defaultAnnualQuotaEV ?? row.annualQuotaEV
-  const defaultVenue = row.defaultAnnualQuotaVenue ?? row.annualQuotaVenue
+  // 编辑弹窗展示当年有效额度（含按年覆盖），不是用户默认年额度
+  const yearEv = row.annualQuotaEV
+  const yearVenue = row.annualQuotaVenue
   formData.value = {
     ...row,
     password: '',
-    annualQuotaEV: defaultEv,
-    annualQuotaVenue: defaultVenue
+    annualQuotaEV: yearEv,
+    annualQuotaVenue: yearVenue
   }
-  isEvQuotaUnlimited.value = Number(defaultEv) === -1
-  isVenueQuotaUnlimited.value = Number(defaultVenue) === -1
+  isEvQuotaUnlimited.value = Number(yearEv) === -1
+  isVenueQuotaUnlimited.value = Number(yearVenue) === -1
   showForm.value = true
 }
 
@@ -2404,7 +2405,11 @@ const handleSave = async () => {
         'Success'
       )
     } else {
-      await updateUser(formData.value.id, {
+      const quotas = {
+        annualQuotaEV: isEvQuotaUnlimited.value ? -1 : Number(formData.value.annualQuotaEV ?? 0),
+        annualQuotaVenue: isVenueQuotaUnlimited.value ? -1 : Number(formData.value.annualQuotaVenue ?? 0)
+      }
+      const profilePayload = {
         corpId,
         firstName: String(formData.value.firstName || '').trim(),
         lastName: String(formData.value.lastName || '').trim(),
@@ -2414,10 +2419,19 @@ const handleSave = async () => {
         role: formData.value.role || undefined,
         contact: formData.value.contact,
         email: formData.value.email,
-        annualQuotaEV: isEvQuotaUnlimited.value ? -1 : Number(formData.value.annualQuotaEV ?? 0),
-        annualQuotaVenue: isVenueQuotaUnlimited.value ? -1 : Number(formData.value.annualQuotaVenue ?? 0),
         status: formData.value.status
-      })
+      }
+      await updateUser(formData.value.id, profilePayload)
+      // 优先写入当年额度；该年尚无预订时回退改默认年额度
+      try {
+        await upsertUserYearlyQuota(
+          formData.value.id,
+          { year: Number(currentQuotaYear.value), ...quotas },
+          { silentError: true }
+        )
+      } catch {
+        await updateUser(formData.value.id, quotas)
+      }
       showNotice('User updated successfully', 'Success')
     }
     await Promise.all([loadUsers(), loadRoleAndDepartmentOptions()])
