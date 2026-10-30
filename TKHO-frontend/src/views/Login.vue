@@ -651,7 +651,7 @@ const handleLogin = async () => {
   background: linear-gradient(135deg, #e8f7ec 0%, #dff3e3 100%);
   border-top: 2px solid #c8e6d0;
   box-sizing: border-box;
-  font-size: 13px;
+  font-size: 16px;
   line-height: 1.6;
   color: #2d4a32;
   text-align: left;
@@ -692,7 +692,7 @@ const handleLogin = async () => {
 .notes-content :deep(p:first-child strong) {
   display: inline-block;
   margin: 0 0 4px;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   color: #0A3D1F;
   letter-spacing: 0.3px;
@@ -720,7 +720,7 @@ const handleLogin = async () => {
 .notes-content :deep(th),
 .notes-content :deep(td) {
   padding: 6px 10px;
-  font-size: 12px;
+  font-size: 16px;
   text-align: left;
   border: 1px solid #d1d5db;
 }

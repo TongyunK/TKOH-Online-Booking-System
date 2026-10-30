@@ -21,6 +21,15 @@ import {
   formatUserDisplayName,
   userDisplayNameSelect,
 } from '../common/user-display-name';
+import { getAppCalendarYear } from '../common/app-timezone';
+import {
+  batchCountUsedForYear,
+  batchLoadYearlyOverrides,
+  countEvUsedForYear,
+  countVenueUsedForYear,
+  yearDateBounds,
+} from '../common/user-quota';
+import { UpsertYearlyQuotaDto } from './dto/upsert-yearly-quota.dto';
 
 const MAX_PAGE_SIZE = 100;
 const MAX_EXPORT_SIZE = 5000;
@@ -137,7 +146,19 @@ export class UserManagementService {
     return formatUserDisplayName(actor) || 'Admin';
   }
 
-  private mapUser(user: Prisma.UserGetPayload<{ select: typeof userSelect }>) {
+  private mapUser(
+    user: Prisma.UserGetPayload<{ select: typeof userSelect }>,
+    quota?: {
+      year?: number;
+      usedQuotaEv?: number;
+      usedQuotaVenue?: number;
+      annualQuotaEv?: number | null;
+      annualQuotaVenue?: number | null;
+      defaultAnnualQuotaEv?: number | null;
+      defaultAnnualQuotaVenue?: number | null;
+    },
+  ) {
+    const year = quota?.year ?? getAppCalendarYear();
     return {
       id: user.id.toString(),
       corpId: user.corpId,
@@ -152,16 +173,54 @@ export class UserManagementService {
       role: user.access_roles?.role_name ?? null,
       email: user.email,
       contact: user.contact,
-      annualQuotaEv: user.annualQuotaEv,
-      usedQuotaEv: user.usedQuotaEv,
-      annualQuotaVenue: user.annualQuotaVenue,
-      usedQuotaVenue: user.usedQuotaVenue,
+      quotaYear: year,
+      /** 列表/详情展示：所选年（默认当前自然年）的有效上限 */
+      annualQuotaEv: quota?.annualQuotaEv ?? user.annualQuotaEv,
+      usedQuotaEv: quota?.usedQuotaEv ?? 0,
+      annualQuotaVenue: quota?.annualQuotaVenue ?? user.annualQuotaVenue,
+      usedQuotaVenue: quota?.usedQuotaVenue ?? 0,
+      /** 用户默认年额度（无按年覆盖时的回退值） */
+      defaultAnnualQuotaEv: quota?.defaultAnnualQuotaEv ?? user.annualQuotaEv,
+      defaultAnnualQuotaVenue:
+        quota?.defaultAnnualQuotaVenue ?? user.annualQuotaVenue,
       status: this.statusFromDb(user.status),
       lastLoginTime: user.lastLoginTime,
       inactiveTime: user.inactiveTime,
       inactivedBy: user.inactivedBy ?? '',
       createdAt: user.createdAt,
     };
+  }
+
+  private async attachCurrentYearQuota(
+    rows: Prisma.UserGetPayload<{ select: typeof userSelect }>[],
+  ) {
+    const year = getAppCalendarYear();
+    const ids = rows.map((r) => r.id);
+    const [{ evUsedByUserId, venueUsedByUserId }, overrides] = await Promise.all([
+      batchCountUsedForYear(this.prisma, ids, year),
+      batchLoadYearlyOverrides(this.prisma, ids, year),
+    ]);
+
+    return rows.map((user) => {
+      const id = user.id.toString();
+      const override = overrides.get(id);
+      return this.mapUser(user, {
+        year,
+        usedQuotaEv: evUsedByUserId.get(id) ?? 0,
+        usedQuotaVenue: venueUsedByUserId.get(id) ?? 0,
+        annualQuotaEv:
+          override?.annualQuotaEv !== undefined && override?.annualQuotaEv !== null
+            ? override.annualQuotaEv
+            : user.annualQuotaEv,
+        annualQuotaVenue:
+          override?.annualQuotaVenue !== undefined &&
+          override?.annualQuotaVenue !== null
+            ? override.annualQuotaVenue
+            : user.annualQuotaVenue,
+        defaultAnnualQuotaEv: user.annualQuotaEv,
+        defaultAnnualQuotaVenue: user.annualQuotaVenue,
+      });
+    });
   }
 
   private mapPendingUser(p: {
@@ -536,16 +595,59 @@ export class UserManagementService {
       case 'inactivedBy':
         return [{ inactivedBy: sortOrder }, tieBreaker];
       case 'evQuota':
-        return [{ usedQuotaEv: sortOrder }, { annualQuotaEv: sortOrder }, tieBreaker];
       case 'venueQuota':
-        return [
-          { usedQuotaVenue: sortOrder },
-          { annualQuotaVenue: sortOrder },
-          tieBreaker,
-        ];
+        // 已用为实时 COUNT，不能按 user.used_quota_* 排；listUsers 内内存排序
+        return [{ id: 'asc' }];
       default:
         return [{ id: 'asc' }];
     }
+  }
+
+  private isQuotaSortBy(sortBy: string): boolean {
+    return sortBy === 'evQuota' || sortBy === 'venueQuota';
+  }
+
+  private compareQuotaLimit(
+    a: number | null | undefined,
+    b: number | null | undefined,
+  ): number {
+    const norm = (v: number | null | undefined) =>
+      Number(v) === -1 ? Number.POSITIVE_INFINITY : Number(v ?? 0);
+    return norm(a) - norm(b);
+  }
+
+  private sortUsersByCurrentYearQuota<
+    T extends {
+      id: string;
+      usedQuotaEv?: number | null;
+      annualQuotaEv?: number | null;
+      usedQuotaVenue?: number | null;
+      annualQuotaVenue?: number | null;
+    },
+  >(items: T[], sortBy: string, sortOrder: 'asc' | 'desc'): T[] {
+    const dir = sortOrder === 'asc' ? 1 : -1;
+    return [...items].sort((left, right) => {
+      if (sortBy === 'evQuota') {
+        const usedDiff =
+          Number(left.usedQuotaEv ?? 0) - Number(right.usedQuotaEv ?? 0);
+        if (usedDiff !== 0) return usedDiff * dir;
+        const limitDiff = this.compareQuotaLimit(
+          left.annualQuotaEv,
+          right.annualQuotaEv,
+        );
+        if (limitDiff !== 0) return limitDiff * dir;
+      } else if (sortBy === 'venueQuota') {
+        const usedDiff =
+          Number(left.usedQuotaVenue ?? 0) - Number(right.usedQuotaVenue ?? 0);
+        if (usedDiff !== 0) return usedDiff * dir;
+        const limitDiff = this.compareQuotaLimit(
+          left.annualQuotaVenue,
+          right.annualQuotaVenue,
+        );
+        if (limitDiff !== 0) return limitDiff * dir;
+      }
+      return Number(left.id) - Number(right.id);
+    });
   }
 
   private async buildUserFilterOptions(where: Prisma.UserWhereInput) {
@@ -586,10 +688,47 @@ export class UserManagementService {
       wantAll ? MAX_EXPORT_SIZE : MAX_PAGE_SIZE,
     );
     const where = this.buildUserListWhere(auth, query);
-    const orderBy = this.buildUserOrderBy(query);
+    const sortBy = String(query.sortBy ?? '').trim();
+    const sortOrder =
+      String(query.sortOrder ?? '').trim().toLowerCase() === 'asc' ? 'asc' : 'desc';
     const skip = wantAll ? 0 : (page - 1) * pageSize;
     const take: number = wantAll ? MAX_EXPORT_SIZE : pageSize;
+    const quotaSort = this.isQuotaSortBy(sortBy);
 
+    const filterOptionsPromise = includeOptions
+      ? this.buildUserFilterOptions(
+          this.buildUserListWhere(auth, query, { applyColumnFilters: false }),
+        )
+      : Promise.resolve(undefined);
+
+    if (quotaSort) {
+      // 按当前年 COUNT / 有效上限内存排序后再分页（用户量通常数百级）
+      const [total, allRows, filterOptions] = await Promise.all([
+        this.prisma.user.count({ where }),
+        this.prisma.user.findMany({
+          where,
+          orderBy: [{ id: 'asc' }],
+          take: MAX_EXPORT_SIZE,
+          select: userSelect,
+        }),
+        filterOptionsPromise,
+      ]);
+      const mapped = await this.attachCurrentYearQuota(allRows);
+      const sorted = this.sortUsersByCurrentYearQuota(mapped, sortBy, sortOrder);
+      const pageRows = wantAll
+        ? sorted.slice(0, MAX_EXPORT_SIZE)
+        : sorted.slice(skip, skip + pageSize);
+      return {
+        items: pageRows,
+        total,
+        page: wantAll ? 1 : page,
+        pageSize: wantAll ? pageRows.length : pageSize,
+        quotaYear: getAppCalendarYear(),
+        ...(filterOptions ? { filterOptions } : {}),
+      };
+    }
+
+    const orderBy = this.buildUserOrderBy(query);
     const [total, rows, filterOptions] = await Promise.all([
       this.prisma.user.count({ where }),
       this.prisma.user.findMany({
@@ -599,18 +738,16 @@ export class UserManagementService {
         take,
         select: userSelect,
       }),
-      includeOptions
-        ? this.buildUserFilterOptions(
-            this.buildUserListWhere(auth, query, { applyColumnFilters: false }),
-          )
-        : Promise.resolve(undefined),
+      filterOptionsPromise,
     ]);
 
+    const items = await this.attachCurrentYearQuota(rows);
     return {
-      items: rows.map((u) => this.mapUser(u)),
+      items,
       total,
       page: wantAll ? 1 : page,
       pageSize: wantAll ? rows.length : pageSize,
+      quotaYear: getAppCalendarYear(),
       ...(filterOptions ? { filterOptions } : {}),
     };
   }
@@ -625,53 +762,62 @@ export class UserManagementService {
     const q = String(keyword ?? '').trim();
     const scope = String(scopeRaw ?? '').trim().toLowerCase();
     const venueOwnerScope = scope === 'venue';
+    const evOwnerScope = scope === 'ev';
     const safePage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
     const safePageSize = Number.isFinite(pageSize) ? Math.min(100, Math.max(1, Math.floor(pageSize))) : 20;
     const skip = (safePage - 1) * safePageSize;
 
     const hideSuperAdmin =
       venueOwnerScope ||
+      evOwnerScope ||
       !isSuperAdminAuth(auth);
 
-    const where: Prisma.UserWhereInput = {
-      status: 'Active',
-      ...(q
-        ? {
+    const and: Prisma.UserWhereInput[] = [{ status: 'Active' }];
+    if (q) {
+      and.push({
+        OR: [
+          { firstName: { contains: q, mode: 'insensitive' } },
+          { lastName: { contains: q, mode: 'insensitive' } },
+          { corpId: { contains: q, mode: 'insensitive' } },
+          { employeeNo: { contains: q, mode: 'insensitive' } },
+        ],
+      });
+    }
+    if (hideSuperAdmin) {
+      and.push({
+        NOT: {
+          access_roles: {
+            is: {
+              role_name: {
+                equals: 'SuperAdmin',
+                mode: 'insensitive',
+              },
+            },
+          },
+        },
+      });
+    }
+    if (venueOwnerScope) {
+      and.push({
+        access_roles: {
+          is: {
             OR: [
-              { firstName: { contains: q, mode: 'insensitive' } },
-              { lastName: { contains: q, mode: 'insensitive' } },
-              { corpId: { contains: q, mode: 'insensitive' } },
-              { employeeNo: { contains: q, mode: 'insensitive' } },
+              { annual_venue_quota: { gt: 0 } },
+              { annual_venue_quota: -1 },
             ],
-          }
-        : {}),
-      ...(hideSuperAdmin
-        ? {
-            NOT: {
-              access_roles: {
-                is: {
-                  role_name: {
-                    equals: 'SuperAdmin',
-                    mode: 'insensitive',
-                  },
-                },
-              },
-            },
-          }
-        : {}),
-      ...(venueOwnerScope
-        ? {
-            access_roles: {
-              is: {
-                OR: [
-                  { annual_venue_quota: { gt: 0 } },
-                  { annual_venue_quota: -1 },
-                ],
-              },
-            },
-          }
-        : {}),
-    };
+          },
+        },
+      });
+    }
+    // EV 选人：用户 EV 额度 >0 或 Unlimited（与能否下 EV 单一致）
+    if (evOwnerScope) {
+      and.push({
+        OR: [{ annualQuotaEv: { gt: 0 } }, { annualQuotaEv: -1 }],
+      });
+    }
+
+    const where: Prisma.UserWhereInput =
+      and.length === 1 ? and[0] : { AND: and };
 
     const rows = await this.prisma.user.findMany({
       where,
@@ -715,7 +861,227 @@ export class UserManagementService {
     if (!isSuperAdminAuth(auth) && isSuperAdminRole(user.access_roles?.role_name ?? '')) {
       throw new NotFoundException('User not found');
     }
-    return this.mapUser(user);
+    const [mapped] = await this.attachCurrentYearQuota([user]);
+    return mapped;
+  }
+
+  /** 该用户在指定自然年是否至少有一条 EV 或 Venue 预订（任意状态） */
+  private async userHasBookingInYear(
+    userId: bigint,
+    year: number,
+  ): Promise<boolean> {
+    const { start, endExclusive } = yearDateBounds(year);
+    const [evHit, venueHit] = await Promise.all([
+      this.prisma.evBookings.findFirst({
+        where: {
+          bookingDate: { gte: start, lt: endExclusive },
+          licensePlate: { user_id: userId },
+        },
+        select: { id: true },
+      }),
+      this.prisma.venueBookings.findFirst({
+        where: {
+          reservedByUserId: userId,
+          bookingDate: { gte: start, lt: endExclusive },
+        },
+        select: { id: true },
+      }),
+    ]);
+    return Boolean(evHit || venueHit);
+  }
+
+  /**
+   * 仅返回「当前年及以后、且至少有一条预订记录」的年份额度。
+   * 已用为实时 COUNT；上限为按年覆盖或默认 annualQuota。
+   */
+  async getUserYearlyQuotas(
+    id: string,
+    auth?: { isSuperAdmin?: boolean; role?: string },
+  ) {
+    const bid = BigInt(id);
+    await this.assertTargetUserVisibleToActor(bid, auth);
+    const user = await this.prisma.user.findUnique({
+      where: { id: bid },
+      select: {
+        id: true,
+        annualQuotaEv: true,
+        annualQuotaVenue: true,
+        access_roles: { select: { role_name: true } },
+      },
+    });
+    if (!user) throw new NotFoundException('User not found');
+    if (!isSuperAdminAuth(auth) && isSuperAdminRole(user.access_roles?.role_name ?? '')) {
+      throw new NotFoundException('User not found');
+    }
+
+    const currentYear = getAppCalendarYear();
+    const { start: fromDate } = yearDateBounds(currentYear);
+
+    const [overrides, evYearRows, venueYearRows] = await Promise.all([
+      this.prisma.userYearlyQuotas.findMany({
+        where: { userId: bid, year: { gte: currentYear } },
+        select: {
+          year: true,
+          annualQuotaEv: true,
+          annualQuotaVenue: true,
+        },
+      }),
+      this.prisma.$queryRaw<Array<{ y: number }>>`
+        SELECT DISTINCT EXTRACT(YEAR FROM b.booking_date)::int AS y
+        FROM ev_bookings b
+        INNER JOIN license_plates lp ON lp.id = b.license_plate_id
+        WHERE lp.user_id = ${bid}
+          AND b.booking_date >= ${fromDate}
+        ORDER BY y ASC
+      `,
+      this.prisma.$queryRaw<Array<{ y: number }>>`
+        SELECT DISTINCT EXTRACT(YEAR FROM v.booking_date)::int AS y
+        FROM venue_bookings v
+        WHERE v.reserved_by = ${bid}
+          AND v.booking_date >= ${fromDate}
+        ORDER BY y ASC
+      `,
+    ]);
+
+    // 仅展示/可改：已有预订记录的年份（不含「仅有覆盖、无预订」的空年）
+    const yearSet = new Set<number>();
+    for (const row of evYearRows) {
+      if (Number.isFinite(row.y) && row.y >= currentYear) yearSet.add(row.y);
+    }
+    for (const row of venueYearRows) {
+      if (Number.isFinite(row.y) && row.y >= currentYear) yearSet.add(row.y);
+    }
+
+    const years = [...yearSet].sort((a, b) => a - b);
+    const overrideByYear = new Map(
+      overrides.map((o) => [o.year, o] as const),
+    );
+
+    const defaultEv = user.annualQuotaEv ?? 0;
+    const defaultVenue = user.annualQuotaVenue ?? 0;
+
+    const items = await Promise.all(
+      years.map(async (year) => {
+        const override = overrideByYear.get(year);
+        const [usedEv, usedVenue] = await Promise.all([
+          countEvUsedForYear(this.prisma, bid, year),
+          countVenueUsedForYear(this.prisma, bid, year),
+        ]);
+        const annualQuotaEv =
+          override?.annualQuotaEv !== undefined &&
+          override?.annualQuotaEv !== null
+            ? override.annualQuotaEv
+            : user.annualQuotaEv;
+        const annualQuotaVenue =
+          override?.annualQuotaVenue !== undefined &&
+          override?.annualQuotaVenue !== null
+            ? override.annualQuotaVenue
+            : user.annualQuotaVenue;
+        const hasCustomLimit = Boolean(
+          override &&
+            (Number(annualQuotaEv ?? 0) !== Number(defaultEv) ||
+              Number(annualQuotaVenue ?? 0) !== Number(defaultVenue)),
+        );
+        return {
+          year,
+          usedEv,
+          usedVenue,
+          annualQuotaEv,
+          annualQuotaVenue,
+          /** 该年额度是否与默认不同 */
+          hasCustomLimit,
+          hasOverride: hasCustomLimit,
+          hasBooking: true,
+          isCurrentYear: year === currentYear,
+        };
+      }),
+    );
+
+    return {
+      userId: id,
+      currentYear,
+      defaultAnnualQuotaEv: user.annualQuotaEv,
+      defaultAnnualQuotaVenue: user.annualQuotaVenue,
+      years: items,
+    };
+  }
+
+  async upsertUserYearlyQuota(
+    id: string,
+    dto: UpsertYearlyQuotaDto,
+    auth?: { isSuperAdmin?: boolean; role?: string },
+  ) {
+    const bid = BigInt(id);
+    await this.assertTargetUserVisibleToActor(bid, auth);
+    const year = Number(dto.year);
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+      throw new BadRequestException('Invalid year');
+    }
+
+    const currentYear = getAppCalendarYear();
+    if (year < currentYear) {
+      throw new BadRequestException(
+        'Cannot change quota for past years.',
+      );
+    }
+
+    const hasBooking = await this.userHasBookingInYear(bid, year);
+    if (!hasBooking) {
+      throw new BadRequestException(
+        'Quota can only be changed for years that already have at least one booking.',
+      );
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: bid },
+      select: { id: true, annualQuotaEv: true, annualQuotaVenue: true },
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    const existing = await this.prisma.userYearlyQuotas.findUnique({
+      where: { userId_year: { userId: bid, year } },
+    });
+
+    const nextEv =
+      dto.annualQuotaEV !== undefined
+        ? dto.annualQuotaEV
+        : (existing?.annualQuotaEv ?? user.annualQuotaEv);
+    const nextVenue =
+      dto.annualQuotaVenue !== undefined
+        ? dto.annualQuotaVenue
+        : (existing?.annualQuotaVenue ?? user.annualQuotaVenue);
+
+    const defaultEv = user.annualQuotaEv ?? 0;
+    const defaultVenue = user.annualQuotaVenue ?? 0;
+    const sameAsDefault =
+      Number(nextEv ?? 0) === Number(defaultEv) &&
+      Number(nextVenue ?? 0) === Number(defaultVenue);
+
+    // 改回与默认一致：删除按年覆盖，不再显示 custom
+    if (sameAsDefault) {
+      if (existing) {
+        await this.prisma.userYearlyQuotas.delete({
+          where: { userId_year: { userId: bid, year } },
+        });
+      }
+      return this.getUserYearlyQuotas(id, auth);
+    }
+
+    await this.prisma.userYearlyQuotas.upsert({
+      where: { userId_year: { userId: bid, year } },
+      create: {
+        userId: bid,
+        year,
+        annualQuotaEv: nextEv ?? 0,
+        annualQuotaVenue: nextVenue ?? 0,
+      },
+      update: {
+        annualQuotaEv: nextEv ?? 0,
+        annualQuotaVenue: nextVenue ?? 0,
+      },
+    });
+
+    return this.getUserYearlyQuotas(id, auth);
   }
 
   async createUser(
@@ -762,7 +1128,8 @@ export class UserManagementService {
         }
         return user;
       });
-      return this.mapUser(created);
+      const [mapped] = await this.attachCurrentYearQuota([created]);
+      return mapped;
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
         const target = Array.isArray(e.meta?.target)
@@ -793,10 +1160,9 @@ export class UserManagementService {
     if (dto.rank !== undefined) data.rank = String(dto.rank ?? '').trim() || null;
     if (dto.contact !== undefined) data.contact = String(dto.contact ?? '').trim() || null;
     if (dto.email !== undefined) data.email = dto.email?.trim() || null;
+    // 编辑用户表单改的是默认年额度；按年覆盖请走 upsertUserYearlyQuota
     if (dto.annualQuotaEV !== undefined) data.annualQuotaEv = dto.annualQuotaEV;
     if (dto.annualQuotaVenue !== undefined) data.annualQuotaVenue = dto.annualQuotaVenue;
-    if (dto.usedQuotaEV !== undefined) data.usedQuotaEv = dto.usedQuotaEV;
-    if (dto.usedQuotaVenue !== undefined) data.usedQuotaVenue = dto.usedQuotaVenue;
     if (dto.status !== undefined) {
       data.status = this.statusToDb(dto.status);
       const actorName =
@@ -830,7 +1196,8 @@ export class UserManagementService {
         data,
         select: userSelect,
       });
-      return this.mapUser(updated);
+      const [mapped] = await this.attachCurrentYearQuota([updated]);
+      return mapped;
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
         throw new ConflictException('CORP User ID already exists');
@@ -863,15 +1230,21 @@ export class UserManagementService {
     return { ok: true };
   }
 
+  /**
+   * 清除该用户全部「按年额度覆盖」，各年回退到默认 annualQuota。
+   * 已用次数由预订推导，无法通过清零字段抹掉。
+   */
   async resetUsedQuotas(id: string, auth?: { isSuperAdmin?: boolean; role?: string }) {
     const bid = BigInt(id);
     await this.assertTargetUserVisibleToActor(bid, auth);
-    const updated = await this.prisma.user.update({
+    await this.prisma.userYearlyQuotas.deleteMany({ where: { userId: bid } });
+    const updated = await this.prisma.user.findUnique({
       where: { id: bid },
-      data: { usedQuotaEv: 0, usedQuotaVenue: 0 },
       select: userSelect,
     });
-    return this.mapUser(updated);
+    if (!updated) throw new NotFoundException('User not found');
+    const [mapped] = await this.attachCurrentYearQuota([updated]);
+    return mapped;
   }
 
   async updateStatus(
@@ -892,7 +1265,8 @@ export class UserManagementService {
       data,
       select: userSelect,
     });
-    return this.mapUser(updated);
+    const [mapped] = await this.attachCurrentYearQuota([updated]);
+    return mapped;
   }
 
   async listPendingUsers() {
@@ -1117,7 +1491,9 @@ export class UserManagementService {
           },
         });
         if (this.isEvBookingReason(p.reason)) {
-          const plateNumber = this.normalizeCarPlateNo(p.car_plate_no);
+          const plateNumber = this.normalizeCarPlateNo(
+            dto.carPlateNo !== undefined ? dto.carPlateNo : p.car_plate_no,
+          );
           if (!plateNumber) {
             throw new BadRequestException(
               'Car plate number is required for EV booking applications',

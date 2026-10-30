@@ -2013,6 +2013,10 @@ export class VenueManagementService {
 
       employeeId: row.reservedBy?.id?.toString(),
 
+      reservedByUserId: row.reservedByUserId?.toString() || row.reservedBy?.id?.toString() || '',
+
+      submitterUserId: row.submitterUserId?.toString() || row.submitter?.id?.toString() || '',
+
 
       corpId: row.reservedBy?.corpId || '',
 
@@ -2079,10 +2083,14 @@ export class VenueManagementService {
           dateTo?: string;
           sortBy?: string;
           sortOrder?: string;
+          secondarySortBy?: string;
+          secondarySortOrder?: string;
           statuses?: string;
           venueNames?: string;
           reservedBy?: string;
           submitters?: string;
+          reservedByUserIds?: string;
+          submitterUserIds?: string;
           approvalStatuses?: string;
           includeOptions?: string | boolean;
           all?: string | boolean;
@@ -2243,18 +2251,63 @@ export class VenueManagementService {
       });
     }
 
+    const parseIdCsv = (value?: string) =>
+      parseCsv(value).filter((part) => /^\d+$/.test(part)).map((part) => BigInt(part));
+
+    const reservedByUserIds = parseIdCsv(query.reservedByUserIds);
+    if (reservedByUserIds.length) {
+      and.push({ reservedByUserId: { in: reservedByUserIds } });
+    }
+    const submitterUserIds = parseIdCsv(query.submitterUserIds);
+    if (submitterUserIds.length) {
+      and.push({ submitterUserId: { in: submitterUserIds } });
+    }
+
+    // Legacy label filters（展示名含逗号时不可靠；优先用 *UserIds）
+    const reservedByLabels = parseCsv(query.reservedBy);
+    const submitterLabels = parseCsv(query.submitters);
+    const needsPostFilter =
+      (!reservedByUserIds.length && reservedByLabels.length > 0) ||
+      (!submitterUserIds.length && submitterLabels.length > 0);
+
     const where: Prisma.VenueBookingsWhereInput = { AND: and };
 
     const sortBy = String(query.sortBy ?? '').trim();
     const sortOrder =
       String(query.sortOrder ?? '').trim().toLowerCase() === 'asc' ? 'asc' : 'desc';
+    const secondarySortBy = String(query.secondarySortBy ?? '').trim();
+    const secondarySortOrder =
+      String(query.secondarySortOrder ?? '').trim().toLowerCase() === 'desc'
+        ? 'desc'
+        : 'asc';
+    const primaryIsDate = sortBy === 'dateTime' || sortBy === 'date';
+    const effectiveSecondaryBy =
+      !primaryIsDate &&
+      (secondarySortBy === 'dateTime' ||
+        secondarySortBy === 'date' ||
+        !secondarySortBy)
+        ? 'dateTime'
+        : secondarySortBy && secondarySortBy !== sortBy
+          ? secondarySortBy
+          : '';
+    const effectiveSecondaryOrder =
+      effectiveSecondaryBy === 'dateTime' || effectiveSecondaryBy === 'date'
+        ? secondarySortOrder
+        : secondarySortOrder;
+
+    const dateTimeOrderBy = (
+      order: 'asc' | 'desc',
+    ): Prisma.VenueBookingsOrderByWithRelationInput[] => [
+      { bookingDate: order },
+      { startTime: order },
+    ];
+
     let orderBy: Prisma.VenueBookingsOrderByWithRelationInput[] = [
-      { bookingDate: 'desc' },
-      { startTime: 'desc' },
+      ...dateTimeOrderBy('desc'),
       { id: 'desc' },
     ];
     if (sortBy === 'dateTime' || sortBy === 'date') {
-      orderBy = [{ bookingDate: sortOrder }, { startTime: sortOrder }, { id: 'desc' }];
+      orderBy = [...dateTimeOrderBy(sortOrder), { id: 'desc' }];
     } else if (sortBy === 'room') {
       orderBy = [{ venue: { name: sortOrder } }, { id: 'desc' }];
     } else if (sortBy === 'topic') {
@@ -2269,71 +2322,170 @@ export class VenueManagementService {
       orderBy = [{ approvalStatus: sortOrder }, { id: 'desc' }];
     } else if (sortBy === 'displayOnHomepage') {
       orderBy = [{ displayOnHomepage: sortOrder }, { id: 'desc' }];
+    } else if (sortBy === 'reservedBy') {
+      orderBy = [
+        { reservedBy: { lastName: sortOrder } },
+        { reservedBy: { firstName: sortOrder } },
+        { reservedBy: { corpId: sortOrder } },
+        { id: 'desc' },
+      ];
+    } else if (sortBy === 'submitter') {
+      orderBy = [
+        { submitter: { lastName: sortOrder } },
+        { submitter: { firstName: sortOrder } },
+        { submitter: { corpId: sortOrder } },
+        { id: 'desc' },
+      ];
     }
 
-    const reservedByLabels = parseCsv(query.reservedBy);
-    const submitterLabels = parseCsv(query.submitters);
-    const needsPostFilter = reservedByLabels.length > 0 || submitterLabels.length > 0;
+    // 非日期主排序时，默认附带 dateTime 次排序（可被 secondarySort* 覆盖方向）
+    if (
+      !primaryIsDate &&
+      (effectiveSecondaryBy === 'dateTime' || effectiveSecondaryBy === 'date')
+    ) {
+      const withoutId = orderBy.filter((item) => !('id' in item));
+      orderBy = [
+        ...withoutId,
+        ...dateTimeOrderBy(effectiveSecondaryOrder),
+        { id: 'desc' },
+      ];
+    }
+
+    const nameSort = sortBy === 'reservedBy' || sortBy === 'submitter';
+    const needsFullScan = needsPostFilter || wantAll || nameSort;
 
     const rows = await this.prisma.venueBookings.findMany({
       where,
       include: manageBookingRowInclude,
       orderBy,
-      skip: needsPostFilter || wantAll ? 0 : (page - 1) * pageSize,
-      take: (needsPostFilter || wantAll ? 5000 : pageSize) as number,
+      skip: needsFullScan ? 0 : (page - 1) * pageSize,
+      take: (needsFullScan ? 5000 : pageSize) as number,
     });
 
-    let mapped = rows.map((row) => this.mapManageBookingRow(row));
-    if (reservedByLabels.length) {
+    const comparePersonLabel = (a: string, b: string) =>
+      String(a || '').localeCompare(String(b || ''), undefined, {
+        sensitivity: 'base',
+        numeric: true,
+      });
+
+    const compareDateTime = (
+      left: (typeof rows)[number],
+      right: (typeof rows)[number],
+      order: 'asc' | 'desc',
+    ) => {
+      const dir = order === 'asc' ? 1 : -1;
+      const ld = left.bookingDate?.getTime?.() ?? 0;
+      const rd = right.bookingDate?.getTime?.() ?? 0;
+      if (ld !== rd) return (ld - rd) * dir;
+      const lt = left.startTime?.getTime?.() ?? 0;
+      const rt = right.startTime?.getTime?.() ?? 0;
+      if (lt !== rt) return (lt - rt) * dir;
+      return 0;
+    };
+
+    let mapped: ReturnType<VenueManagementService['mapManageBookingRow']>[];
+    if (nameSort) {
+      const dir = sortOrder === 'asc' ? 1 : -1;
+      const key = sortBy === 'reservedBy' ? 'reservedBy' : 'submitter';
+      const secondaryDate =
+        effectiveSecondaryBy === 'dateTime' ||
+        effectiveSecondaryBy === 'date' ||
+        !effectiveSecondaryBy;
+      const enriched = rows.map((row) => ({
+        row,
+        mapped: this.mapManageBookingRow(row),
+      }));
+      enriched.sort((left, right) => {
+        const cmp = comparePersonLabel(
+          String((left.mapped as any)[key] || ''),
+          String((right.mapped as any)[key] || ''),
+        );
+        if (cmp !== 0) return cmp * dir;
+        if (secondaryDate) {
+          const dateCmp = compareDateTime(
+            left.row,
+            right.row,
+            effectiveSecondaryOrder,
+          );
+          if (dateCmp !== 0) return dateCmp;
+        }
+        return Number(left.row.id) - Number(right.row.id);
+      });
+      mapped = enriched.map((item) => item.mapped);
+    } else {
+      mapped = rows.map((row) => this.mapManageBookingRow(row));
+    }
+
+    if (!reservedByUserIds.length && reservedByLabels.length) {
       const set = new Set(reservedByLabels);
       mapped = mapped.filter((item) => set.has(String((item as any).reservedBy || '')));
     }
-    if (submitterLabels.length) {
+    if (!submitterUserIds.length && submitterLabels.length) {
       const set = new Set(submitterLabels);
       mapped = mapped.filter((item) => set.has(String((item as any).submitter || '')));
     }
 
-    const total = needsPostFilter
+    const finalTotal = needsPostFilter
       ? mapped.length
       : await this.prisma.venueBookings.count({ where });
-    const items =
-      needsPostFilter || wantAll
-        ? wantAll
-          ? mapped
-          : mapped.slice((page - 1) * pageSize, page * pageSize)
-        : mapped;
+    const items = needsFullScan
+      ? wantAll
+        ? mapped
+        : mapped.slice((page - 1) * pageSize, page * pageSize)
+      : mapped;
 
     let filterOptions:
-      | { venues: string[]; reservedBy: string[]; submitters: string[] }
+      | {
+          venues: string[];
+          reservedBy: Array<{ value: string; label: string }>;
+          submitters: Array<{ value: string; label: string }>;
+        }
       | undefined;
     if (includeOptions) {
+      // Options ignore person-id filters so users can switch selections freely
+      const optionWhere: Prisma.VenueBookingsWhereInput = {
+        AND: and.filter((clause) => {
+          const keys = Object.keys(clause || {});
+          return !keys.includes('reservedByUserId') && !keys.includes('submitterUserId');
+        }),
+      };
       const optionRows = await this.prisma.venueBookings.findMany({
-        where,
+        where: optionWhere,
         include: manageBookingRowInclude,
         take: 5000,
       });
       const optionMapped = optionRows.map((row) => this.mapManageBookingRow(row));
+      const reservedByMap = new Map<string, string>();
+      const submitterMap = new Map<string, string>();
+      for (const b of optionMapped as any[]) {
+        const rid = String(b.reservedByUserId || b.employeeId || '').trim();
+        const rlabel = String(b.reservedBy || '').trim();
+        if (rid && rlabel) reservedByMap.set(rid, rlabel);
+        const sid = String(b.submitterUserId || '').trim();
+        const slabel = String(b.submitter || '').trim();
+        if (sid && slabel) submitterMap.set(sid, slabel);
+      }
       filterOptions = {
         venues: [
           ...new Set(optionMapped.map((b: any) => String(b.room || '')).filter(Boolean)),
-        ].sort(),
-        reservedBy: [
-          ...new Set(
-            optionMapped.map((b: any) => String(b.reservedBy || '')).filter(Boolean),
+        ].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' })),
+        reservedBy: [...reservedByMap.entries()]
+          .map(([value, label]) => ({ value, label }))
+          .sort((a, b) =>
+            a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }),
           ),
-        ].sort(),
-        submitters: [
-          ...new Set(
-            optionMapped.map((b: any) => String(b.submitter || '')).filter(Boolean),
+        submitters: [...submitterMap.entries()]
+          .map(([value, label]) => ({ value, label }))
+          .sort((a, b) =>
+            a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }),
           ),
-        ].sort(),
       };
     }
 
     return {
       items,
       bookings: items,
-      total,
+      total: finalTotal,
       page: wantAll ? 1 : page,
       pageSize: wantAll ? items.length : pageSize,
       ...(filterOptions ? { filterOptions } : {}),
@@ -2571,7 +2723,7 @@ export class VenueManagementService {
         } else {
 
 
-          await consumeVenueQuota(tx, ownerUserId);
+          await consumeVenueQuota(tx, ownerUserId, row.bookingDate ?? new Date());
 
 
         }

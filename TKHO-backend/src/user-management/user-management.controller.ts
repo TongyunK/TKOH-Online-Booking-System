@@ -13,6 +13,7 @@ import { ReplacePasswordDto } from './dto/replace-password.dto';
 import { SubmitPendingUserDto } from './dto/submit-pending-user.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpsertYearlyQuotaDto } from './dto/upsert-yearly-quota.dto';
 import { UserManagementService } from './user-management.service';
 
 @ApiTags('user-management')
@@ -91,6 +92,24 @@ export class UserManagementController {
   @Patch('users/:id/password')
   replacePassword(@Param('id') id: string, @Body() dto: ReplacePasswordDto, @Req() req: any) {
     return this.userManagementService.replacePassword(id, dto.password, req?.user);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AdminRoleGuard)
+  @Get('users/:id/quotas/yearly')
+  getUserYearlyQuotas(@Param('id') id: string, @Req() req: any) {
+    return this.userManagementService.getUserYearlyQuotas(id, req?.user);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AdminRoleGuard)
+  @Patch('users/:id/quotas/yearly')
+  upsertUserYearlyQuota(
+    @Param('id') id: string,
+    @Body() dto: UpsertYearlyQuotaDto,
+    @Req() req: any,
+  ) {
+    return this.userManagementService.upsertUserYearlyQuota(id, dto, req?.user);
   }
 
   @ApiBearerAuth()

@@ -82,7 +82,7 @@
           <el-select
             v-model="form.reason"
             style="width: 100%"
-            placeholder="1) EV booking 2) Venue booking"
+            placeholder="1) Venue booking 2) EV booking"
             :teleported="selectTeleported"
           >
             <el-option
@@ -124,7 +124,7 @@ import { notifyPendingUsersUpdated } from '@/utils/pendingUsersSync'
 import { HTML_ZOOM_BREAKPOINT_MQ } from '@/utils/venueCalendarApi'
 
 const departments = ref([])
-const reasonOptions = ['EV booking', 'Venue booking']
+const reasonOptions = ['Venue booking', 'EV booking']
 const PLATE_MAX_LENGTH = 8
 const EMPLOYEE_NO_LENGTH = 6
 const CONTACT_NO_LENGTH = 8

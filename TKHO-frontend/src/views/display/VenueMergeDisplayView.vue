@@ -291,6 +291,8 @@ function getMeetingClipStyle (rowId, period) {
   const key = getMeetingKey(rowId, period)
   const meta = meetingViewportMeta.value[key]
   if (!meta?.viewportHeight) return null
+  // 单页不锁死高度，让内容贴顶，避免 AM/PM 一侧内容少时在行高内被视觉居中
+  if ((meta.pageCount || 1) <= 1) return null
   const page = currentMeetingPage.value[key] || 0
   const start = meta.pageOffsets?.[page] ?? 0
   const clipEnd = meta.pageClipEnds?.[page] ?? (start + meta.viewportHeight)
@@ -683,7 +685,9 @@ html.merge-display-fullscreen #app {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  font-family: var(--display-font-family);
+  /* 仅 Merge 屏用 Arial；相对原雅黑略放大以补偿视觉变小 */
+  --merge-type-scale: 1.06;
+  font-family: Arial, 'Microsoft YaHei', '微软雅黑', sans-serif;
   transform-origin: top left;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
@@ -691,7 +695,7 @@ html.merge-display-fullscreen #app {
 
 .merge-display-root,
 .merge-display-root * {
-  font-family: var(--display-font-family);
+  font-family: Arial, 'Microsoft YaHei', '微软雅黑', sans-serif;
 }
 
 .merge-display-root * {
@@ -707,7 +711,7 @@ html.merge-display-fullscreen #app {
   font-weight: 700;
   /* 与 .main-panel 水平 padding 一致，便于与左侧时钟列对齐 */
   padding: 0 24px;
-  font-size: 48px;
+  font-size: calc(48px * var(--merge-type-scale));
   display: flex;
   align-items: center;
   flex-shrink: 0;
@@ -734,7 +738,7 @@ html.merge-display-fullscreen #app {
   visibility: hidden;
   height: 0;
   overflow: hidden;
-  font-size: 102px;
+  font-size: calc(102px * var(--merge-type-scale));
   font-weight: 700;
   letter-spacing: 0.02em;
   line-height: 1;
@@ -814,7 +818,7 @@ html.merge-display-fullscreen #app {
 }
 
 .panel-title-line {
-  font-size: 50px;
+  font-size: calc(50px * var(--merge-type-scale));
   font-weight: 700;
   line-height: 1.22;
   white-space: normal;
@@ -827,7 +831,7 @@ html.merge-display-fullscreen #app {
 
 .time-line {
   min-width: 0;
-  font-size: 102px;
+  font-size: calc(102px * var(--merge-type-scale));
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0.02em;
@@ -870,7 +874,7 @@ html.merge-display-fullscreen #app {
 
 .schedule-header {
   flex-shrink: 0;
-  font-size: 54px;
+  font-size: calc(54px * var(--merge-type-scale));
   font-weight: 700;
   margin-top: 96px;
   margin-bottom: 20px;
@@ -889,7 +893,7 @@ html.merge-display-fullscreen #app {
   position: relative;
   flex: 1 1 0;
   min-height: 96px;
-  font-size: 38px;
+  font-size: calc(38px * var(--merge-type-scale));
   /* 防止会议文字在 transform:scale 下溢出到分隔线 / 底栏 */
   overflow: hidden;
 }
@@ -911,7 +915,7 @@ html.merge-display-fullscreen #app {
   align-items: center;
   justify-content: center;
   gap: 16px;
-  font-size: 84px;
+  font-size: calc(84px * var(--merge-type-scale));
   font-weight: 700;
   /* 与右侧会议第一行顶对齐（对应 .meeting-track padding-top） */
   padding-top: 8px;
@@ -935,7 +939,7 @@ html.merge-display-fullscreen #app {
   border-radius: 999px;
   background: rgb(237, 125, 49);
   color: #ffffff;
-  font-size: 58px;
+  font-size: calc(58px * var(--merge-type-scale));
   font-weight: 900;
   line-height: 1;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
@@ -952,6 +956,10 @@ html.merge-display-fullscreen #app {
 
 .meeting-carousel {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
   width: 100%;
   height: 100%;
   min-height: 0;
@@ -962,6 +970,8 @@ html.merge-display-fullscreen #app {
 
 .meeting-clip {
   position: relative;
+  flex: 0 1 auto;
+  align-self: flex-start;
   width: 100%;
   height: 100%;
   max-height: 100%;
@@ -979,15 +989,16 @@ html.merge-display-fullscreen #app {
   transition: transform 450ms ease;
 }
 
+/* grid：时间固定左列顶对齐，避免 flex+baseline 在多行标题时与对侧时间错位 */
 .meeting-item {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
   column-gap: 18px;
   row-gap: 4px;
   width: 100%;
   line-height: 1.25;
-  font-size: 38px;
+  font-size: calc(38px * var(--merge-type-scale));
 }
 
 .meeting-time {
@@ -1029,7 +1040,7 @@ html.merge-display-fullscreen #app {
   opacity: 0.9;
   padding-top: 8px;
   color: rgb(255, 212, 91);
-  font-size: 38px;
+  font-size: calc(38px * var(--merge-type-scale));
 }
 
 .footer-ticker {
@@ -1039,7 +1050,7 @@ html.merge-display-fullscreen #app {
   background: rgb(237, 125, 49);
   color: rgb(0, 32, 96);
   overflow: hidden;
-  font-size: 48px;
+  font-size: calc(48px * var(--merge-type-scale));
   font-weight: 700;
   padding: 0 24px;
   display: flex;

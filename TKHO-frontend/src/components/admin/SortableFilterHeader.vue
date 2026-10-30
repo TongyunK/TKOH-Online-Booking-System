@@ -44,10 +44,10 @@
               <el-checkbox-group :model-value="modelValue" @change="handleChange">
                 <el-checkbox
                   v-for="option in options"
-                  :key="`${label}-${option}`"
-                  :label="option"
+                  :key="`${label}-${optionKey(option)}`"
+                  :label="optionValue(option)"
                 >
-                  {{ String(option) }}
+                  {{ optionLabel(option) }}
                 </el-checkbox>
               </el-checkbox-group>
               <div v-if="options.length === 0" class="th-no-options">No options</div>
@@ -134,6 +134,19 @@ onBeforeUnmount(() => {
   window.removeEventListener('scroll', handleWindowReflow, true)
 })
 
+/** 支持 string 或 { value, label }（用户筛选用 id，展示用姓名） */
+const optionValue = (option) => {
+  if (option && typeof option === 'object' && 'value' in option) return option.value
+  return option
+}
+
+const optionLabel = (option) => {
+  if (option && typeof option === 'object' && 'label' in option) return String(option.label ?? '')
+  return String(option ?? '')
+}
+
+const optionKey = (option) => String(optionValue(option))
+
 const handleChange = (value) => {
   if (!props.filterable) return
   emit('update:modelValue', value ?? [])
@@ -141,7 +154,7 @@ const handleChange = (value) => {
 
 const handleSelectAll = () => {
   if (!props.filterable) return
-  emit('update:modelValue', [...props.options])
+  emit('update:modelValue', props.options.map((option) => optionValue(option)))
 }
 
 const handleClear = () => {

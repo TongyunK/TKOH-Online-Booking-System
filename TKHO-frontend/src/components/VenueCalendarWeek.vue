@@ -208,41 +208,73 @@ function parseTimeToMinutes (timeStr) {
   return h * 60 + m
 }
 
+/** 与房间筛选列表顺序一致（CR1 → CR2 → CR3 …），未知房间靠后 */
+function roomOrderIndex (roomName) {
+  const rooms = props.selectedRooms || []
+  const idx = rooms.findIndex((r) => r.name === roomName)
+  return idx === -1 ? Number.MAX_SAFE_INTEGER : idx
+}
+
 /**
- * Outlook 式：同一天内时间重叠的预订均分列宽。
- * 贪心按开始时间排序，放入第一个「与当前列末尾不重叠」的列；总列数 = 所用列数。
+ * 按房间顺序固定列位（不按开始时间排左右）：
+ * 当日出现的房间按筛选列表顺序（CR1 → CR2 → CR3…）占列，同房间全天同一列。
+ * 同房间若有时间重叠，在该房间列组内再拆子列。
  */
 function buildDayOverlapLayout (dayBookings) {
   const layout = new Map()
   if (!dayBookings.length) return layout
 
-  const items = dayBookings.map(booking => {
-    const startMin = parseTimeToMinutes(booking.startTime)
-    let endMin = parseTimeToMinutes(booking.endTime)
-    if (endMin <= startMin) endMin = startMin + 30
-    return { booking, startMin, endMin }
-  }).sort((a, b) => {
-    if (a.startMin !== b.startMin) return a.startMin - b.startMin
-    if (b.endMin !== a.endMin) return b.endMin - a.endMin
-    return String(a.booking.id).localeCompare(String(b.booking.id))
+  const roomNames = [...new Set(
+    dayBookings.map((b) => b.roomName || '').filter(Boolean)
+  )].sort((a, b) => {
+    const d = roomOrderIndex(a) - roomOrderIndex(b)
+    return d !== 0 ? d : a.localeCompare(b)
   })
 
-  const colMaxEnd = []
+  // 无房间名的预订排在最后一「房间组」
+  const hasUnnamed = dayBookings.some((b) => !b.roomName)
+  const roomGroups = hasUnnamed ? [...roomNames, ''] : roomNames
 
-  for (const item of items) {
-    let c = 0
-    while (c < colMaxEnd.length && item.startMin < colMaxEnd[c]) {
-      c++
+  /** 每个房间组内：按时间贪心拆子列（同房重叠时） */
+  const groupLayouts = new Map()
+  let totalCols = 0
+
+  for (const roomName of roomGroups) {
+    const groupItems = dayBookings
+      .filter((b) => (b.roomName || '') === roomName)
+      .map((booking) => {
+        const startMin = parseTimeToMinutes(booking.startTime)
+        let endMin = parseTimeToMinutes(booking.endTime)
+        if (endMin <= startMin) endMin = startMin + 30
+        return { booking, startMin, endMin }
+      })
+      .sort((a, b) => {
+        if (a.startMin !== b.startMin) return a.startMin - b.startMin
+        if (b.endMin !== a.endMin) return b.endMin - a.endMin
+        return String(a.booking.id).localeCompare(String(b.booking.id))
+      })
+
+    const colMaxEnd = []
+    for (const item of groupItems) {
+      let c = 0
+      while (c < colMaxEnd.length && item.startMin < colMaxEnd[c]) {
+        c++
+      }
+      if (c === colMaxEnd.length) colMaxEnd.push(item.endMin)
+      else colMaxEnd[c] = Math.max(colMaxEnd[c], item.endMin)
+      item.subCol = c
     }
-    if (c === colMaxEnd.length) colMaxEnd.push(item.endMin)
-    else colMaxEnd[c] = Math.max(colMaxEnd[c], item.endMin)
 
-    item.col = c
+    const subCols = Math.max(colMaxEnd.length, 1)
+    groupLayouts.set(roomName, { items: groupItems, baseCol: totalCols, subCols })
+    totalCols += subCols
   }
 
-  const totalCols = colMaxEnd.length
-  for (const item of items) {
-    layout.set(item.booking.id, { col: item.col, totalCols })
+  totalCols = Math.max(totalCols, 1)
+  for (const { items, baseCol } of groupLayouts.values()) {
+    for (const item of items) {
+      layout.set(item.booking.id, { col: baseCol + item.subCol, totalCols })
+    }
   }
 
   return layout

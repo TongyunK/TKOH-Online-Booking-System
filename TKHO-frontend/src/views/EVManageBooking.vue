@@ -704,9 +704,26 @@ function normalizeManageListResponse (payload) {
   return { items: [], total: 0, filterOptions: null }
 }
 
+/** 主排序 + 次排序：非日期主列时，自动带上 bookingDateTime 作为次排序 */
+function buildSortStateWithSecondary (primaryKey, primaryOrder) {
+  const order = primaryOrder === 'desc' ? 'desc' : 'asc'
+  if (primaryKey === 'bookingDateTime' || primaryKey === 'date') {
+    return [{ key: primaryKey, order }]
+  }
+  const existingDate = (sortState.value || []).find(
+    (item) => item.key === 'bookingDateTime' || item.key === 'date'
+  )
+  const dateOrder = existingDate?.order === 'desc' ? 'desc' : 'asc'
+  return [
+    { key: primaryKey, order },
+    { key: 'bookingDateTime', order: dateOrder }
+  ]
+}
+
 function buildEvListParams ({ includeOptions = false, all = false, dateOnly = false, dateRangeOverride = undefined } = {}) {
   const scope = isAdmin.value && bookingView.value === 'all' ? 'all' : 'my'
   const primarySort = sortState.value?.[0]
+  const secondarySort = sortState.value?.[1]
   const activeStatuses = Object.keys(statusFilters.value).filter((key) => statusFilters.value[key])
   const range = dateRangeOverride === undefined ? dateRange.value : dateRangeOverride
   const params = {
@@ -716,6 +733,8 @@ function buildEvListParams ({ includeOptions = false, all = false, dateOnly = fa
     q: dateOnly ? undefined : (searchQuery.value || undefined),
     sortBy: primarySort?.key,
     sortOrder: primarySort?.order === 'asc' ? 'asc' : 'desc',
+    secondarySortBy: secondarySort?.key,
+    secondarySortOrder: secondarySort?.order === 'desc' ? 'desc' : 'asc',
     statuses: dateOnly
       ? undefined
       : (activeStatuses.length && activeStatuses.length < 3 ? activeStatuses.join(',') : undefined),
@@ -725,10 +744,10 @@ function buildEvListParams ({ includeOptions = false, all = false, dateOnly = fa
     spaces: (!dateOnly && columnFilterState.value.space?.length)
       ? columnFilterState.value.space.join(',')
       : undefined,
-    reservedBy: (!dateOnly && columnFilterState.value.reservedBy?.length)
+    reservedByUserIds: (!dateOnly && columnFilterState.value.reservedBy?.length)
       ? columnFilterState.value.reservedBy.join(',')
       : undefined,
-    submitters: (!dateOnly && columnFilterState.value.submitter?.length)
+    submitterUserIds: (!dateOnly && columnFilterState.value.submitter?.length)
       ? columnFilterState.value.submitter.join(',')
       : undefined,
     includeOptions: includeOptions ? 1 : undefined,
@@ -805,12 +824,14 @@ const buildFilteredBookings = (options = {}) => {
     }
   }
   if (columnFilterState.value.reservedBy.length) {
-    const selected = new Set(columnFilterState.value.reservedBy)
-    result = result.filter((b) => selected.has(b.reservedBy || ''))
+    const selected = new Set(columnFilterState.value.reservedBy.map(String))
+    result = result.filter((b) =>
+      selected.has(String(b.reservedByUserId || b.employeeId || ''))
+    )
   }
   if (columnFilterState.value.submitter.length) {
-    const selected = new Set(columnFilterState.value.submitter)
-    result = result.filter((b) => selected.has(b.submitter || ''))
+    const selected = new Set(columnFilterState.value.submitter.map(String))
+    result = result.filter((b) => selected.has(String(b.submitterUserId || '')))
   }
 
   return result
@@ -922,13 +943,19 @@ function reloadBookingsAfterControlChange () {
 
 const toggleSort = (key) => {
   if (!isAdmin.value && isAdminOnlyTableColumn(key)) return
-  const idx = sortState.value.findIndex(item => item.key === key)
-  if (idx === -1) {
-    sortState.value = [{ key, order: 'asc' }]
-  } else if (sortState.value[idx].order === 'asc') {
-    sortState.value = [{ key, order: 'desc' }]
+  const primary = sortState.value?.[0]
+  if (!primary || primary.key !== key) {
+    sortState.value = buildSortStateWithSecondary(key, 'asc')
+  } else if (primary.order === 'asc') {
+    sortState.value = buildSortStateWithSecondary(key, 'desc')
+  } else if (key === 'bookingDateTime' || key === 'date') {
+    sortState.value = [{ key: 'bookingDateTime', order: 'asc' }]
   } else {
-    sortState.value = []
+    const dateOrder =
+      sortState.value.find((item) => item.key === 'bookingDateTime' || item.key === 'date')?.order === 'desc'
+        ? 'desc'
+        : 'asc'
+    sortState.value = [{ key: 'bookingDateTime', order: dateOrder }]
   }
   reloadBookingsAfterControlChange()
 }
@@ -936,17 +963,29 @@ const toggleSort = (key) => {
 const getSortIndicator = (key) => {
   const idx = sortState.value.findIndex(item => item.key === key)
   if (idx === -1) return '↕'
+  if (idx > 0) return sortState.value[idx].order === 'asc' ? '△' : '▽'
   return sortState.value[idx].order === 'asc' ? '▲' : '▼'
 }
 
 const setSortByMenu = (key, order) => {
   if (!isAdmin.value && isAdminOnlyTableColumn(key)) return
-  sortState.value = [{ key, order }]
+  sortState.value = buildSortStateWithSecondary(key, order)
   reloadBookingsAfterControlChange()
 }
 
 const clearSortByMenu = (key) => {
-  sortState.value = sortState.value.filter(item => item.key !== key)
+  const next = sortState.value.filter(item => item.key !== key)
+  if (!next.length) {
+    sortState.value = [{ key: 'bookingDateTime', order: 'asc' }]
+  } else if (
+    next[0].key !== 'bookingDateTime' &&
+    next[0].key !== 'date' &&
+    !next.some((item) => item.key === 'bookingDateTime' || item.key === 'date')
+  ) {
+    sortState.value = [...next, { key: 'bookingDateTime', order: 'asc' }]
+  } else {
+    sortState.value = next
+  }
   reloadBookingsAfterControlChange()
 }
 
@@ -1367,12 +1406,21 @@ const loadBookings = async ({ includeOptions = true } = {}) => {
     bookings.value = items
     bookingsTotal.value = total
     if (filterOptions) {
+      const normalizePersonOptions = (list) => {
+        if (!Array.isArray(list)) return []
+        return list.map((item) => {
+          if (item && typeof item === 'object' && 'value' in item) {
+            return { value: String(item.value), label: String(item.label ?? item.value) }
+          }
+          return { value: String(item), label: String(item) }
+        })
+      }
       filterOptionsState.value = {
         licensePlate: Array.isArray(filterOptions.licensePlates) ? filterOptions.licensePlates : [],
         space: Array.isArray(filterOptions.spaces) ? filterOptions.spaces : [],
         status: ['upcoming', 'past', 'cancelled'],
-        submitter: Array.isArray(filterOptions.submitters) ? filterOptions.submitters : [],
-        reservedBy: Array.isArray(filterOptions.reservedBy) ? filterOptions.reservedBy : []
+        submitter: normalizePersonOptions(filterOptions.submitters),
+        reservedBy: normalizePersonOptions(filterOptions.reservedBy)
       }
     }
   } catch (error) {

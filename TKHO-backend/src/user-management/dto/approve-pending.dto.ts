@@ -52,4 +52,9 @@ export class ApprovePendingDto {
   @IsOptional()
   @IsNumber()
   annualQuotaVenue?: number;
+
+  /** 审批时可修改车牌；EV booking 申请仍必填 */
+  @IsOptional()
+  @IsString()
+  carPlateNo?: string;
 }

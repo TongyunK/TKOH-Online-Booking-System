@@ -590,7 +590,7 @@ export class ParkingService {
                 isAdminRole(auth) && reservedByUserId !== actorUserId,
             },
           );
-          await consumeEvQuota(tx, reservedByUserId);
+          await consumeEvQuota(tx, reservedByUserId, bookingDate);
 
           const now = new Date();
 

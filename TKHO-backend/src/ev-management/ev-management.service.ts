@@ -866,11 +866,15 @@ export class EvManagementService {
       dateTo?: string;
       sortBy?: string;
       sortOrder?: string;
+      secondarySortBy?: string;
+      secondarySortOrder?: string;
       statuses?: string;
       licensePlates?: string;
       spaces?: string;
       reservedBy?: string;
       submitters?: string;
+      reservedByUserIds?: string;
+      submitterUserIds?: string;
       includeOptions?: string | boolean;
       all?: string | boolean;
     } = {},
@@ -935,6 +939,28 @@ export class EvManagementService {
       and.push({ slot: { is: { evSpace: { in: spaces } } } });
     }
 
+    const parseIdCsv = (value?: string) =>
+      this.parseCsv(value)
+        .filter((part) => /^\d+$/.test(part))
+        .map((part) => BigInt(part));
+
+    const reservedByUserIds = parseIdCsv(query.reservedByUserIds);
+    if (reservedByUserIds.length) {
+      and.push({
+        licensePlate: { is: { user_id: { in: reservedByUserIds } } },
+      });
+    }
+    const submitterUserIds = parseIdCsv(query.submitterUserIds);
+    if (submitterUserIds.length) {
+      and.push({ submitterUserId: { in: submitterUserIds } });
+    }
+
+    const reservedByLabels = this.parseCsv(query.reservedBy);
+    const submitterLabels = this.parseCsv(query.submitters);
+    const needsPostFilter =
+      (!reservedByUserIds.length && reservedByLabels.length > 0) ||
+      (!submitterUserIds.length && submitterLabels.length > 0);
+
     const where: Prisma.EvBookingsWhereInput = and.length
       ? and.length === 1
         ? and[0]
@@ -944,6 +970,24 @@ export class EvManagementService {
     const sortBy = String(query.sortBy ?? '').trim();
     const sortOrder =
       String(query.sortOrder ?? '').trim().toLowerCase() === 'asc' ? 'asc' : 'desc';
+    const secondarySortBy = String(query.secondarySortBy ?? '').trim();
+    const secondarySortOrder =
+      String(query.secondarySortOrder ?? '').trim().toLowerCase() === 'desc'
+        ? 'desc'
+        : 'asc';
+    const primaryIsDate =
+      sortBy === 'bookingDateTime' || sortBy === 'date';
+    const effectiveSecondaryBy =
+      !primaryIsDate &&
+      (secondarySortBy === 'bookingDateTime' ||
+        secondarySortBy === 'date' ||
+        !secondarySortBy)
+        ? 'bookingDateTime'
+        : secondarySortBy && secondarySortBy !== sortBy
+          ? secondarySortBy
+          : '';
+    const effectiveSecondaryOrder = secondarySortOrder;
+
     let orderBy: Prisma.EvBookingsOrderByWithRelationInput[] = [
       { bookingDate: 'desc' },
       { id: 'desc' },
@@ -958,12 +1002,34 @@ export class EvManagementService {
       orderBy = [{ createdAt: sortOrder }, { id: 'desc' }];
     } else if (sortBy === 'status') {
       orderBy = [{ status: sortOrder }, { id: 'desc' }];
+    } else if (sortBy === 'submitter') {
+      orderBy = [
+        { submitter: { lastName: sortOrder } },
+        { submitter: { firstName: sortOrder } },
+        { submitter: { corpId: sortOrder } },
+        { id: 'desc' },
+      ];
+    } else if (sortBy === 'reservedBy') {
+      // 车牌所属用户姓名需解析后内存排序；SQL 先按日期稳住分页扫描
+      orderBy = [{ bookingDate: 'asc' }, { id: 'desc' }];
     }
 
-    const reservedByLabels = this.parseCsv(query.reservedBy);
-    const submitterLabels = this.parseCsv(query.submitters);
-    const needsPostFilter =
-      reservedByLabels.length > 0 || submitterLabels.length > 0;
+    if (
+      !primaryIsDate &&
+      (effectiveSecondaryBy === 'bookingDateTime' ||
+        effectiveSecondaryBy === 'date') &&
+      sortBy !== 'reservedBy'
+    ) {
+      const withoutId = orderBy.filter((item) => !('id' in item));
+      orderBy = [
+        ...withoutId,
+        { bookingDate: effectiveSecondaryOrder },
+        { id: 'desc' },
+      ];
+    }
+
+    const nameSort = sortBy === 'reservedBy' || sortBy === 'submitter';
+    const needsFullScan = needsPostFilter || wantAll || nameSort;
 
     const include = {
       licensePlate: { select: { plate_number: true, user_id: true } },
@@ -971,49 +1037,96 @@ export class EvManagementService {
       period: { select: { period: true, startTime: true, endTime: true } },
     } as const;
 
-    const skip = needsPostFilter || wantAll ? 0 : (page - 1) * pageSize;
-    const take: number = needsPostFilter || wantAll ? 5000 : pageSize;
     const rows = await this.prisma.evBookings.findMany({
       where,
       include,
       orderBy,
-      skip,
-      take,
+      skip: needsFullScan ? 0 : (page - 1) * pageSize,
+      take: needsFullScan ? 5000 : pageSize,
     });
 
     const owners = await this.resolveBookingOwners(rows);
-    let mapped = rows.map((row) => this.mapManageBookingRow(row, owners));
+    const comparePersonLabel = (a: string, b: string) =>
+      String(a || '').localeCompare(String(b || ''), undefined, {
+        sensitivity: 'base',
+        numeric: true,
+      });
 
-    if (reservedByLabels.length) {
+    let mapped: ReturnType<EvManagementService['mapManageBookingRow']>[];
+    if (nameSort) {
+      const dir = sortOrder === 'asc' ? 1 : -1;
+      const key = sortBy === 'reservedBy' ? 'reservedBy' : 'submitter';
+      const secondaryDate =
+        effectiveSecondaryBy === 'bookingDateTime' ||
+        effectiveSecondaryBy === 'date' ||
+        !effectiveSecondaryBy;
+      const dateDir = effectiveSecondaryOrder === 'asc' ? 1 : -1;
+      const enriched = rows.map((row) => ({
+        row,
+        mapped: this.mapManageBookingRow(row, owners),
+      }));
+      enriched.sort((left, right) => {
+        const cmp = comparePersonLabel(
+          String((left.mapped as any)[key] || ''),
+          String((right.mapped as any)[key] || ''),
+        );
+        if (cmp !== 0) return cmp * dir;
+        if (secondaryDate) {
+          const ld = left.row.bookingDate?.getTime?.() ?? 0;
+          const rd = right.row.bookingDate?.getTime?.() ?? 0;
+          if (ld !== rd) return (ld - rd) * dateDir;
+        }
+        return Number(left.row.id) - Number(right.row.id);
+      });
+      mapped = enriched.map((item) => item.mapped);
+    } else {
+      mapped = rows.map((row) => this.mapManageBookingRow(row, owners));
+    }
+
+    if (!reservedByUserIds.length && reservedByLabels.length) {
       const set = new Set(reservedByLabels);
       mapped = mapped.filter((item) => set.has(String(item.reservedBy || '')));
     }
-    if (submitterLabels.length) {
+    if (!submitterUserIds.length && submitterLabels.length) {
       const set = new Set(submitterLabels);
       mapped = mapped.filter((item) => set.has(String(item.submitter || '')));
     }
 
-    const total = needsPostFilter
+    const finalTotal = needsPostFilter
       ? mapped.length
       : await this.prisma.evBookings.count({ where });
-    const items =
-      needsPostFilter || wantAll
-        ? wantAll
-          ? mapped
-          : mapped.slice((page - 1) * pageSize, page * pageSize)
-        : mapped;
+    const items = needsFullScan
+      ? wantAll
+        ? mapped
+        : mapped.slice((page - 1) * pageSize, page * pageSize)
+      : mapped;
 
     let filterOptions:
       | {
           licensePlates: string[];
           spaces: string[];
-          reservedBy: string[];
-          submitters: string[];
+          reservedBy: Array<{ value: string; label: string }>;
+          submitters: Array<{ value: string; label: string }>;
         }
       | undefined;
     if (includeOptions) {
+      // Options ignore person-id filters so users can switch selections freely
+      const optionAnd = and.filter((clause) => {
+        const keys = Object.keys(clause || {});
+        if (keys.includes('submitterUserId')) return false;
+        if (keys.includes('licensePlate')) {
+          const lp = (clause as any).licensePlate;
+          if (lp?.is?.user_id?.in) return false;
+        }
+        return true;
+      });
+      const optionWhereSafe: Prisma.EvBookingsWhereInput = optionAnd.length
+        ? optionAnd.length === 1
+          ? optionAnd[0]
+          : { AND: optionAnd }
+        : {};
       const optionRows = await this.prisma.evBookings.findMany({
-        where,
+        where: optionWhereSafe,
         include,
         take: 5000,
       });
@@ -1021,32 +1134,42 @@ export class EvManagementService {
       const optionMapped = optionRows.map((row) =>
         this.mapManageBookingRow(row, optionOwners),
       );
+      const reservedByMap = new Map<string, string>();
+      const submitterMap = new Map<string, string>();
+      for (const b of optionMapped) {
+        const rid = String(b.reservedByUserId || b.employeeId || '').trim();
+        const rlabel = String(b.reservedBy || '').trim();
+        if (rid && rlabel) reservedByMap.set(rid, rlabel);
+        const sid = String(b.submitterUserId || '').trim();
+        const slabel = String(b.submitter || '').trim();
+        if (sid && slabel) submitterMap.set(sid, slabel);
+      }
       filterOptions = {
         licensePlates: [
           ...new Set(
             optionMapped.map((b) => String(b.licensePlate || '')).filter(Boolean),
           ),
-        ].sort(),
+        ].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' })),
         spaces: [
           ...new Set(optionMapped.map((b) => String(b.space || '')).filter(Boolean)),
-        ].sort(),
-        reservedBy: [
-          ...new Set(
-            optionMapped.map((b) => String(b.reservedBy || '')).filter(Boolean),
+        ].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' })),
+        reservedBy: [...reservedByMap.entries()]
+          .map(([value, label]) => ({ value, label }))
+          .sort((a, b) =>
+            a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }),
           ),
-        ].sort(),
-        submitters: [
-          ...new Set(
-            optionMapped.map((b) => String(b.submitter || '')).filter(Boolean),
+        submitters: [...submitterMap.entries()]
+          .map(([value, label]) => ({ value, label }))
+          .sort((a, b) =>
+            a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }),
           ),
-        ].sort(),
       };
     }
 
     return {
       items,
       bookings: items,
-      total,
+      total: finalTotal,
       page: wantAll ? 1 : page,
       pageSize: wantAll ? items.length : pageSize,
       ...(filterOptions ? { filterOptions } : {}),

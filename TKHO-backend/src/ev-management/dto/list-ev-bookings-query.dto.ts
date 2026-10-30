@@ -33,6 +33,15 @@ export class ListEvBookingsQueryDto {
   @IsString()
   sortOrder?: string;
 
+  /** 次排序字段（主排序相同时生效，常用 bookingDateTime） */
+  @IsOptional()
+  @IsString()
+  secondarySortBy?: string;
+
+  @IsOptional()
+  @IsString()
+  secondarySortOrder?: string;
+
   /** CSV: upcoming,past,cancelled */
   @IsOptional()
   @IsString()
@@ -48,15 +57,25 @@ export class ListEvBookingsQueryDto {
   @IsString()
   spaces?: string;
 
-  /** CSV reserved-by display labels */
+  /** CSV reserved-by display labels (legacy; prefer reservedByUserIds) */
   @IsOptional()
   @IsString()
   reservedBy?: string;
 
-  /** CSV submitter display labels */
+  /** CSV submitter display labels (legacy; prefer submitterUserIds) */
   @IsOptional()
   @IsString()
   submitters?: string;
+
+  /** CSV reserved-by user ids（车牌所属用户） */
+  @IsOptional()
+  @IsString()
+  reservedByUserIds?: string;
+
+  /** CSV submitter user ids */
+  @IsOptional()
+  @IsString()
+  submitterUserIds?: string;
 
   @IsOptional()
   @IsString()

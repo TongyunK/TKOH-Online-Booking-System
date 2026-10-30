@@ -23,6 +23,7 @@
             <ReservedByUserField
               v-model="form.reservedByUserId"
               :default-user="defaultReservedByUser"
+              owner-scope="ev"
               variant="bare"
               select-class="form-input form-input-license"
               :teleported="bookingPopperTeleported"

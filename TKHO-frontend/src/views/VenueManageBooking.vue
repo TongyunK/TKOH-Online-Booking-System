@@ -1246,7 +1246,7 @@ const isAdminAllBookingsView = computed(
 /** All Bookings 不含 My Note / Approval；My Bookings 不含 Approval / 联系人相关列；Cancelled 未勾选时不含 Cancelled by / Cancelled At */
 const columnsForTablePicker = computed(() => {
   let cols = isAdminAllBookingsView.value
-    ? availableColumns.value.filter((col) => !['myNote', 'approvalStatus'].includes(col.key))
+    ? availableColumns.value.filter((col) => col.key !== 'approvalStatus')
     : availableColumns.value.filter(
       (col) => !['approvalStatus', 'reservedBy', 'contact', 'email'].includes(col.key)
     )
@@ -1278,7 +1278,6 @@ const isActionsTableColumnVisible = computed(() => {
 })
 
 const isMyNoteTableColumnVisible = computed(() => {
-  if (isAdminAllBookingsView.value) return false
   const col = availableColumns.value.find((c) => c.key === 'myNote')
   return Boolean(col?.visible)
 })
@@ -2507,6 +2506,7 @@ const handleExportExcel = async (mode = 'current', quickValue) => {
       'Display on Homepage': formatDisplayOnHomepage(booking),
       'Submitted By': formatBookingSubmitterDisplay(booking) || booking.submitter || '',
       'Application Date': booking.bookedOn || '',
+      'My Note': booking.myNote || '',
       'Cancelled by': formatCancelledBy(booking),
       'Cancelled At': formatCancelledAt(booking),
       'Reject Reason': booking.reason || booking.rejectReason || '',

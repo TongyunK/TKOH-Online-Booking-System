@@ -40,6 +40,14 @@ export function resetUserQuotas (id) {
   return request.patch(`/user-management/users/${id}/quotas/reset`)
 }
 
+export function getUserYearlyQuotas (id) {
+  return request.get(`/user-management/users/${id}/quotas/yearly`)
+}
+
+export function upsertUserYearlyQuota (id, payload) {
+  return request.patch(`/user-management/users/${id}/quotas/yearly`, payload)
+}
+
 export function updateUserStatus (id, status) {
   return request.patch(`/user-management/users/${id}/status`, { status })
 }

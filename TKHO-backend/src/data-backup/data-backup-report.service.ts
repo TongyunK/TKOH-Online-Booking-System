@@ -4,6 +4,7 @@ import * as XLSX from 'xlsx';
 import {
   addDaysToYmd,
   APP_TIMEZONE,
+  getAppCalendarYear,
   getAppTodayYmd,
 } from '../common/app-timezone';
 import {
@@ -15,6 +16,10 @@ import {
   formatUserDisplayName,
   userDisplayNameSelect,
 } from '../common/user-display-name';
+import {
+  batchCountUsedForYear,
+  batchLoadYearlyOverrides,
+} from '../common/user-quota';
 import { isSuperAdminRole } from '../auth/super-admin.util';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -500,6 +505,10 @@ export class DataBackupReportService {
     return { byId, byCorp };
   }
 
+  private formatQuotaLimit(value: number | null | undefined): string {
+    return Number(value) === -1 ? 'Unlimited' : String(value ?? 0);
+  }
+
   private async loadUsers() {
     const rows = await this.prisma.user.findMany({
       where: { isSystemHidden: false },
@@ -515,6 +524,13 @@ export class DataBackupReportService {
       },
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }, { id: 'asc' }],
     });
+
+    const quotaYear = getAppCalendarYear();
+    const userIds = rows.map((row) => row.id);
+    const [{ evUsedByUserId, venueUsedByUserId }, overrides] = await Promise.all([
+      batchCountUsedForYear(this.prisma, userIds, quotaYear),
+      batchLoadYearlyOverrides(this.prisma, userIds, quotaYear),
+    ]);
 
     const corpIdByDisplayName = new Map<string, string>();
     for (const row of rows) {
@@ -538,6 +554,18 @@ export class DataBackupReportService {
         );
       }
 
+      const id = row.id.toString();
+      const override = overrides.get(id);
+      const annualEv =
+        override?.annualQuotaEv !== undefined && override?.annualQuotaEv !== null
+          ? override.annualQuotaEv
+          : row.annualQuotaEv;
+      const annualVenue =
+        override?.annualQuotaVenue !== undefined &&
+        override?.annualQuotaVenue !== null
+          ? override.annualQuotaVenue
+          : row.annualQuotaVenue;
+
       return {
         '#': index + 1,
         'CORP User ID': row.corpId,
@@ -549,16 +577,11 @@ export class DataBackupReportService {
         Email: row.email ?? '',
         'Contact No.': row.contact ?? '',
         Role: row.access_roles?.role_name ?? '',
-        'EV Quota':
-          row.annualQuotaEv === -1
-            ? 'Unlimited'
-            : String(row.annualQuotaEv ?? 0),
-        'Used Quota (EV)': String(row.usedQuotaEv ?? 0),
-        'Venue Quota':
-          row.annualQuotaVenue === -1
-            ? 'Unlimited'
-            : String(row.annualQuotaVenue ?? 0),
-        'Used Quota (Venue)': String(row.usedQuotaVenue ?? 0),
+        'Quota Year': String(quotaYear),
+        'EV Quota': this.formatQuotaLimit(annualEv),
+        'Used Quota (EV)': String(evUsedByUserId.get(id) ?? 0),
+        'Venue Quota': this.formatQuotaLimit(annualVenue),
+        'Used Quota (Venue)': String(venueUsedByUserId.get(id) ?? 0),
         Status: this.formatStatus(row.status),
         'Last Login Time': this.formatDateTimeHkt(row.lastLoginTime),
         'Inactive Time': this.formatDateTimeHkt(row.inactiveTime),

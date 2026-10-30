@@ -91,7 +91,14 @@
                       </button>
                     </template>
                     <template #default="{ row }">
-                      {{ formatQuotaDisplay(row.usedQuotaEV, row.annualQuotaEV) }}
+                      <button
+                        type="button"
+                        class="quota-cell-btn"
+                        :title="`Current year (${row.quotaYear || currentQuotaYear}) — click for yearly details`"
+                        @click="openYearlyQuotaModal(row, 'ev')"
+                      >
+                        {{ formatQuotaDisplay(row.usedQuotaEV, row.annualQuotaEV) }}
+                      </button>
                     </template>
                   </el-table-column>
                   <el-table-column width="170" class-name="table-nowrap-col quota-col" label-class-name="table-nowrap-col quota-col">
@@ -102,7 +109,14 @@
                       </button>
                     </template>
                     <template #default="{ row }">
-                      {{ formatQuotaDisplay(row.usedQuotaVenue, row.annualQuotaVenue) }}
+                      <button
+                        type="button"
+                        class="quota-cell-btn"
+                        :title="`Current year (${row.quotaYear || currentQuotaYear}) — click for yearly details`"
+                        @click="openYearlyQuotaModal(row, 'venue')"
+                      >
+                        {{ formatQuotaDisplay(row.usedQuotaVenue, row.annualQuotaVenue) }}
+                      </button>
                     </template>
                   </el-table-column>
                   <el-table-column prop="status" min-width="120" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
@@ -134,7 +148,7 @@
                       <div class="actions-cell">
                         <el-button size="small" class="action-btn action-edit" @click="handleEdit(row)">Edit</el-button>
                         <el-button size="small" class="action-btn action-inactivate" @click="handleInactivate(row)">Inactive</el-button>
-                        <el-tooltip content="Reset annual quota" placement="top">
+                        <el-tooltip content="Clear yearly quota overrides (fall back to default)" placement="top">
                           <el-button size="small" class="action-btn action-reset" @click="handleResetQuota(row)">Reset</el-button>
                         </el-tooltip>
                         <el-tooltip content="Reset Password" placement="top">
@@ -259,7 +273,14 @@
                       </button>
                     </template>
                     <template #default="{ row }">
-                      {{ formatQuotaDisplay(row.usedQuotaEV, row.annualQuotaEV) }}
+                      <button
+                        type="button"
+                        class="quota-cell-btn"
+                        :title="`Current year (${row.quotaYear || currentQuotaYear}) — click for yearly details`"
+                        @click="openYearlyQuotaModal(row, 'ev')"
+                      >
+                        {{ formatQuotaDisplay(row.usedQuotaEV, row.annualQuotaEV) }}
+                      </button>
                     </template>
                   </el-table-column>
                   <el-table-column width="170" class-name="table-nowrap-col quota-col" label-class-name="table-nowrap-col quota-col">
@@ -270,7 +291,14 @@
                       </button>
                     </template>
                     <template #default="{ row }">
-                      {{ formatQuotaDisplay(row.usedQuotaVenue, row.annualQuotaVenue) }}
+                      <button
+                        type="button"
+                        class="quota-cell-btn"
+                        :title="`Current year (${row.quotaYear || currentQuotaYear}) — click for yearly details`"
+                        @click="openYearlyQuotaModal(row, 'venue')"
+                      >
+                        {{ formatQuotaDisplay(row.usedQuotaVenue, row.annualQuotaVenue) }}
+                      </button>
                     </template>
                   </el-table-column>
                   <el-table-column prop="status" min-width="120" class-name="table-nowrap-col" label-class-name="table-nowrap-col">
@@ -782,13 +810,13 @@
             @input="onAddUserCarPlateInput"
           />
         </el-form-item>
-        <el-form-item label="EV Quota">
+        <el-form-item :label="formMode === 'edit' ? 'Default EV Quota' : 'EV Quota'">
           <div class="quota-input-row">
             <el-input-number v-model="formData.annualQuotaEV" :min="0" :disabled="isEvQuotaUnlimited" />
             <el-checkbox v-model="isEvQuotaUnlimited">Unlimited</el-checkbox>
           </div>
         </el-form-item>
-        <el-form-item label="Venue Quota">
+        <el-form-item :label="formMode === 'edit' ? 'Default Venue Quota' : 'Venue Quota'">
           <div class="quota-input-row">
             <el-input-number v-model="formData.annualQuotaVenue" :min="0" :disabled="isVenueQuotaUnlimited" />
             <el-checkbox v-model="isVenueQuotaUnlimited">Unlimited</el-checkbox>
@@ -845,13 +873,123 @@
     </BookingStyleModal>
 
     <!-- Reset Quota Confirmation Dialog -->
-    <BookingStyleModal v-model="showResetDialog" title="Confirm Reset Quota" max-width="450px">
+    <BookingStyleModal v-model="showResetDialog" title="Confirm Reset Yearly Overrides" max-width="450px">
       <p style="font-size: 15px; color: #374151; line-height: 1.6;">
-        Reset annual quota for this user?
+        Clear all yearly quota overrides for this user? Each year will fall back to the default annual quota. Used counts are based on bookings and will not be cleared.
       </p>
       <template #footer>
         <el-button type="default" class="cancel-btn" @click="showResetDialog = false">Cancel</el-button>
         <el-button type="default" class="action-btn action-reset" @click="confirmReset">Reset</el-button>
+      </template>
+    </BookingStyleModal>
+
+    <!-- Yearly Quota Detail / Edit Dialog -->
+    <BookingStyleModal
+      v-model="showYearlyQuotaDialog"
+      :title="yearlyQuotaModalTitle"
+      max-width="620px"
+    >
+      <div v-loading="yearlyQuotaLoading" class="yearly-quota-modal">
+
+        <div class="yearly-quota-section">
+          <h4 class="yearly-quota-section-title">Yearly usage</h4>
+          <el-table
+            :data="yearlyQuotaRows"
+            empty-text="No years with bookings yet"
+            class="yearly-quota-table"
+            row-key="year"
+            highlight-current-row
+            :row-class-name="yearlyQuotaRowClassName"
+            style="width: 100%"
+            @row-click="onYearlyUsageRowClick"
+          >
+            <el-table-column prop="year" label="Year" width="100" />
+            <el-table-column label="EV" min-width="150">
+              <template #default="{ row }">
+                <span class="yearly-quota-value">{{ formatQuotaDisplay(row.usedEv, row.annualQuotaEv) }}</span>
+                <span v-if="row.hasCustomLimit || row.hasOverride" class="override-tag">custom</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="Venue" min-width="150">
+              <template #default="{ row }">
+                <span class="yearly-quota-value">{{ formatQuotaDisplay(row.usedVenue, row.annualQuotaVenue) }}</span>
+                <span v-if="row.hasCustomLimit || row.hasOverride" class="override-tag">custom</span>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+
+        <div class="yearly-quota-section">
+          <h4 class="yearly-quota-section-title">Edit year quota</h4>
+          <p v-if="!yearlyEditYearOptions.length" class="yearly-quota-tip">
+            No editable years. Quota can only be changed after the user has at least one booking in that year.
+          </p>
+          <div
+            v-else
+            class="yearly-year-picker"
+            role="listbox"
+            aria-label="Select year"
+          >
+            <button
+              v-for="y in yearlyEditYearOptions"
+              :key="y"
+              type="button"
+              class="yearly-year-chip"
+              :class="{ 'is-active': Number(yearlyEditForm.year) === Number(y) }"
+              @click="selectYearlyEditYear(y)"
+            >
+              {{ y }}
+            </button>
+          </div>
+          <template v-if="yearlyEditYearOptions.length">
+            <el-form label-width="130px" class="yearly-quota-edit-form" label-position="left">
+              <el-form-item label="EV Quota">
+                <div class="quota-input-row">
+                  <el-input-number
+                    v-model="yearlyEditForm.annualQuotaEV"
+                    :min="0"
+                    size="large"
+                    :disabled="yearlyEditEvUnlimited"
+                  />
+                  <el-checkbox v-model="yearlyEditEvUnlimited" class="yearly-quota-checkbox">
+                    Unlimited
+                  </el-checkbox>
+                </div>
+              </el-form-item>
+              <el-form-item label="Venue Quota">
+                <div class="quota-input-row">
+                  <el-input-number
+                    v-model="yearlyEditForm.annualQuotaVenue"
+                    :min="0"
+                    size="large"
+                    :disabled="yearlyEditVenueUnlimited"
+                  />
+                  <el-checkbox v-model="yearlyEditVenueUnlimited" class="yearly-quota-checkbox">
+                    Unlimited
+                  </el-checkbox>
+                </div>
+              </el-form-item>
+            </el-form>
+            <p class="yearly-quota-defaults">
+              Editing <strong>{{ yearlyEditForm.year }}</strong>.
+              Default quotas:
+              <strong>EV {{ formatQuotaLimit(yearlyQuotaMeta.defaultAnnualQuotaEv) }}</strong>,
+              <strong>Venue {{ formatQuotaLimit(yearlyQuotaMeta.defaultAnnualQuotaVenue) }}</strong>
+            </p>
+          </template>
+        </div>
+      </div>
+      <template #footer>
+        <el-button type="default" class="cancel-btn" @click="showYearlyQuotaDialog = false">Close</el-button>
+        <el-button
+          type="default"
+          class="submit-btn"
+          :loading="yearlyQuotaSaving"
+          :disabled="!yearlyEditYearOptions.length"
+          @click="saveYearlyQuota"
+        >
+          Save Year Quota
+        </el-button>
       </template>
     </BookingStyleModal>
 
@@ -932,7 +1070,12 @@
           <el-input v-model="pendingHandleForm.reason" disabled />
         </el-form-item>
         <el-form-item v-if="pendingHandleForm.reason === 'EV booking'" label="Car Plate No.">
-          <el-input v-model="pendingHandleForm.carPlateNo" disabled />
+          <el-input
+            :model-value="pendingHandleForm.carPlateNo"
+            placeholder="Enter car plate no."
+            maxlength="8"
+            @input="onPendingCarPlateInput"
+          />
         </el-form-item>
         <el-form-item label="Role">
           <el-select
@@ -1069,6 +1212,8 @@ import {
   deleteUser,
   replaceUserPassword,
   resetUserQuotas,
+  getUserYearlyQuotas,
+  upsertUserYearlyQuota,
   updateUserStatus,
   listPendingUsers,
   approvePendingUser,
@@ -1080,16 +1225,64 @@ import { notifyPendingUsersUpdated } from '@/utils/pendingUsersSync'
 const adminStore = useAdminStore()
 const { pendingUsersCount } = storeToRefs(adminStore)
 
+const currentQuotaYear = ref(new Date().getFullYear())
+
 /** 后端字段为 annualQuotaEv；表格与表单沿用 annualQuotaEV */
 function normalizeUserRow (u) {
   return {
     ...u,
+    quotaYear: u.quotaYear ?? currentQuotaYear.value,
     annualQuotaEV: u.annualQuotaEv ?? u.annualQuotaEV ?? 0,
     usedQuotaEV: u.usedQuotaEv ?? u.usedQuotaEV ?? 0,
     annualQuotaVenue: u.annualQuotaVenue ?? u.annualQuotaVenue ?? 0,
-    usedQuotaVenue: u.usedQuotaVenue ?? u.usedQuotaVenue ?? 0
+    usedQuotaVenue: u.usedQuotaVenue ?? u.usedQuotaVenue ?? 0,
+    defaultAnnualQuotaEV: u.defaultAnnualQuotaEv ?? u.defaultAnnualQuotaEV ?? u.annualQuotaEv ?? u.annualQuotaEV ?? 0,
+    defaultAnnualQuotaVenue:
+      u.defaultAnnualQuotaVenue ?? u.annualQuotaVenue ?? 0
   }
 }
+
+const showYearlyQuotaDialog = ref(false)
+const yearlyQuotaLoading = ref(false)
+const yearlyQuotaSaving = ref(false)
+const yearlyQuotaFocus = ref('ev')
+const yearlyQuotaUser = ref(null)
+const yearlyQuotaRows = ref([])
+const yearlyQuotaMeta = ref({
+  currentYear: currentQuotaYear.value,
+  defaultAnnualQuotaEv: 0,
+  defaultAnnualQuotaVenue: 0
+})
+const yearlyEditEvUnlimited = ref(false)
+const yearlyEditVenueUnlimited = ref(false)
+const yearlyEditForm = ref({
+  year: currentQuotaYear.value,
+  annualQuotaEV: 0,
+  annualQuotaVenue: 0
+})
+
+const yearlyQuotaModalTitle = computed(() => {
+  const name = yearlyQuotaUser.value?.name || yearlyQuotaUser.value?.corpId || 'User'
+  const kind = yearlyQuotaFocus.value === 'venue' ? 'Venue' : 'EV'
+  return `${kind} Quota — ${name}`
+})
+
+/** 仅「已有预订记录」的年份可改额度（与后端列表一致） */
+const yearlyEditYearOptions = computed(() => {
+  return (yearlyQuotaRows.value || [])
+    .map((r) => Number(r.year))
+    .filter((y) => Number.isFinite(y))
+    .sort((a, b) => a - b)
+})
+
+watch(yearlyEditEvUnlimited, (checked) => {
+  if (checked) yearlyEditForm.value.annualQuotaEV = -1
+  else if (Number(yearlyEditForm.value.annualQuotaEV) < 0) yearlyEditForm.value.annualQuotaEV = 0
+})
+watch(yearlyEditVenueUnlimited, (checked) => {
+  if (checked) yearlyEditForm.value.annualQuotaVenue = -1
+  else if (Number(yearlyEditForm.value.annualQuotaVenue) < 0) yearlyEditForm.value.annualQuotaVenue = 0
+})
 
 /** 搜索：匹配合并名、姓名拆分字段、工号、职级 */
 function matchesUserNameSearch (item, keyword) {
@@ -1342,7 +1535,10 @@ async function loadRoleAndDepartmentOptions () {
   roleOptions.value = accessRoleRows.value.map((r) => r.roleName)
   const depts = Array.isArray(deptsRes) ? deptsRes : []
   departmentRows.value = depts
-  departmentOptions.value = depts.map((d) => d.departmentName)
+  departmentOptions.value = depts
+    .map((d) => d.departmentName)
+    .filter((name) => String(name || '').trim())
+    .sort((a, b) => String(a).localeCompare(String(b), undefined, { sensitivity: 'base' }))
 }
 
 /** 来自后端 `prompts`（GET /prompt-management/prompts?category=reject_template） */
@@ -1390,6 +1586,10 @@ const onFormCorpIdInput = (val) => {
 
 const onPendingCorpIdInput = (val) => {
   pendingHandleForm.value.corpId = sanitizeCorpId(val)
+}
+
+const onPendingCarPlateInput = (val) => {
+  pendingHandleForm.value.carPlateNo = sanitizePlateNumber(val)
 }
 
 const resetPasswordForm = ref({
@@ -1986,6 +2186,106 @@ const formatQuotaDisplay = (used, annual) => {
   return `${used ?? 0} / ${annual ?? 0}`
 }
 
+const formatQuotaLimit = (annual) => {
+  if (Number(annual) === -1) return 'Unlimited'
+  return String(annual ?? 0)
+}
+
+const applyYearlyPayload = (payload) => {
+  const data = payload?.data ?? payload ?? {}
+  currentQuotaYear.value = data.currentYear || currentQuotaYear.value
+  yearlyQuotaMeta.value = {
+    currentYear: data.currentYear || currentQuotaYear.value,
+    defaultAnnualQuotaEv: data.defaultAnnualQuotaEv ?? 0,
+    defaultAnnualQuotaVenue: data.defaultAnnualQuotaVenue ?? 0
+  }
+  yearlyQuotaRows.value = Array.isArray(data.years) ? data.years : []
+}
+
+const fillYearlyEditFromRow = (year) => {
+  const y = Number(year) || yearlyQuotaMeta.value.currentYear
+  yearlyEditForm.value.year = y
+  const row = (yearlyQuotaRows.value || []).find((r) => Number(r.year) === y)
+  const ev = row?.annualQuotaEv ?? yearlyQuotaMeta.value.defaultAnnualQuotaEv ?? 0
+  const venue = row?.annualQuotaVenue ?? yearlyQuotaMeta.value.defaultAnnualQuotaVenue ?? 0
+  yearlyEditEvUnlimited.value = Number(ev) === -1
+  yearlyEditVenueUnlimited.value = Number(venue) === -1
+  yearlyEditForm.value.annualQuotaEV = Number(ev) === -1 ? -1 : Number(ev ?? 0)
+  yearlyEditForm.value.annualQuotaVenue = Number(venue) === -1 ? -1 : Number(venue ?? 0)
+}
+
+const selectYearlyEditYear = (year) => {
+  fillYearlyEditFromRow(year)
+}
+
+const yearlyQuotaRowClassName = ({ row }) => {
+  return Number(row?.year) === Number(yearlyEditForm.value.year)
+    ? 'is-selected-year'
+    : ''
+}
+
+const onYearlyUsageRowClick = (row) => {
+  if (!row) return
+  selectYearlyEditYear(row.year)
+}
+
+const openYearlyQuotaModal = async (row, focus = 'ev') => {
+  yearlyQuotaUser.value = row
+  yearlyQuotaFocus.value = focus === 'venue' ? 'venue' : 'ev'
+  showYearlyQuotaDialog.value = true
+  yearlyQuotaLoading.value = true
+  try {
+    const payload = await getUserYearlyQuotas(row.id)
+    applyYearlyPayload(payload)
+    const firstYear = yearlyEditYearOptions.value[0]
+    if (firstYear != null) {
+      fillYearlyEditFromRow(firstYear)
+    }
+  } catch (e) {
+    console.error(e)
+    showNotice('Failed to load yearly quotas', 'Error')
+    showYearlyQuotaDialog.value = false
+  } finally {
+    yearlyQuotaLoading.value = false
+  }
+}
+
+const saveYearlyQuota = async () => {
+  if (!yearlyQuotaUser.value?.id) return
+  if (!yearlyEditYearOptions.value.length) {
+    showNotice('No year with bookings available to edit', 'Warning')
+    return
+  }
+  const year = Number.parseInt(String(yearlyEditForm.value.year), 10)
+  if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+    showNotice('Please select a valid year', 'Warning')
+    return
+  }
+  if (!yearlyEditYearOptions.value.includes(year)) {
+    showNotice('Quota can only be changed for years that already have bookings', 'Warning')
+    return
+  }
+  yearlyEditForm.value.year = year
+  yearlyQuotaSaving.value = true
+  try {
+    const payload = await upsertUserYearlyQuota(yearlyQuotaUser.value.id, {
+      year,
+      annualQuotaEV: yearlyEditEvUnlimited.value ? -1 : Number(yearlyEditForm.value.annualQuotaEV ?? 0),
+      annualQuotaVenue: yearlyEditVenueUnlimited.value ? -1 : Number(yearlyEditForm.value.annualQuotaVenue ?? 0)
+    })
+    applyYearlyPayload(payload)
+    fillYearlyEditFromRow(year)
+    await loadUsers()
+    showNotice(`Quota for ${year} saved`, 'Success')
+  } catch (e) {
+    console.error(e)
+    const msg = e?.response?.data?.message || e?.message || 'Failed to save yearly quota'
+    showNotice(Array.isArray(msg) ? msg.join('; ') : msg, 'Error')
+  } finally {
+    yearlyQuotaSaving.value = false
+  }
+}
+
 const handleExport = async () => {
   if (exportLoading.value) return
   exportLoading.value = true
@@ -2003,6 +2303,7 @@ const handleExport = async () => {
       'Email': item.email,
       'Contact No.': item.contact || '',
       'Role': item.role,
+      'Quota Year': item.quotaYear || currentQuotaYear.value,
       'EV Quota': item.annualQuotaEV,
       'Used Quota (EV)': item.usedQuotaEV,
       'Venue Quota': item.annualQuotaVenue,
@@ -2053,9 +2354,16 @@ const handleAdd = () => {
 
 const handleEdit = (row) => {
   formMode.value = 'edit'
-  formData.value = { ...row, password: '' }
-  isEvQuotaUnlimited.value = Number(row.annualQuotaEV) === -1
-  isVenueQuotaUnlimited.value = Number(row.annualQuotaVenue) === -1
+  const defaultEv = row.defaultAnnualQuotaEV ?? row.annualQuotaEV
+  const defaultVenue = row.defaultAnnualQuotaVenue ?? row.annualQuotaVenue
+  formData.value = {
+    ...row,
+    password: '',
+    annualQuotaEV: defaultEv,
+    annualQuotaVenue: defaultVenue
+  }
+  isEvQuotaUnlimited.value = Number(defaultEv) === -1
+  isVenueQuotaUnlimited.value = Number(defaultVenue) === -1
   showForm.value = true
 }
 
@@ -2108,8 +2416,6 @@ const handleSave = async () => {
         email: formData.value.email,
         annualQuotaEV: isEvQuotaUnlimited.value ? -1 : Number(formData.value.annualQuotaEV ?? 0),
         annualQuotaVenue: isVenueQuotaUnlimited.value ? -1 : Number(formData.value.annualQuotaVenue ?? 0),
-        usedQuotaEV: formData.value.usedQuotaEV,
-        usedQuotaVenue: formData.value.usedQuotaVenue,
         status: formData.value.status
       })
       showNotice('User updated successfully', 'Success')
@@ -2147,7 +2453,7 @@ const confirmReset = async () => {
   try {
     await resetUserQuotas(currentRow.value.id)
     await loadUsers()
-    showNotice('Quota reset successfully', 'Success')
+    showNotice('Yearly quota overrides cleared', 'Success')
   } catch (e) {
     console.error(e)
   }
@@ -2216,6 +2522,11 @@ const confirmPendingApprove = async () => {
     return
   }
   try {
+    const carPlateNo = sanitizePlateNumber(data.carPlateNo)
+    if (String(data.reason || '') === 'EV booking' && !carPlateNo) {
+      showNotice('Car plate number is required for EV booking applications', 'Warning')
+      return
+    }
     await approvePendingUser(data.id, {
       corpId,
       firstName: String(data.firstName || '').trim(),
@@ -2228,7 +2539,8 @@ const confirmPendingApprove = async () => {
       contact: data.contact ?? '',
       password: data.password || DEFAULT_PASSWORD,
       annualQuotaEV: isPendingEvQuotaUnlimited.value ? -1 : Number(data.annualQuotaEV ?? 0),
-      annualQuotaVenue: isPendingVenueQuotaUnlimited.value ? -1 : Number(data.annualQuotaVenue ?? 0)
+      annualQuotaVenue: isPendingVenueQuotaUnlimited.value ? -1 : Number(data.annualQuotaVenue ?? 0),
+      carPlateNo: carPlateNo || undefined
     })
     await loadUsers()
     await loadPendingUsers()
@@ -2985,6 +3297,191 @@ const confirmReject = async () => {
   display: inline-flex;
   align-items: center;
   gap: 0.65rem;
+}
+
+.quota-cell-btn {
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  color: #00723a;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.quota-cell-btn:hover {
+  color: #005c2e;
+}
+
+.quota-hint {
+  margin: 0.35rem 0 0;
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.5;
+  white-space: normal;
+}
+
+.yearly-quota-modal {
+  font-size: 15px;
+  color: #374151;
+  line-height: 1.55;
+}
+
+.yearly-quota-intro {
+  margin: 0 0 1rem;
+  font-size: 14px;
+  color: #4b5563;
+  line-height: 1.55;
+}
+
+.yearly-quota-section {
+  margin-bottom: 1.25rem;
+}
+
+.yearly-quota-section:last-child {
+  margin-bottom: 0;
+}
+
+.yearly-quota-section-title {
+  margin: 0 0 0.65rem;
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.yearly-quota-tip {
+  margin: -0.25rem 0 0.65rem;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.yearly-year-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 1rem;
+}
+
+.yearly-year-chip {
+  min-width: 72px;
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  color: #374151;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.yearly-year-chip:hover {
+  border-color: #00723a;
+  color: #00723a;
+}
+
+.yearly-year-chip.is-active {
+  border-color: #00723a;
+  background: #00723a;
+  color: #fff;
+}
+
+.yearly-quota-table {
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.yearly-quota-table :deep(.el-table__body tr:hover > td) {
+  background: #f0faf4 !important;
+}
+
+.yearly-quota-table :deep(.el-table__body tr.is-selected-year > td),
+.yearly-quota-table :deep(.el-table__body tr.current-row > td) {
+  background: #e6f4ec !important;
+}
+
+.yearly-quota-table :deep(.el-table__body tr.is-selected-year > td:first-child) {
+  box-shadow: inset 3px 0 0 #00723a;
+}
+
+.yearly-quota-table :deep(.el-table__header th) {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  background: #f8faf8;
+}
+
+.yearly-quota-table :deep(.el-table__cell) {
+  font-size: 15px;
+  padding: 12px 0;
+}
+
+.yearly-quota-value {
+  font-size: 15px;
+  font-weight: 500;
+  color: #1f2937;
+  font-variant-numeric: tabular-nums;
+}
+
+.override-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #92400e;
+  background: #fef3c7;
+  vertical-align: middle;
+}
+
+.yearly-quota-edit-form :deep(.el-form-item) {
+  margin-bottom: 16px;
+}
+
+.yearly-quota-edit-form :deep(.el-form-item__label) {
+  font-size: 15px;
+  font-weight: 500;
+  color: #374151;
+  line-height: 40px;
+}
+
+.yearly-quota-edit-form :deep(.el-input-number) {
+  width: 160px;
+}
+
+.yearly-quota-checkbox {
+  font-size: 15px;
+}
+
+.yearly-quota-checkbox :deep(.el-checkbox__label) {
+  font-size: 15px;
+  color: #374151;
+}
+
+.yearly-quota-defaults {
+  margin: 0.25rem 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f3f4f6;
+  font-size: 14px;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.yearly-quota-defaults strong {
+  color: #111827;
+  font-weight: 600;
+}
+
+.yearly-quota-defaults-note {
+  display: inline;
+  color: #6b7280;
+  font-weight: 400;
 }
 
 .submitted-at-text {

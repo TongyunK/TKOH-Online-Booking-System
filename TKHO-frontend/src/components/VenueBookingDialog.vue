@@ -672,8 +672,8 @@ function cancelPastConfirm () {
 
 function confirmPastAndSubmit () {
   showPastConfirmDialog.value = false
+  // 不在此关闭：由父组件 API 成功后再关，失败时保留表单便于修改
   emit('confirm', buildBookingConfirmPayload())
-  handleClose()
 }
 
 function submitBookingAfterValidation () {
@@ -684,8 +684,8 @@ function submitBookingAfterValidation () {
     showPastConfirmDialog.value = true
     return
   }
+  // 不在此关闭：由父组件 API 成功后再关，失败时保留表单便于修改
   emit('confirm', buildBookingConfirmPayload())
-  handleClose()
 }
 
 const promptList = ref([])
@@ -1193,7 +1193,6 @@ function handleConfirm() {
       topic: props.booking?.topic || form.value.topic,
       approvalStatus: props.booking?.approvalStatus
     })
-    handleClose()
     return
   }
 

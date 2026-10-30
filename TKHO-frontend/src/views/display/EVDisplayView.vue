@@ -12,11 +12,11 @@
             <div class="board-header">
               <div class="board-title-line">
                 <span class="board-title-en">Today's Reservation</span>
-                <span class="board-title-zh">今日預約車牌</span>
+                <span class="board-title-zh">今日預約車輛</span>
               </div>
               <div class="board-subtitle-line">
                 <span class="board-subtitle-en">EV Charging Station</span>
-                <span class="board-subtitle-zh">電動車叉電位</span>
+                <span class="board-subtitle-zh">電動車充電位</span>
               </div>
             </div>
 

@@ -4,11 +4,15 @@ import { Prisma } from '@prisma/client';
 import { APP_TIMEZONE, getAppCalendarYear } from '../common/app-timezone';
 import { PrismaService } from '../prisma/prisma.service';
 
-/** 持久化于 display_config_settings，记录最近一次全员配额重置的自然年 */
+/** 持久化于 display_config_settings，记录最近一次配额年切换检查的自然年 */
 export const QUOTA_LAST_RESET_YEAR_KEY = 'system.quota_last_reset_year';
 
 type QuotaResetTrigger = 'startup' | 'cron';
 
+/**
+ * 额度已用改为按 booking_date 自然年实时 COUNT 后，不再清零 user.used_quota_*。
+ * 本服务仅记录自然年切换，便于运维观察；默认额度与按年覆盖表不受影响。
+ */
 @Injectable()
 export class QuotaResetService implements OnModuleInit {
   private readonly logger = new Logger(QuotaResetService.name);
@@ -35,12 +39,8 @@ export class QuotaResetService implements OnModuleInit {
       const outcome = await this.prisma.$transaction(async (tx) => {
         const lastResetYear = await this.readLastResetYear(tx);
         if (currentYear <= lastResetYear) {
-          return { skipped: true as const, lastResetYear, usersUpdated: 0 };
+          return { skipped: true as const, lastResetYear };
         }
-
-        const result = await tx.user.updateMany({
-          data: { usedQuotaEv: 0, usedQuotaVenue: 0 },
-        });
 
         await tx.display_config_settings.upsert({
           where: { config_key: QUOTA_LAST_RESET_YEAR_KEY },
@@ -55,25 +55,21 @@ export class QuotaResetService implements OnModuleInit {
           },
         });
 
-        return {
-          skipped: false as const,
-          lastResetYear,
-          usersUpdated: result.count,
-        };
+        return { skipped: false as const, lastResetYear };
       });
 
       if (outcome.skipped) {
         this.logger.log(
-          `Annual quota reset skipped (${trigger}): already reset for ${outcome.lastResetYear}`,
+          `Annual quota year marker skipped (${trigger}): already at ${outcome.lastResetYear}`,
         );
         return;
       }
 
       this.logger.log(
-        `Annual quota reset completed (${trigger}): year=${currentYear}, usersUpdated=${outcome.usersUpdated}`,
+        `Annual quota year marker updated (${trigger}): year=${currentYear} (used counts are derived from bookings)`,
       );
     } catch (err) {
-      this.logger.error(`Annual quota reset failed (${trigger})`, err);
+      this.logger.error(`Annual quota year marker failed (${trigger})`, err);
     } finally {
       this.resetInProgress = false;
     }
@@ -88,7 +84,6 @@ export class QuotaResetService implements OnModuleInit {
     const parsed = Number.parseInt(String(row?.config_value ?? ''), 10);
     if (Number.isFinite(parsed) && parsed > 0) return parsed;
 
-    // 首次部署：视为「尚未为今年重置」，启动时若已进入新自然年则补跑一次
     return getAppCalendarYear() - 1;
   }
 }

@@ -776,7 +776,7 @@ export class VenueCalendarService {
     const teaRequired = Boolean(dto.teaServiceRequired);
 
     const created = await this.prisma.$transaction(async (tx) => {
-      await consumeVenueQuota(tx, reservedByUserId);
+      await consumeVenueQuota(tx, reservedByUserId, bookingDate);
 
       const row = await tx.venueBookings.create({
         data: {

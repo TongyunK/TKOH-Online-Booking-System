@@ -9,6 +9,8 @@ import * as bcrypt from 'bcryptjs';
 import { isSuperAdminRole } from './super-admin.util';
 import { assertUserCanAuthenticate } from './auth-user-status.util';
 import { formatUserDisplayName } from '../common/user-display-name';
+import { getAppCalendarYear } from '../common/app-timezone';
+import { getUserQuotaSnapshotForYear } from '../common/user-quota';
 
 @Injectable()
 export class AuthService {
@@ -33,9 +35,11 @@ export class AuthService {
     return plain === stored;
   }
 
-  private normalizeUser(user: any, system: string) {
+  private async normalizeUser(user: any, system: string) {
     const departmentName = user.department?.department_name ?? null;
     const roleName = user.access_roles?.role_name ?? null;
+    const year = getAppCalendarYear();
+    const quota = await getUserQuotaSnapshotForYear(this.prisma, user.id, year);
     return {
       id: user.id.toString(),
       corpId: user.corpId,
@@ -50,10 +54,13 @@ export class AuthService {
       accessRoleId: user.accessRoleId != null ? user.accessRoleId.toString() : null,
       email: user.email,
       contact: user.contact,
-      annualQuotaEv: user.annualQuotaEv,
-      usedQuotaEv: user.usedQuotaEv,
-      annualQuotaVenue: user.annualQuotaVenue,
-      usedQuotaVenue: user.usedQuotaVenue,
+      quotaYear: year,
+      annualQuotaEv: quota.annualEv,
+      usedQuotaEv: quota.usedEv,
+      annualQuotaVenue: quota.annualVenue,
+      usedQuotaVenue: quota.usedVenue,
+      defaultAnnualQuotaEv: user.annualQuotaEv,
+      defaultAnnualQuotaVenue: user.annualQuotaVenue,
       isSuperAdmin: isSuperAdminRole(roleName),
       status: user.status,
       lastLoginTime: user.lastLoginTime,
@@ -108,7 +115,7 @@ export class AuthService {
 
     return {
       token,
-      user: this.normalizeUser(user, dto.system),
+      user: await this.normalizeUser(user, dto.system),
       userAutoLogoutMinutes:
         await this.systemSettingsService.getUserAutoLogoutMinutes(),
     };
@@ -132,7 +139,7 @@ export class AuthService {
     assertUserCanAuthenticate(user.status);
 
     return {
-      user: this.normalizeUser(user, auth.system || 'room'),
+      user: await this.normalizeUser(user, auth.system || 'room'),
       userAutoLogoutMinutes:
         await this.systemSettingsService.getUserAutoLogoutMinutes(),
     };
@@ -187,7 +194,7 @@ export class AuthService {
       });
       return {
         message: 'Profile updated',
-        user: this.normalizeUser(user, auth.system || 'room'),
+        user: await this.normalizeUser(user, auth.system || 'room'),
       };
     } catch (error: any) {
       if (error?.code === 'P2002') {

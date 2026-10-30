@@ -270,7 +270,8 @@ const fetchOwnerOptions = async ({
     const data = await listUserOwnerOptions({
       keyword: String(keyword || '').trim() || undefined,
       page: targetPage,
-      pageSize: OWNER_PAGE_SIZE
+      pageSize: OWNER_PAGE_SIZE,
+      scope: 'ev'
     })
     const rows = Array.isArray(data?.items) ? data.items : []
     if (reset) employeeList.value = []
