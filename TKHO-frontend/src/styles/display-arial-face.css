@@ -1,0 +1,10 @@
+/* Merge Display 专用：随前端提供的 Arial Bold */
+@font-face {
+  font-family: 'Arial App';
+  src:
+    url('/fonts/arialbd.woff2') format('woff2'),
+    url('/fonts/arialbd.ttf') format('truetype');
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+}

@@ -142,6 +142,7 @@ import {
 import { pickRouteQueryDate } from '@/utils/routeQuery'
 import { measureDisplayViewport } from '@/utils/displayFullscreenScale'
 import { resetDisplayReady, signalDisplayReady } from '@/utils/displayReadySignal'
+import '@/styles/display-arial-face.css'
 
 /** 固定设计稿；任意分辨率用同一比例整体缩放 */
 const BASE_WIDTH = 1920
@@ -685,9 +686,9 @@ html.merge-display-fullscreen #app {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  /* 仅 Merge 屏用 Arial；相对原雅黑略放大以补偿视觉变小 */
+  /* 仅 Merge 屏用随包 Arial Bold；中文回退雅黑；略放大补偿视觉变小 */
   --merge-type-scale: 1.06;
-  font-family: Arial, 'Microsoft YaHei', '微软雅黑', sans-serif;
+  font-family: 'Arial App', Arial, 'Microsoft YaHei', '微软雅黑', sans-serif;
   transform-origin: top left;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
@@ -695,7 +696,7 @@ html.merge-display-fullscreen #app {
 
 .merge-display-root,
 .merge-display-root * {
-  font-family: Arial, 'Microsoft YaHei', '微软雅黑', sans-serif;
+  font-family: 'Arial App', Arial, 'Microsoft YaHei', '微软雅黑', sans-serif;
 }
 
 .merge-display-root * {
@@ -767,8 +768,8 @@ html.merge-display-fullscreen #app {
   flex: 1;
   min-height: 0;
   background: rgb(0, 32, 96);
-  /* 底部留白用同色 padding，避免与底栏之间出现异色缝 */
-  padding: 16px 24px 12px;
+  /* 底部略留距，与 footer 滚动条分开；同色避免异色缝 */
+  padding: 16px 24px 8px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -997,7 +998,7 @@ html.merge-display-fullscreen #app {
   column-gap: 18px;
   row-gap: 4px;
   width: 100%;
-  line-height: 1.25;
+  line-height: 1.2;
   font-size: calc(38px * var(--merge-type-scale));
 }
 
@@ -1030,7 +1031,7 @@ html.merge-display-fullscreen #app {
   padding-left: 6px;
   font-weight: 700;
   letter-spacing: 0.04em;
-  line-height: 1.25;
+  line-height: 1.2;
   color: rgb(255, 212, 91);
   background: rgb(0, 32, 96);
   pointer-events: none;
@@ -1044,8 +1045,9 @@ html.merge-display-fullscreen #app {
 }
 
 .footer-ticker {
-  height: 72px;
-  min-height: 72px;
+  /* 略减底栏高度，垂直空间上补给行程表，标题与表间距不变 */
+  height: 56px;
+  min-height: 56px;
   margin-top: 0;
   background: rgb(237, 125, 49);
   color: rgb(0, 32, 96);
