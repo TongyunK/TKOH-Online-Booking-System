@@ -984,7 +984,7 @@ html.merge-display-fullscreen #app {
   flex-direction: column;
   justify-content: flex-start;
   align-items: flex-start;
-  gap: 11px;
+  gap: 5px;
   width: 100%;
   padding-top: 8px;
   transition: transform 450ms ease;
@@ -1046,8 +1046,8 @@ html.merge-display-fullscreen #app {
 
 .footer-ticker {
   /* 略减底栏高度，垂直空间上补给行程表，标题与表间距不变 */
-  height: 56px;
-  min-height: 56px;
+  height: 64px;
+  min-height: 64px;
   margin-top: 0;
   background: rgb(237, 125, 49);
   color: rgb(0, 32, 96);
