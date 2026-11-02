@@ -2051,10 +2051,10 @@ function buildVenueListParams ({ includeOptions = false, all = false, dateOnly =
     venueNames: (!dateOnly && columnFilterState.value.room?.length)
       ? columnFilterState.value.room.join(',')
       : undefined,
-    reservedBy: (!dateOnly && columnFilterState.value.reservedBy?.length)
+    reservedByUserIds: (!dateOnly && columnFilterState.value.reservedBy?.length)
       ? columnFilterState.value.reservedBy.join(',')
       : undefined,
-    submitters: (!dateOnly && columnFilterState.value.submitter?.length)
+    submitterUserIds: (!dateOnly && columnFilterState.value.submitter?.length)
       ? columnFilterState.value.submitter.join(',')
       : undefined,
     approvalStatuses: (!dateOnly && columnFilterState.value.approvalStatus?.length)
@@ -2149,8 +2149,10 @@ const buildFilteredBookings = (options = {}) => {
     result = result.filter((b) => selected.has(b.room || ''))
   }
   if (columnFilterState.value.reservedBy.length) {
-    const selected = new Set(columnFilterState.value.reservedBy)
-    result = result.filter((b) => selected.has(formatBookingReservedByDisplay(b) || b.reservedBy || ''))
+    const selected = new Set(columnFilterState.value.reservedBy.map(String))
+    result = result.filter((b) =>
+      selected.has(String(b.reservedByUserId || b.employeeId || ''))
+    )
   }
   if (columnFilterState.value.approvalStatus.length) {
     const selected = new Set(columnFilterState.value.approvalStatus)
@@ -2161,8 +2163,8 @@ const buildFilteredBookings = (options = {}) => {
     result = result.filter((b) => selected.has(b.status || ''))
   }
   if (columnFilterState.value.submitter.length) {
-    const selected = new Set(columnFilterState.value.submitter)
-    result = result.filter((b) => selected.has(formatBookingSubmitterDisplay(b) || b.submitter || ''))
+    const selected = new Set(columnFilterState.value.submitter.map(String))
+    result = result.filter((b) => selected.has(String(b.submitterUserId || '')))
   }
 
   return result
@@ -3235,12 +3237,21 @@ const loadBookings = async ({ includeOptions = true } = {}) => {
     bookings.value = items
     bookingsTotal.value = total
     if (filterOptions) {
+      const normalizePersonOptions = (list) => {
+        if (!Array.isArray(list)) return []
+        return list.map((item) => {
+          if (item && typeof item === 'object' && 'value' in item) {
+            return { value: String(item.value), label: String(item.label ?? item.value) }
+          }
+          return { value: String(item), label: String(item) }
+        })
+      }
       filterOptionsState.value = {
         room: Array.isArray(filterOptions.venues) ? filterOptions.venues : [],
-        reservedBy: Array.isArray(filterOptions.reservedBy) ? filterOptions.reservedBy : [],
+        reservedBy: normalizePersonOptions(filterOptions.reservedBy),
         status: ['upcoming', 'past', 'cancelled'],
         approvalStatus: filterOptionsState.value.approvalStatus || [],
-        submitter: Array.isArray(filterOptions.submitters) ? filterOptions.submitters : []
+        submitter: normalizePersonOptions(filterOptions.submitters)
       }
     }
   } catch (error) {
