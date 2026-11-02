@@ -814,12 +814,14 @@
           <div class="quota-input-row">
             <el-input-number v-model="formData.annualQuotaVenue" :min="0" :disabled="isVenueQuotaUnlimited" />
             <el-checkbox v-model="isVenueQuotaUnlimited">Unlimited</el-checkbox>
+            <span v-if="formMode === 'edit'" class="quota-year-hint">(current year)</span>
           </div>
         </el-form-item>
         <el-form-item label="EV Quota">
           <div class="quota-input-row">
             <el-input-number v-model="formData.annualQuotaEV" :min="0" :disabled="isEvQuotaUnlimited" />
             <el-checkbox v-model="isEvQuotaUnlimited">Unlimited</el-checkbox>
+            <span v-if="formMode === 'edit'" class="quota-year-hint">(current year)</span>
           </div>
         </el-form-item>
         <el-form-item label="Status">
@@ -3310,7 +3312,17 @@ const confirmReject = async () => {
 .quota-input-row {
   display: inline-flex;
   align-items: center;
+  flex-wrap: nowrap;
   gap: 0.65rem;
+  max-width: 100%;
+}
+
+.quota-year-hint {
+  flex-shrink: 0;
+  font-size: 14px;
+  color: #6b7280;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .quota-cell-btn {
