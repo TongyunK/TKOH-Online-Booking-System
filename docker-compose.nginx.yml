@@ -17,7 +17,10 @@ services:
       - "3243:443"
     volumes:
       - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+      # 优先挂载整机共用证书目录（acme-edge/ssl）；未设置时用项目内 ssl
+      # 例：在 .env 或环境中设置
+      #   ACME_SSL_DIR=/home/proj_deploy/Documents/acme-edge/ssl
+      - ${ACME_SSL_DIR:-./docker/nginx/ssl}:/etc/nginx/ssl:ro
     networks:
       - tkho-booking-network
     healthcheck:

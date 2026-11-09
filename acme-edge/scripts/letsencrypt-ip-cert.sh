@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# Let's Encrypt：公网 IP 短效证书（约 6 天）签发 / 续期（webroot），并安装到本仓库 docker/nginx/ssl/
-#
-# ACME Edge 可独立部署（推荐）：
-#   export ACME_EDGE_ROOT=$HOME/acme-edge
-# 未设置时自动查找：$HOME/acme-edge → 本仓库/acme-edge → 本仓库旧路径 docker-compose.edge.yml
+# Let's Encrypt IP 短效证书签发/续期（与业务项目无关，放在 acme-edge 下）
 #
 # 用法：
+#   cd ~/Documents/acme-edge
 #   LE_EMAIL=you@example.com LE_IP=103.68.62.241 ./scripts/letsencrypt-ip-cert.sh issue
-#   ACME_EDGE_ROOT=$HOME/acme-edge LE_IP=... ./scripts/letsencrypt-ip-cert.sh renew
+#   LE_IP=103.68.62.241 LE_RECREATE_NGINX="tkho-booking-nginx leapbud-lease-nginx" ./scripts/letsencrypt-ip-cert.sh renew
 #
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-INSTALL_HOOK="${ROOT_DIR}/scripts/letsencrypt-ip-install.sh"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ACME_EDGE_ROOT="${ACME_EDGE_ROOT:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
+INSTALL_HOOK="${SCRIPT_DIR}/letsencrypt-ip-install.sh"
+EDGE_COMPOSE="${ACME_EDGE_ROOT}/docker-compose.yml"
+WEBROOT="${ACME_EDGE_ROOT}/acme-webroot"
 LE_IP="${LE_IP:-103.68.62.241}"
 LE_EMAIL="${LE_EMAIL:-}"
 STAGING=0
@@ -25,36 +25,6 @@ for arg in "$@"; do
     *) echo "Unknown arg: ${arg}"; exit 1 ;;
   esac
 done
-
-resolve_acme_edge_root() {
-  if [[ -n "${ACME_EDGE_ROOT:-}" ]]; then
-    echo "${ACME_EDGE_ROOT}"
-    return
-  fi
-  if [[ -f "${HOME}/acme-edge/docker-compose.yml" ]]; then
-    echo "${HOME}/acme-edge"
-    return
-  fi
-  if [[ -f "${ROOT_DIR}/acme-edge/docker-compose.yml" ]]; then
-    echo "${ROOT_DIR}/acme-edge"
-    return
-  fi
-  # 兼容旧布局
-  echo "${ROOT_DIR}"
-}
-
-ACME_EDGE_ROOT="$(resolve_acme_edge_root)"
-if [[ -f "${ACME_EDGE_ROOT}/docker-compose.yml" && -d "${ACME_EDGE_ROOT}/acme-webroot" ]]; then
-  EDGE_COMPOSE="${ACME_EDGE_ROOT}/docker-compose.yml"
-  WEBROOT="${ACME_EDGE_ROOT}/acme-webroot"
-elif [[ -f "${ACME_EDGE_ROOT}/docker-compose.edge.yml" ]]; then
-  EDGE_COMPOSE="${ACME_EDGE_ROOT}/docker-compose.edge.yml"
-  WEBROOT="${ACME_EDGE_ROOT}/docker/nginx/acme-webroot"
-else
-  EDGE_COMPOSE="${ROOT_DIR}/docker-compose.edge.yml"
-  WEBROOT="${ROOT_DIR}/docker/nginx/acme-webroot"
-  ACME_EDGE_ROOT="${ROOT_DIR}"
-fi
 
 need_certbot() {
   if ! command -v certbot >/dev/null 2>&1; then
@@ -80,9 +50,12 @@ EOF
 }
 
 ensure_edge() {
+  if [[ ! -f "${EDGE_COMPOSE}" ]]; then
+    echo "ERROR: missing ${EDGE_COMPOSE}"
+    exit 1
+  fi
   mkdir -p "${WEBROOT}"
   echo "ACME_EDGE_ROOT=${ACME_EDGE_ROOT}"
-  echo "WEBROOT=${WEBROOT}"
   cd "${ACME_EDGE_ROOT}"
   if ! docker compose -f "${EDGE_COMPOSE}" ps --status running 2>/dev/null | grep -q acme-edge; then
     echo "Starting ACME edge on :80 ..."
@@ -136,11 +109,13 @@ case "${ACTION}" in
     if ! run_certbot_issue; then
       exit 1
     fi
-    if [[ ! -s "${ROOT_DIR}/docker/nginx/ssl/cert.pem" ]]; then
+    if [[ ! -s "${ACME_EDGE_ROOT}/ssl/cert.pem" ]]; then
       echo "Deploy-hook did not leave cert.pem; installing now..."
-      LE_IP="${LE_IP}" LE_LIVE_DIR="/etc/letsencrypt/live/${LE_IP}" bash "${INSTALL_HOOK}"
+      ACME_EDGE_ROOT="${ACME_EDGE_ROOT}" LE_IP="${LE_IP}" \
+        LE_LIVE_DIR="/etc/letsencrypt/live/${LE_IP}" bash "${INSTALL_HOOK}"
     fi
-    echo "Done. Business URL: https://${LE_IP}:3243/"
+    echo "Done. Shared certs: ${ACME_EDGE_ROOT}/ssl/"
+    echo "Business still uses its own ports (e.g. https://${LE_IP}:3243/)."
     ;;
   renew)
     need_certbot
@@ -149,7 +124,8 @@ case "${ACTION}" in
     echo "Renew finished."
     ;;
   install-only)
-    LE_IP="${LE_IP}" LE_LIVE_DIR="/etc/letsencrypt/live/${LE_IP}" bash "${INSTALL_HOOK}"
+    ACME_EDGE_ROOT="${ACME_EDGE_ROOT}" LE_IP="${LE_IP}" \
+      LE_LIVE_DIR="/etc/letsencrypt/live/${LE_IP}" bash "${INSTALL_HOOK}"
     ;;
   ensure-edge)
     ensure_edge
@@ -157,8 +133,8 @@ case "${ACTION}" in
     ;;
   *)
     echo "Usage:"
-    echo "  ACME_EDGE_ROOT=\$HOME/acme-edge LE_EMAIL=... LE_IP=... $0 issue"
-    echo "  ACME_EDGE_ROOT=\$HOME/acme-edge LE_IP=... $0 renew"
+    echo "  LE_EMAIL=... LE_IP=... $0 issue [--staging]"
+    echo "  LE_IP=... LE_RECREATE_NGINX=\"tkho-booking-nginx leapbud-lease-nginx\" $0 renew"
     echo "  $0 install-only | ensure-edge"
     exit 1
     ;;

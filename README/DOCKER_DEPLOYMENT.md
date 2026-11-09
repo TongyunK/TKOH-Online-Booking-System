@@ -213,9 +213,10 @@ docker compose -f docker-compose.nginx.yml up -d --force-recreate nginx
 **ACME Edge** 只占宿主机 **:80**（不反代业务）；订房仍访问 **:3243**。详见 `docker/nginx/ssl/README.md`：
 
 ```bash
-docker compose -f docker-compose.edge.yml up -d
+# Edge + 脚本见仓库 acme-edge/（或 ~/Documents/acme-edge）
+cd ~/Documents/acme-edge && docker compose up -d
 LE_EMAIL=you@example.com LE_IP=103.68.62.241 ./scripts/letsencrypt-ip-cert.sh issue
-# crontab 每 12 小时: .../scripts/letsencrypt-ip-cert.sh renew
+# crontab 每 12 小时: .../acme-edge/scripts/letsencrypt-ip-cert.sh renew
 ```
 
 ---

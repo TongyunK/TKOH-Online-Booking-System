@@ -48,8 +48,9 @@ docker compose -f docker-compose.nginx.yml up -d --force-recreate nginx
 ### 1. 启动 Edge
 
 ```bash
-cd ~/Documents/TKOH-Online-Booking-System
-docker compose -f docker-compose.edge.yml up -d
+# 推荐：独立目录（见仓库 acme-edge/README.md）
+cd ~/Documents/acme-edge && docker compose up -d
+# 或：docker compose -f docker-compose.edge.yml up -d（订房仓库内转发）
 # 探测：curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1/
 # 期望 404（说明不是订房站，而是 ACME-only）
 ```
@@ -58,13 +59,16 @@ docker compose -f docker-compose.edge.yml up -d
 
 ### 2. 安装 Certbot ≥ 5.4 并签发
 
+脚本在 **`acme-edge/scripts/`**（整机共用，订房项目不再自带同名脚本）。
+
 ```bash
 # Certbot 需 >= 5.4（apt 的 4.x 没有 --ip-address，会报错）
 sudo snap install --classic certbot
 sudo ln -sf /snap/bin/certbot /usr/bin/certbot
 certbot --version
 
-chmod +x scripts/letsencrypt-ip-cert.sh scripts/letsencrypt-ip-install.sh
+cd ~/Documents/acme-edge
+chmod +x scripts/*.sh
 
 # 建议先 staging
 LE_EMAIL=you@example.com LE_IP=103.68.62.241 \
@@ -75,7 +79,7 @@ LE_EMAIL=you@example.com LE_IP=103.68.62.241 \
   ./scripts/letsencrypt-ip-cert.sh issue
 ```
 
-脚本用 **webroot**（不写 standalone），**不停**订房 Nginx。签发后拷贝到本目录并 recreate 订房 nginx。
+脚本用 **webroot**（不写 standalone），**不停**业务 Nginx。签发后写入 `acme-edge/ssl/`，再 recreate 挂载该目录的各业务 nginx。
 
 业务访问不变：`https://103.68.62.241:3243/`
 
@@ -86,17 +90,16 @@ sudo crontab -e
 ```
 
 ```cron
-0 */12 * * * LE_IP=103.68.62.241 /home/proj_deploy/Documents/TKOH-Online-Booking-System/scripts/letsencrypt-ip-cert.sh renew >> /var/log/le-ip-renew.log 2>&1
+0 */12 * * * LE_IP=103.68.62.241 LE_RECREATE_NGINX="tkho-booking-nginx leapbud-lease-nginx" /home/proj_deploy/Documents/acme-edge/scripts/letsencrypt-ip-cert.sh renew >> /var/log/le-ip-renew.log 2>&1
 ```
 
 （路径按服务器实际修改。）
 
 ### 4. 其他系统共用同一张 IP 证书
 
-证书签的是 IP，可拷贝到其他项目的 ssl 目录后 reload 其 Nginx，例如 leapbud 的 HTTPS 口 `3443`。  
-本仓库的 `letsencrypt-ip-install.sh` 默认只更新 **本仓库** `docker/nginx/ssl/`；其他系统请自行拷贝或扩展 hook。
+各业务 Nginx 挂载同一份 `acme-edge/ssl/`（订房用 `.env` 的 `ACME_SSL_DIR`），勿各自拷贝多份。详见 `acme-edge/README.md`。
 
 ### 相关文件
 
-- `docker-compose.edge.yml` / `docker/nginx/edge.conf` / `docker/nginx/acme-webroot/`
-- `scripts/letsencrypt-ip-cert.sh` / `scripts/letsencrypt-ip-install.sh`
+- 仓库 `acme-edge/`（compose、edge.conf、ssl、scripts）
+- `docker-compose.edge.yml`（可选：指向独立 acme-edge）

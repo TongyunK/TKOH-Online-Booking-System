@@ -27,6 +27,7 @@ TKHO-backend/scripts/load-test/results/
 
 # Nginx SSL 私钥与证书（在 docker/nginx/ssl 下自行生成）
 docker/nginx/ssl/*.pem
+acme-edge/ssl/*.pem
 
 # Display player 本地产物
 TKOH-display-player/windows/node_modules/
