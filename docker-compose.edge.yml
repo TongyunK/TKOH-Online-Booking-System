@@ -1,11 +1,5 @@
-# ACME Edge：仅占用宿主机 80，供 Let's Encrypt webroot 续期。
-# 整台服务器共用一个即可（订房 / leapbud 等项目都走这一份 IP 证书校验）。
-# 不占用、不反代业务端口；各系统仍用各自端口（如 3243、3443）。
-#
-# 启动：
-#   docker compose -f docker-compose.edge.yml up -d
-#
-# 签发/续期见 scripts/letsencrypt-ip-cert.sh
+# 兼容入口：实际配置在 ./acme-edge/
+# 推荐独立部署：cp -a acme-edge ~/acme-edge && cd ~/acme-edge && docker compose up -d
 
 x-logging: &default-logging
   driver: json-file
@@ -22,10 +16,9 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./docker/nginx/edge.conf:/etc/nginx/nginx.conf:ro
-      - ./docker/nginx/acme-webroot:/var/www/acme:ro
+      - ./acme-edge/edge.conf:/etc/nginx/nginx.conf:ro
+      - ./acme-edge/acme-webroot:/var/www/acme:ro
     healthcheck:
-      # / 故意 404（非业务站）；只检查 nginx 配置可用
       test: ["CMD", "nginx", "-t"]
       interval: 30s
       timeout: 5s

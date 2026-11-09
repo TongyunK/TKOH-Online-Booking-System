@@ -33,7 +33,7 @@ docker compose -f docker-compose.nginx.yml up -d --force-recreate nginx
 
 - IP 证书约 **6 天**有效，须自动续期  
 - **Edge**（容器名 `acme-edge`）常驻 **:80**，只响应 `/.well-known/acme-challenge/`，其他路径返回 404  
-- **整机共用一个**即可；订房 / leapbud 等不要各起一个抢 80  
+- **整机共用一个**；配置可独立放在 `~/acme-edge`（见仓库 `acme-edge/README.md`），不必放在订房项目里  
 - **不反代**任何业务；各系统继续用自己的端口  
 
 ### 端口一览

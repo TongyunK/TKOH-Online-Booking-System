@@ -1,0 +1,30 @@
+# 整机共用的 ACME Edge（与具体业务项目无关）
+# 建议部署到：~/acme-edge 或 /opt/acme-edge
+#
+#   cd ~/acme-edge && docker compose up -d
+#
+# 仅占用 :80，供 Let's Encrypt webroot；不反代任何业务端口。
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "3"
+
+services:
+  acme-edge:
+    image: nginx:alpine
+    container_name: acme-edge
+    restart: unless-stopped
+    logging: *default-logging
+    ports:
+      - "80:80"
+    volumes:
+      - ./edge.conf:/etc/nginx/nginx.conf:ro
+      - ./acme-webroot:/var/www/acme:ro
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
