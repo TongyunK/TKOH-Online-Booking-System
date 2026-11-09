@@ -1468,6 +1468,7 @@ async function confirmAdminBookingDialog (bookingData) {
     await updateVenueManageBooking(id, {
       room: bookingData.room,
       topic: String(bookingData.topic || '').trim(),
+      myNote: String(bookingData.myNote ?? bookingData.remark ?? '').trim(),
       date: bookingData.date,
       startTime: bookingData.startTime,
       endTime: bookingData.endTime,

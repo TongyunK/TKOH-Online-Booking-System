@@ -567,8 +567,14 @@ const isApprovedOnlyNote = computed(() =>
   String(props.booking?.approvalStatus || '').toLowerCase() === 'approved'
 )
 
-/** All Bookings 管理员代改他人：不展示 My Note；本人 My Bookings / 日历自订保留 */
-const showMyNoteField = computed(() => !(props.isAdmin && props.allowAdminReservedBy))
+/**
+ * 编辑时始终展示 My Note（含 ManageBooking All Bookings）。
+ * 新建且管理员代订他人时不展示，避免写入管理员自己的备注。
+ */
+const showMyNoteField = computed(() => {
+  if (props.mode === 'edit') return true
+  return !(props.isAdmin && props.allowAdminReservedBy)
+})
 
 const emit = defineEmits(['confirm', 'close'])
 
@@ -1101,9 +1107,9 @@ function buildBookingConfirmPayload () {
     ...teaPayload,
     id: props.booking?.id
   }
-  // 管理员不编辑 My Note，避免覆盖用户备注
   if (showMyNoteField.value) {
     payload.remark = form.value.remark
+    payload.myNote = form.value.remark
   }
   return payload
 }
