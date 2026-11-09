@@ -32,8 +32,9 @@ docker compose -f docker-compose.nginx.yml up -d --force-recreate nginx
 ## B. 生产（无域名）：Let's Encrypt IP 短效证书 + ACME Edge
 
 - IP 证书约 **6 天**有效，须自动续期  
-- **Edge**（`docker-compose.edge.yml`）常驻 **:80**，只响应 `/.well-known/acme-challenge/`，其他路径返回 404  
-- **不反代**订房 / leapbud；各系统继续用自己的端口  
+- **Edge**（容器名 `acme-edge`）常驻 **:80**，只响应 `/.well-known/acme-challenge/`，其他路径返回 404  
+- **整机共用一个**即可；订房 / leapbud 等不要各起一个抢 80  
+- **不反代**任何业务；各系统继续用自己的端口  
 
 ### 端口一览
 

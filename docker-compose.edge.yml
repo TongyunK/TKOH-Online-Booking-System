@@ -1,5 +1,6 @@
 # ACME Edge：仅占用宿主机 80，供 Let's Encrypt webroot 续期。
-# 不占用、不反代业务端口；订房仍用 3200/3243，其他系统仍用各自端口。
+# 整台服务器共用一个即可（订房 / leapbud 等项目都走这一份 IP 证书校验）。
+# 不占用、不反代业务端口；各系统仍用各自端口（如 3243、3443）。
 #
 # 启动：
 #   docker compose -f docker-compose.edge.yml up -d
@@ -15,7 +16,7 @@ x-logging: &default-logging
 services:
   acme-edge:
     image: nginx:alpine
-    container_name: tkho-acme-edge
+    container_name: acme-edge
     restart: unless-stopped
     logging: *default-logging
     ports:
