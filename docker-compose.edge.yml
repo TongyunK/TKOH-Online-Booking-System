@@ -1,0 +1,32 @@
+# ACME Edge：仅占用宿主机 80，供 Let's Encrypt webroot 续期。
+# 不占用、不反代业务端口；订房仍用 3200/3243，其他系统仍用各自端口。
+#
+# 启动：
+#   docker compose -f docker-compose.edge.yml up -d
+#
+# 签发/续期见 scripts/letsencrypt-ip-cert.sh
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "3"
+
+services:
+  acme-edge:
+    image: nginx:alpine
+    container_name: tkho-acme-edge
+    restart: unless-stopped
+    logging: *default-logging
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx/edge.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/acme-webroot:/var/www/acme:ro
+    healthcheck:
+      # / 故意 404（非业务站）；只检查 nginx 配置可用
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s

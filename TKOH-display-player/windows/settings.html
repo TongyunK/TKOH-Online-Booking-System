@@ -33,6 +33,15 @@
         flex-shrink: 0;
       }
 
+      .header-version {
+        margin-left: auto;
+        color: #94a3b8;
+        font-size: 0.82rem;
+        font-weight: 650;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+      }
+
       .badge {
         width: 36px;
         height: 36px;
@@ -188,6 +197,7 @@
           <h1>Display Settings</h1>
           <p>Configure this device's display URL</p>
         </div>
+        <div class="header-version" id="appVersion">v—</div>
       </div>
 
       <div class="field">
@@ -219,7 +229,7 @@
     </div>
 
     <script>
-      const DEFAULT_ORIGIN = 'http://103.68.62.241:3200'
+      const DEFAULT_ORIGIN = 'https://103.68.62.241:3243'
       const PRESETS = [
         { label: 'Discussion Room', path: '/VenueBooking/Display?displayType=single&venueId=4' },
         { label: 'Function Room', path: '/VenueBooking/Display?displayType=single&venueId=5' },
@@ -274,6 +284,12 @@
       linkInput.addEventListener('input', markActive)
 
       async function init () {
+        try {
+          const version = await window.tkohSettings.getVersion()
+          document.getElementById('appVersion').textContent = version ? ('v' + version) : ''
+        } catch {
+          document.getElementById('appVersion').textContent = ''
+        }
         const config = await window.tkohSettings.getConfig()
         linkInput.value = config.link || ''
         document.getElementById('reloadHours').value = config.reloadHours ?? 12

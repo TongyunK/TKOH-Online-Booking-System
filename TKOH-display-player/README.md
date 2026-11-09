@@ -6,7 +6,7 @@
 
 ```json
 {
-  "link": "http://103.68.62.241:3200/VenueBooking/Display/Merge",
+  "link": "https://103.68.62.241:3243/VenueBooking/Display/Merge",
   "reloadHours": 12
 }
 ```
@@ -77,7 +77,7 @@ Android 用 Android Studio 打包（不能用 `npm run pack`）。
 
 ```json
 {
-  "link": "http://103.68.62.241:3200/VenueBooking/Display/Merge",
+  "link": "https://103.68.62.241:3243/VenueBooking/Display/Merge",
   "reloadHours": 12
 }
 ```

@@ -26,6 +26,8 @@ import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
+import android.net.http.SslError;
+import android.webkit.SslErrorHandler;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 import android.widget.TextView;
@@ -205,6 +207,12 @@ public class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
           onMainFrameLoadFailed(description);
         }
+      }
+
+      @Override
+      public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
+        // 现场常用自签 HTTPS（IP 证书）；内网大屏机放行，否则无法打开 display
+        if (handler != null) handler.proceed();
       }
 
       @Override

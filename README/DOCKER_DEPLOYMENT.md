@@ -209,6 +209,15 @@ cd ..\..\..
 docker compose -f docker-compose.nginx.yml up -d --force-recreate nginx
 ```
 
+无域名、消除浏览器「不安全」：可用 Let's Encrypt **IP 短效证书（约 6 天，须自动续期）**。  
+**ACME Edge** 只占宿主机 **:80**（不反代业务）；订房仍访问 **:3243**。详见 `docker/nginx/ssl/README.md`：
+
+```bash
+docker compose -f docker-compose.edge.yml up -d
+LE_EMAIL=you@example.com LE_IP=103.68.62.241 ./scripts/letsencrypt-ip-cert.sh issue
+# crontab 每 12 小时: .../scripts/letsencrypt-ip-cert.sh renew
+```
+
 ---
 
 ### 七、Linux / macOS 完整指令

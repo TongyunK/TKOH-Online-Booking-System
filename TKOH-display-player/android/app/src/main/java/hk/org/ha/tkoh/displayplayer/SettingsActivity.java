@@ -22,7 +22,7 @@ import org.json.JSONObject;
 
 public class SettingsActivity extends Activity {
   static final int RESULT_EXIT = RESULT_FIRST_USER;
-  private static final String DEFAULT_ORIGIN = "http://103.68.62.241:3200";
+  private static final String DEFAULT_ORIGIN = "https://103.68.62.241:3243";
   private static final String[][] PRESETS = {
     { "Discussion Room", "/VenueBooking/Display?displayType=single&venueId=4" },
     { "Function Room", "/VenueBooking/Display?displayType=single&venueId=5" },

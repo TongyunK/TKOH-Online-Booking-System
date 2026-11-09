@@ -134,7 +134,9 @@ function warmUpOrigin (url) {
         port: u.port || (u.protocol === 'https:' ? 443 : 80),
         path: '/',
         method: 'HEAD',
-        timeout: 8000
+        timeout: 8000,
+        // 现场常用自签 IP 证书；预热探测勿因 CERT 失败而卡住
+        rejectUnauthorized: false
       }, (res) => {
         res.resume()
         resolve()
@@ -360,6 +362,8 @@ function createWindow () {
   startWatchdog()
 }
 
+ipcMain.handle('settings-get-version', () => app.getVersion())
+
 ipcMain.handle('settings-get-config', () => readConfig())
 
 ipcMain.handle('settings-save-config', (_event, config) => {
@@ -378,6 +382,21 @@ ipcMain.handle('settings-close', () => {
 
 ipcMain.handle('settings-quit', () => {
   app.quit()
+})
+
+// 大屏常配自签 HTTPS（如 https://IP:3243）；仅放行 config.link 对应主机
+app.on('certificate-error', (event, _webContents, url, _error, _certificate, callback) => {
+  event.preventDefault()
+  try {
+    const host = new URL(url).host
+    let expected = allowedHost
+    if (!expected) {
+      expected = allowedHostFromLink(readConfig().link)
+    }
+    callback(Boolean(expected && host === expected))
+  } catch {
+    callback(false)
+  }
 })
 
 app.whenReady().then(() => {
