@@ -59,7 +59,11 @@ docker compose -f docker-compose.edge.yml up -d
 ### 2. 安装 Certbot ≥ 5.4 并签发
 
 ```bash
-sudo apt update && sudo apt install -y certbot
+# Certbot 需 >= 5.4（apt 的 4.x 没有 --ip-address，会报错）
+sudo snap install --classic certbot
+sudo ln -sf /snap/bin/certbot /usr/bin/certbot
+certbot --version
+
 chmod +x scripts/letsencrypt-ip-cert.sh scripts/letsencrypt-ip-install.sh
 
 # 建议先 staging

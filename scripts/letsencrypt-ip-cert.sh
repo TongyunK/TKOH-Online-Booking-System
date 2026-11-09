@@ -37,12 +37,38 @@ done
 need_certbot() {
   if ! command -v certbot >/dev/null 2>&1; then
     echo "ERROR: certbot not found. Install Certbot >= 5.4 first."
-    echo "  Ubuntu: sudo apt update && sudo apt install -y certbot"
+    print_certbot_upgrade_help
     exit 1
   fi
-  echo "Using $(certbot --version 2>&1 | head -n1 || true)"
+  local ver_line
+  ver_line="$(certbot --version 2>&1 | head -n1 || true)"
+  echo "Using ${ver_line}"
+
+  # IP 证书需要 --ip-address（Certbot >= 5.3/5.4）；apt 常见 4.x 不够
+  if ! certbot --help all 2>/dev/null | grep -q -- '--ip-address'; then
+    echo "ERROR: this Certbot does not support --ip-address (need >= 5.4 for LE IP certs)."
+    echo "Your version cannot issue Let's Encrypt certificates for bare IPs."
+    print_certbot_upgrade_help
+    exit 1
+  fi
 }
 
+print_certbot_upgrade_help() {
+  cat <<'EOF'
+Upgrade options (pick one):
+
+  # Recommended on Ubuntu/Debian — Snap is usually newest
+  sudo snap install --classic certbot
+  sudo ln -sf /snap/bin/certbot /usr/bin/certbot
+  certbot --version    # expect 5.4+
+
+  # Or pip (in a venv)
+  # python3 -m pip install --upgrade certbot
+
+Then re-run:
+  LE_EMAIL=... LE_IP=103.68.62.241 ./scripts/letsencrypt-ip-cert.sh issue
+EOF
+}
 ensure_edge() {
   mkdir -p "${WEBROOT}"
   cd "${ROOT_DIR}"
