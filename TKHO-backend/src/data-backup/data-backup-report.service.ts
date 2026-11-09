@@ -324,6 +324,7 @@ export class DataBackupReportService {
       const tea = this.teaPayload(row);
       return {
         '#': index + 1,
+        ID: this.bigintText(row.id),
         Venue: row.venue?.name ?? '',
         'Booking Type': row.bookingType ?? '',
         Date: this.formatBookingDate(row.bookingDate),
@@ -415,7 +416,7 @@ export class DataBackupReportService {
 
       return {
         '#': index + 1,
-        'Booking ID': this.bigintText(row.id),
+        ID: this.bigintText(row.id),
         'Booking Date': this.formatBookingDate(row.bookingDate),
         'Booking Time': this.formatPeriodTime(row.period),
         'EV Space': row.slot.evSpace,
@@ -568,6 +569,7 @@ export class DataBackupReportService {
 
       return {
         '#': index + 1,
+        ID: this.bigintText(row.id),
         'CORP User ID': row.corpId,
         'Employee No.': row.employeeNo ?? '',
         'First Name': row.firstName ?? '',
@@ -604,6 +606,7 @@ export class DataBackupReportService {
 
     return rows.map((row, index) => ({
       '#': index + 1,
+      ID: this.bigintText(row.id),
       'CORP User ID': row.corp_id,
       'Employee No.': row.employee_no ?? '',
       'First Name': row.first_name ?? '',
@@ -641,7 +644,7 @@ export class DataBackupReportService {
 
     return rows.map((row, index) => ({
       '#': index + 1,
-      'Venue ID': this.bigintText(row.id),
+      ID: this.bigintText(row.id),
       Name: row.name,
       'Name (ZH)': row.nameZh ?? '',
       'Venue Type': row.venueType ?? '',
@@ -674,7 +677,7 @@ export class DataBackupReportService {
 
     return rows.map((row, index) => ({
       '#': index + 1,
-      'Block ID': this.bigintText(row.id),
+      ID: this.bigintText(row.id),
       'Venue ID': this.bigintText(row.venue_id),
       Venue: row.venues?.name ?? '',
       'Start At': this.formatDateTimeHkt(row.start_at),
@@ -709,7 +712,7 @@ export class DataBackupReportService {
       const owner = row.user_id != null ? userById.get(row.user_id) : undefined;
       return {
         '#': index + 1,
-        'License Plate ID': this.bigintText(row.id),
+        ID: this.bigintText(row.id),
         'Plate Number': row.plate_number,
         Owner: this.formatPersonWithCorpId(
           owner ? formatUserDisplayName(owner) : '',
@@ -729,7 +732,7 @@ export class DataBackupReportService {
 
     return rows.map((row, index) => ({
       '#': index + 1,
-      'Slot ID': this.bigintText(row.id),
+      ID: this.bigintText(row.id),
       'EV Space': row.evSpace,
       Location: row.location ?? '',
       Status: this.formatStatus(row.status),
@@ -744,7 +747,7 @@ export class DataBackupReportService {
 
     return rows.map((row, index) => ({
       '#': index + 1,
-      'Period ID': this.bigintText(row.id),
+      ID: this.bigintText(row.id),
       Period: row.period,
       'Start Time': this.formatTimeValue(row.startTime),
       'End Time': this.formatTimeValue(row.endTime),
@@ -760,7 +763,7 @@ export class DataBackupReportService {
 
     return rows.map((row, index) => ({
       '#': index + 1,
-      'Department ID': this.bigintText(row.id),
+      ID: this.bigintText(row.id),
       'Department Name': row.department_name,
       Description: row.description ?? '',
       'Created At': this.formatDateTimeHkt(row.created_at),
@@ -776,7 +779,7 @@ export class DataBackupReportService {
       .filter((row) => !isSuperAdminRole(row.role_name))
       .map((row, index) => ({
         '#': index + 1,
-        'Role ID': this.bigintText(row.id),
+        ID: this.bigintText(row.id),
         'Role Name': row.role_name,
         Description: row.description ?? '',
         'Annual Venue Quota': row.annual_venue_quota ?? '',
@@ -793,6 +796,7 @@ export class DataBackupReportService {
 
     return rows.map((row, index) => ({
       '#': index + 1,
+      ID: row.resource_type,
       'Resource Type': row.resource_type,
       'Current Start Date': this.formatBookingDate(row.current_start_date),
       'Current End Date': this.formatBookingDate(row.current_end_date),
@@ -809,7 +813,7 @@ export class DataBackupReportService {
 
     return rows.map((row, index) => ({
       '#': index + 1,
-      'Prompt ID': this.bigintText(row.id),
+      ID: this.bigintText(row.id),
       'Prompt Key': row.prompt_key,
       Name: row.name,
       Content: row.content,
@@ -829,6 +833,7 @@ export class DataBackupReportService {
       .filter((row) => !this.isPasswordSettingKey(row.setting_key))
       .map((row, index) => ({
         '#': index + 1,
+        ID: row.setting_key,
         'Setting Key': row.setting_key,
         'Setting Value': row.setting_value ?? '',
         Description: row.description ?? '',
@@ -843,6 +848,7 @@ export class DataBackupReportService {
 
     return rows.map((row, index) => ({
       '#': index + 1,
+      ID: row.config_key,
       'Config Key': row.config_key,
       'Config Value': row.config_value ?? '',
       'Updated At': this.formatDateTimeHkt(row.updated_at),

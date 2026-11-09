@@ -54,6 +54,9 @@ const isLoginRequest = (config) => (config?.url || '').includes('/auth/login')
 const isPublicPointsToNoteRequest = (config) =>
   (config?.url || '').includes('/prompt-management/public/points-to-note')
 
+const isLoginDocsRequest = (config) =>
+  (config?.url || '').includes('/system-settings/login-docs')
+
 const isPublicBookingNoticesRequest = (config) =>
   (config?.url || '').includes('/prompt-management/public/booking-notices')
 
@@ -97,6 +100,7 @@ const skipsGlobalErrorDialog = (config) =>
   isSilentRequest(config) ||
   isLoginRequest(config) ||
   isPublicPointsToNoteRequest(config) ||
+  isLoginDocsRequest(config) ||
   isPublicBookingNoticesRequest(config) ||
   isPublicTeaServiceDisplayRequest(config) ||
   isPublicVenueDisplayRequest(config) ||

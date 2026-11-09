@@ -32,6 +32,24 @@ export class UpdateSystemSettingsDto {
   hkPublicHolidaysUrl?: string;
 
   @IsOptional()
+  @ValidateIf((_, value) => value != null && String(value).trim() !== '')
+  @IsString()
+  @IsUrl({ require_protocol: true, protocols: ['http', 'https'] })
+  userGuideUrl?: string;
+
+  @IsOptional()
+  @ValidateIf((_, value) => value != null && String(value).trim() !== '')
+  @IsString()
+  @IsUrl({ require_protocol: true, protocols: ['http', 'https'] })
+  operationsManualUrl?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(40)
+  @Max(100)
+  loginPointsToNoteWidthPercent?: number;
+
+  @IsOptional()
   @IsString()
   @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, {
     message: 'evDateUpdateTime must be HH:mm in 24-hour format',

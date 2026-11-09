@@ -1,5 +1,5 @@
 <template>
-  <div class="page h-screen bg-gradient flex flex-col overflow-hidden" style="padding-top: var(--app-header-height, 64px);">
+  <div class="page h-screen bg-gradient flex flex-col overflow-hidden" style="padding-top: var(--app-header-height, 60px);">
     <AppHeader />
 
     <main class="account-main flex-1 flex items-start justify-center px-2 md:px-3 lg:px-4 py-1 md:py-2 overflow-y-auto">

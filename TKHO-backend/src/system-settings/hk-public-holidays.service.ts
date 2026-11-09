@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger, OnModuleInit } from '@nestjs/c
 import { Cron } from '@nestjs/schedule';
 import { APP_TIMEZONE } from '../common/app-timezone';
 import {
+  assertFutureBookingDateForUser,
   assertPublicHolidayBookableForUser,
   assertWeekendBookableForUser,
   isWeekendDate,
@@ -116,11 +117,12 @@ export class HkPublicHolidaysService implements OnModuleInit {
     );
   }
 
-  /** 普通用户不可在周末及公众假期预订；管理员不受限。 */
+  /** 普通用户不可预订今日/过去、周末及公众假期；管理员不受限。 */
   async assertBookableForUser(
     date: Date,
     auth: { role?: string; system?: string } | null | undefined,
   ) {
+    assertFutureBookingDateForUser(date, auth);
     assertWeekendBookableForUser(date, auth);
     const row = await this.prisma.hk_public_holidays.findUnique({
       where: { holiday_date: date },

@@ -703,7 +703,11 @@ function getBookingsForDay (day, segment = 'current') {
   const selectedRoomNames = props.selectedRooms.map(room => room.name)
   return dayBookings
     .filter(booking => selectedRoomNames.includes(booking.roomName))
-    .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''))
+    .sort((a, b) => {
+      const timeCmp = (a.startTime || '').localeCompare(b.startTime || '')
+      if (timeCmp !== 0) return timeCmp
+      return (a.roomName || '').localeCompare(b.roomName || '', undefined, { sensitivity: 'base' })
+    })
 }
 
 /** 与模板一致的 35/42 格顺序 */

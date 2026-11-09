@@ -99,6 +99,12 @@ export class SystemSettingsService {
     return null;
   }
 
+  private parseLoginPointsToNoteWidthPercent(raw: string): number | null {
+    const value = Number.parseInt(String(raw ?? '').trim(), 10);
+    if (Number.isFinite(value) && value >= 40 && value <= 100) return value;
+    return null;
+  }
+
   private parseVenueBookingMinGapMinutes(raw: string): number | null {
     const value = Number.parseInt(String(raw ?? '').trim(), 10);
     if (Number.isFinite(value) && value >= 0 && value <= 120) return value;
@@ -428,6 +434,22 @@ export class SystemSettingsService {
       map,
       SystemSettingKey.hkPublicHolidaysUrl,
     );
+    const userGuideUrl = String(
+      this.getSetting(map, SystemSettingKey.userGuideUrl),
+    ).trim();
+    const operationsManualUrl = String(
+      this.getSetting(map, SystemSettingKey.operationsManualUrl),
+    ).trim();
+    const loginPointsToNoteWidthPercent =
+      this.parseLoginPointsToNoteWidthPercent(
+        this.getSetting(map, SystemSettingKey.loginPointsToNoteWidthPercent),
+      ) ??
+      Number.parseInt(
+        SYSTEM_SETTING_DEFAULTS[
+          SystemSettingKey.loginPointsToNoteWidthPercent
+        ],
+        10,
+      );
     const evDateUpdateTime =
       this.parseEvDateUpdateTime(
         this.getSetting(map, SystemSettingKey.evDateUpdateTime),
@@ -500,6 +522,9 @@ export class SystemSettingsService {
       userInactiveAfterMonths,
       userAutoLogoutMinutes,
       hkPublicHolidaysUrl,
+      userGuideUrl,
+      operationsManualUrl,
+      loginPointsToNoteWidthPercent,
       evDateUpdateTime,
       evWeeklyBookingLimit,
       venueBookingMinGapMinutes,
@@ -510,6 +535,29 @@ export class SystemSettingsService {
       dataBackupEmailSendTime,
       dataBackupEmailEnabled,
       updatedAt: latestUpdatedAt,
+    };
+  }
+
+  /** 登录页文档链接与布局参数（无需登录） */
+  async getLoginDocs() {
+    const map = await this.ensureDefaultSettings();
+    return {
+      userGuideUrl: String(
+        this.getSetting(map, SystemSettingKey.userGuideUrl),
+      ).trim(),
+      operationsManualUrl: String(
+        this.getSetting(map, SystemSettingKey.operationsManualUrl),
+      ).trim(),
+      loginPointsToNoteWidthPercent:
+        this.parseLoginPointsToNoteWidthPercent(
+          this.getSetting(map, SystemSettingKey.loginPointsToNoteWidthPercent),
+        ) ??
+        Number.parseInt(
+          SYSTEM_SETTING_DEFAULTS[
+            SystemSettingKey.loginPointsToNoteWidthPercent
+          ],
+          10,
+        ),
     };
   }
 
@@ -566,6 +614,63 @@ export class SystemSettingsService {
         },
         update: {
           setting_value: url,
+          updated_at: now,
+        },
+      });
+    }
+
+    if (dto.userGuideUrl != null) {
+      const url = String(dto.userGuideUrl).trim();
+      await this.prisma.system_settings.upsert({
+        where: { setting_key: SystemSettingKey.userGuideUrl },
+        create: {
+          setting_key: SystemSettingKey.userGuideUrl,
+          setting_value: url,
+          description:
+            SYSTEM_SETTING_DESCRIPTIONS[SystemSettingKey.userGuideUrl],
+          updated_at: now,
+        },
+        update: {
+          setting_value: url,
+          updated_at: now,
+        },
+      });
+    }
+
+    if (dto.operationsManualUrl != null) {
+      const url = String(dto.operationsManualUrl).trim();
+      await this.prisma.system_settings.upsert({
+        where: { setting_key: SystemSettingKey.operationsManualUrl },
+        create: {
+          setting_key: SystemSettingKey.operationsManualUrl,
+          setting_value: url,
+          description:
+            SYSTEM_SETTING_DESCRIPTIONS[SystemSettingKey.operationsManualUrl],
+          updated_at: now,
+        },
+        update: {
+          setting_value: url,
+          updated_at: now,
+        },
+      });
+    }
+
+    if (dto.loginPointsToNoteWidthPercent != null) {
+      await this.prisma.system_settings.upsert({
+        where: {
+          setting_key: SystemSettingKey.loginPointsToNoteWidthPercent,
+        },
+        create: {
+          setting_key: SystemSettingKey.loginPointsToNoteWidthPercent,
+          setting_value: String(dto.loginPointsToNoteWidthPercent),
+          description:
+            SYSTEM_SETTING_DESCRIPTIONS[
+              SystemSettingKey.loginPointsToNoteWidthPercent
+            ],
+          updated_at: now,
+        },
+        update: {
+          setting_value: String(dto.loginPointsToNoteWidthPercent),
           updated_at: now,
         },
       });

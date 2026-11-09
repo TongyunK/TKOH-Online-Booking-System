@@ -228,8 +228,8 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
   document.title = to.meta.title
-    ? `${to.meta.title} - TKOH GA Service Center`
-    : 'TKOH GA Service Center'
+    ? `${to.meta.title} - TKOH GA Venue and EV Charging Booking System`
+    : 'TKOH GA Venue and EV Charging Booking System'
 
   const userStore = useUserStore()
 

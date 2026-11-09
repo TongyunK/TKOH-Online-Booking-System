@@ -1,6 +1,12 @@
 export const RESTRICTED_BOOKING_CONTACT_ADMIN =
   'Booking is not available on weekends and public holidays. Please contact an administrator.'
 
+export const SAME_DAY_BOOKING_NOT_ALLOWED =
+  'Same-day bookings are not allowed. Please select a future date.'
+
+export const SAME_DAY_CANCEL_NOT_ALLOWED =
+  'Same-day bookings cannot be cancelled. Please contact an administrator.'
+
 export function toBookingDateYmd (dateLike) {
   if (typeof dateLike === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateLike.trim())) {
     return dateLike.trim()
@@ -31,6 +37,19 @@ export function isWeekendDate (dateLike) {
   if (Number.isNaN(date.getTime())) return false
   const day = date.getDay()
   return day === 0 || day === 6
+}
+
+/** 非管理员：今日及过去日期不可预订。 */
+export function isSameDayOrPastBookingRestricted (
+  dateLike,
+  { isAdmin = false, todayYmd } = {}
+) {
+  if (isAdmin) return false
+  const ymd = toBookingDateYmd(dateLike)
+  if (!ymd) return false
+  const today = String(todayYmd || '').trim()
+  if (!today) return false
+  return ymd <= today
 }
 
 export function isRestrictedBookingDay (

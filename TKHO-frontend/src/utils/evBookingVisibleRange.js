@@ -51,6 +51,7 @@ export function isEvDateUpdateTimeReached (
  * 在管理员发布的年度范围内，取用户可见的 14 天：
  * - 更新时间前：从今天起 14 天（例：07.08 13:00 前 → 07.08~07.21）
  * - 更新时间后：从明天起 14 天（例：07.08 13:00 后 → 07.09~07.22）
+ * 非管理员仍可见今天，但不可预订（由预订校验单独拦截）。
  */
 export function resolveEvVisibleBookingRange (
   windowStartYmd,

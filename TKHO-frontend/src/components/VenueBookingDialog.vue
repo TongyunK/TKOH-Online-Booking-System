@@ -152,7 +152,7 @@
                 <MeetingEventTitleInput
                   v-model="form.topic"
                   :max-units="meetingEventTitleMaxLength"
-                  placeholder="e.g. Quarterly Performance"
+                  placeholder="e.g. Meeting of Hospital XXXX Committee"
                   :disabled="isApprovedOnlyNote"
                 />
               </el-form-item>
@@ -478,7 +478,11 @@ import { getPrompts } from '@/api/promptManagement'
 import { checkRoomAvailability } from '@/api/calendar'
 import { getUser } from '@/api/userManagement'
 import { HTML_ZOOM_BREAKPOINT_MQ } from '@/utils/venueCalendarApi'
-import { isRestrictedBookingDay } from '@/utils/bookingDateRestriction'
+import {
+  isRestrictedBookingDay,
+  isSameDayOrPastBookingRestricted,
+  SAME_DAY_BOOKING_NOT_ALLOWED
+} from '@/utils/bookingDateRestriction'
 import { todayYmdInAppTimeZone } from '@/utils/appTimezone'
 import { useUserStore } from '@/stores/user'
 import { buildTeaServiceApiPayload, validateTeaServiceForm, parseTeaServiceToForm, venueOffersTeaService } from '@/utils/venueTeaService'
@@ -959,7 +963,7 @@ function isVenueBookingDateTodayOrEarlier(ymd) {
 }
 
 /** Start 之后最近 15 分钟刻度，供 End Time 自动回填 */
-function nextVenueEndTimeAfter (startHm, endHour = 21, step = 15) {
+function nextVenueEndTimeAfter (startHm, endHour = 22, step = 15) {
   const m = /^(\d{1,2}):(\d{2})$/.exec(String(startHm || '').trim())
   if (!m) return ''
   let total = Number(m[1]) * 60 + Number(m[2]) + step
@@ -1002,10 +1006,15 @@ function applyUploadEventTitleVisibilityRules() {
   form.value.displayOnHomepage = false
 }
 
-// 非管理员禁用今日之前；所有人禁用 Venue Booking Date Range 之外；管理员可选周末/假日
+// 非管理员禁用今日及过去；所有人禁用 Venue Booking Date Range 之外；管理员可选周末/假日
 function disabledDate(date) {
   const ymd = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-  if (!props.isAdmin && ymd < todayYmdInAppTimeZone()) return true
+  if (isSameDayOrPastBookingRestricted(ymd, {
+    isAdmin: props.isAdmin,
+    todayYmd: todayYmdInAppTimeZone()
+  })) {
+    return true
+  }
   if (isYmdOutsideVenueBookingDateRange(ymd, props.bookingWindowStart, props.bookingWindowEnd)) {
     return true
   }
@@ -1205,6 +1214,14 @@ function handleConfirm() {
   const teaCheck = validateTeaServiceForm(form.value, { isAdmin: props.isAdmin })
   if (!teaCheck.ok) {
     showNotice(teaCheck.message, 'Error')
+    return
+  }
+
+  if (isSameDayOrPastBookingRestricted(form.value.date, {
+    isAdmin: props.isAdmin,
+    todayYmd: todayYmdInAppTimeZone()
+  })) {
+    showNotice(SAME_DAY_BOOKING_NOT_ALLOWED, 'Warning')
     return
   }
 

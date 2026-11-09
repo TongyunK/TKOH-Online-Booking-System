@@ -156,9 +156,13 @@ export class UserManagementService {
       annualQuotaVenue?: number | null;
       defaultAnnualQuotaEv?: number | null;
       defaultAnnualQuotaVenue?: number | null;
+      nextQuotaYear?: number;
+      usedQuotaVenueNext?: number;
+      annualQuotaVenueNext?: number | null;
     },
   ) {
     const year = quota?.year ?? getAppCalendarYear();
+    const nextYear = quota?.nextQuotaYear ?? year + 1;
     return {
       id: user.id.toString(),
       corpId: user.corpId,
@@ -174,11 +178,16 @@ export class UserManagementService {
       email: user.email,
       contact: user.contact,
       quotaYear: year,
+      nextQuotaYear: nextYear,
       /** 列表/详情展示：所选年（默认当前自然年）的有效上限 */
       annualQuotaEv: quota?.annualQuotaEv ?? user.annualQuotaEv,
       usedQuotaEv: quota?.usedQuotaEv ?? 0,
       annualQuotaVenue: quota?.annualQuotaVenue ?? user.annualQuotaVenue,
       usedQuotaVenue: quota?.usedQuotaVenue ?? 0,
+      /** 下一自然年 Venue 额度（列表第三列） */
+      annualQuotaVenueNext:
+        quota?.annualQuotaVenueNext ?? user.annualQuotaVenue,
+      usedQuotaVenueNext: quota?.usedQuotaVenueNext ?? 0,
       /** 用户默认年额度（无按年覆盖时的回退值） */
       defaultAnnualQuotaEv: quota?.defaultAnnualQuotaEv ?? user.annualQuotaEv,
       defaultAnnualQuotaVenue:
@@ -195,17 +204,27 @@ export class UserManagementService {
     rows: Prisma.UserGetPayload<{ select: typeof userSelect }>[],
   ) {
     const year = getAppCalendarYear();
+    const nextYear = year + 1;
     const ids = rows.map((r) => r.id);
-    const [{ evUsedByUserId, venueUsedByUserId }, overrides] = await Promise.all([
+    const [
+      { evUsedByUserId, venueUsedByUserId },
+      overrides,
+      nextYearUsed,
+      nextOverrides,
+    ] = await Promise.all([
       batchCountUsedForYear(this.prisma, ids, year),
       batchLoadYearlyOverrides(this.prisma, ids, year),
+      batchCountUsedForYear(this.prisma, ids, nextYear),
+      batchLoadYearlyOverrides(this.prisma, ids, nextYear),
     ]);
 
     return rows.map((user) => {
       const id = user.id.toString();
       const override = overrides.get(id);
+      const nextOverride = nextOverrides.get(id);
       return this.mapUser(user, {
         year,
+        nextQuotaYear: nextYear,
         usedQuotaEv: evUsedByUserId.get(id) ?? 0,
         usedQuotaVenue: venueUsedByUserId.get(id) ?? 0,
         annualQuotaEv:
@@ -216,6 +235,12 @@ export class UserManagementService {
           override?.annualQuotaVenue !== undefined &&
           override?.annualQuotaVenue !== null
             ? override.annualQuotaVenue
+            : user.annualQuotaVenue,
+        usedQuotaVenueNext: nextYearUsed.venueUsedByUserId.get(id) ?? 0,
+        annualQuotaVenueNext:
+          nextOverride?.annualQuotaVenue !== undefined &&
+          nextOverride?.annualQuotaVenue !== null
+            ? nextOverride.annualQuotaVenue
             : user.annualQuotaVenue,
         defaultAnnualQuotaEv: user.annualQuotaEv,
         defaultAnnualQuotaVenue: user.annualQuotaVenue,
@@ -604,7 +629,11 @@ export class UserManagementService {
   }
 
   private isQuotaSortBy(sortBy: string): boolean {
-    return sortBy === 'evQuota' || sortBy === 'venueQuota';
+    return (
+      sortBy === 'evQuota' ||
+      sortBy === 'venueQuota' ||
+      sortBy === 'venueQuotaNext'
+    );
   }
 
   private compareQuotaLimit(
@@ -623,6 +652,8 @@ export class UserManagementService {
       annualQuotaEv?: number | null;
       usedQuotaVenue?: number | null;
       annualQuotaVenue?: number | null;
+      usedQuotaVenueNext?: number | null;
+      annualQuotaVenueNext?: number | null;
     },
   >(items: T[], sortBy: string, sortOrder: 'asc' | 'desc'): T[] {
     const dir = sortOrder === 'asc' ? 1 : -1;
@@ -643,6 +674,16 @@ export class UserManagementService {
         const limitDiff = this.compareQuotaLimit(
           left.annualQuotaVenue,
           right.annualQuotaVenue,
+        );
+        if (limitDiff !== 0) return limitDiff * dir;
+      } else if (sortBy === 'venueQuotaNext') {
+        const usedDiff =
+          Number(left.usedQuotaVenueNext ?? 0) -
+          Number(right.usedQuotaVenueNext ?? 0);
+        if (usedDiff !== 0) return usedDiff * dir;
+        const limitDiff = this.compareQuotaLimit(
+          left.annualQuotaVenueNext,
+          right.annualQuotaVenueNext,
         );
         if (limitDiff !== 0) return limitDiff * dir;
       }
@@ -724,6 +765,7 @@ export class UserManagementService {
         page: wantAll ? 1 : page,
         pageSize: wantAll ? pageRows.length : pageSize,
         quotaYear: getAppCalendarYear(),
+        nextQuotaYear: getAppCalendarYear() + 1,
         ...(filterOptions ? { filterOptions } : {}),
       };
     }
@@ -748,6 +790,7 @@ export class UserManagementService {
       page: wantAll ? 1 : page,
       pageSize: wantAll ? rows.length : pageSize,
       quotaYear: getAppCalendarYear(),
+      nextQuotaYear: getAppCalendarYear() + 1,
       ...(filterOptions ? { filterOptions } : {}),
     };
   }
@@ -797,6 +840,7 @@ export class UserManagementService {
         },
       });
     }
+    // Venue / EV 选人：按角色额度筛选（>0 或 -1 无限），与 Access Right 中角色权限一致
     if (venueOwnerScope) {
       and.push({
         access_roles: {
@@ -809,19 +853,27 @@ export class UserManagementService {
         },
       });
     }
-    // EV 选人：用户 EV 额度 >0 或 Unlimited（与能否下 EV 单一致）
     if (evOwnerScope) {
       and.push({
-        OR: [{ annualQuotaEv: { gt: 0 } }, { annualQuotaEv: -1 }],
+        access_roles: {
+          is: {
+            OR: [
+              { annual_ev_quota: { gt: 0 } },
+              { annual_ev_quota: -1 },
+            ],
+          },
+        },
       });
     }
 
     const where: Prisma.UserWhereInput =
       and.length === 1 ? and[0] : { AND: and };
 
+    // 按展示名 A-Z 分页：优先让仅有 lastName（firstName 为空）的账号尽早进入前几页，
+    // 避免大量 Chan 姓把 “common” 挤出首屏；前端再按完整展示名重排。
     const rows = await this.prisma.user.findMany({
       where,
-      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }, { corpId: 'asc' }],
+      orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }, { corpId: 'asc' }],
       skip,
       take: safePageSize + 1,
       select: {
@@ -891,7 +943,7 @@ export class UserManagementService {
   }
 
   /**
-   * 仅返回「当前年及以后、且至少有一条预订记录」的年份额度。
+   * 返回当前年、下一年，以及之后已有预订记录的年份额度。
    * 已用为实时 COUNT；上限为按年覆盖或默认 annualQuota。
    */
   async getUserYearlyQuotas(
@@ -943,14 +995,19 @@ export class UserManagementService {
       `,
     ]);
 
-    // 仅展示/可改：已有预订记录的年份（不含「仅有覆盖、无预订」的空年）
-    const yearSet = new Set<number>();
+    // 当前年 + 下一年始终可展示/编辑；其余仅保留已有预订的年份
+    const bookingYearSet = new Set<number>();
     for (const row of evYearRows) {
-      if (Number.isFinite(row.y) && row.y >= currentYear) yearSet.add(row.y);
+      if (Number.isFinite(row.y) && row.y >= currentYear) bookingYearSet.add(row.y);
     }
     for (const row of venueYearRows) {
-      if (Number.isFinite(row.y) && row.y >= currentYear) yearSet.add(row.y);
+      if (Number.isFinite(row.y) && row.y >= currentYear) bookingYearSet.add(row.y);
     }
+    const yearSet = new Set<number>([
+      currentYear,
+      currentYear + 1,
+      ...bookingYearSet,
+    ]);
 
     const years = [...yearSet].sort((a, b) => a - b);
     const overrideByYear = new Map(
@@ -995,8 +1052,9 @@ export class UserManagementService {
           hasCustomVenueLimit,
           hasCustomLimit,
           hasOverride: hasCustomLimit,
-          hasBooking: true,
+          hasBooking: bookingYearSet.has(year) || usedEv > 0 || usedVenue > 0,
           isCurrentYear: year === currentYear,
+          isNextYear: year === currentYear + 1,
         };
       }),
     );
@@ -1004,6 +1062,7 @@ export class UserManagementService {
     return {
       userId: id,
       currentYear,
+      nextYear: currentYear + 1,
       defaultAnnualQuotaEv: user.annualQuotaEv,
       defaultAnnualQuotaVenue: user.annualQuotaVenue,
       years: items,
@@ -1029,11 +1088,14 @@ export class UserManagementService {
       );
     }
 
-    const hasBooking = await this.userHasBookingInYear(bid, year);
-    if (!hasBooking) {
-      throw new BadRequestException(
-        'Quota can only be changed for years that already have at least one booking.',
-      );
+    // 当前年与下一年可直接改；更远的年份仍需已有预订
+    if (year > currentYear + 1) {
+      const hasBooking = await this.userHasBookingInYear(bid, year);
+      if (!hasBooking) {
+        throw new BadRequestException(
+          'Quota can only be changed for years that already have at least one booking.',
+        );
+      }
     }
 
     const user = await this.prisma.user.findUnique({

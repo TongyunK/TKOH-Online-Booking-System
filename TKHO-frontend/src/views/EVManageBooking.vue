@@ -1,5 +1,5 @@
 ﻿<template>
-  <div class="page h-screen bg-[#f5f5f5] flex flex-col overflow-hidden" style="padding-top: var(--app-header-height, 64px);">
+  <div class="page h-screen bg-[#f5f5f5] flex flex-col overflow-hidden" style="padding-top: var(--app-header-height, 60px);">
     <AppHeader />
 
     <main class="flex-1 flex flex-col px-2 md:px-3 lg:px-4 py-1 md:py-2 pb-1 overflow-hidden">
@@ -640,10 +640,9 @@ const isSameDayEvBooking = (booking) => {
   return Boolean(bookingYmd && bookingYmd === todayYmdInAppTimeZone())
 }
 
+/** upcoming 即显示取消按钮（当日仍显示，点击后再提示不可取消） */
 const canShowCancelButton = (booking) => {
-  if (String(booking?.status || '').toLowerCase() !== 'upcoming') return false
-  if (isAdmin.value) return true
-  return !isSameDayEvBooking(booking)
+  return String(booking?.status || '').toLowerCase() === 'upcoming'
 }
 
 const SAME_DAY_EV_CANCEL_MESSAGE =
@@ -1383,6 +1382,9 @@ const isQuickDateActive = (option) => {
 const cancelBooking = (id) => {
   const booking = bookings.value.find((item) => String(item.id) === String(id))
   if (booking && !canShowCancelButton(booking)) {
+    return
+  }
+  if (booking && !isAdmin.value && isSameDayEvBooking(booking)) {
     showNotice(SAME_DAY_EV_CANCEL_MESSAGE, 'Notice')
     return
   }

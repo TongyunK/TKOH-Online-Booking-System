@@ -105,7 +105,9 @@ const props = defineProps({
     default: ''
   },
   /**
-   * venue：仅列出角色 annual_venue_quota > 0 或 -1（无限）的用户，并始终隐藏 SuperAdmin
+   * venue：角色 annual_venue_quota > 0 或 -1
+   * ev：角色 annual_ev_quota > 0 或 -1
+   * 两种 scope 均隐藏 SuperAdmin
    */
   ownerScope: {
     type: String,
@@ -140,9 +142,10 @@ onBeforeUnmount(() => {
   zoomBreakpointMq?.removeEventListener('change', syncPopperTeleported)
   zoomBreakpointMq = null
   if (filterTimer) clearTimeout(filterTimer)
+  cleanupOwnerScrollListener()
 })
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 50
 const selectRef = ref(null)
 const searchLoading = ref(false)
 const ownerLoading = ref(false)
@@ -150,11 +153,25 @@ const ownerKeyword = ref('')
 const ownerPage = ref(1)
 const ownerHasMore = ref(false)
 const userOptions = ref([])
+let scrollWrapEl = null
 
 function formatUserLabel (user) {
   if (!user) return ''
   const displayName = formatUserDisplayName(user)
   return displayName ? `${displayName} (${user.corpId})` : String(user.corpId || '')
+}
+
+/** 按下拉展示名 A-Z（FirstName LastName），再按 corpId */
+function compareOwnerOptions (a, b) {
+  const byDisplay = String(formatUserDisplayName(a) || '').localeCompare(
+    String(formatUserDisplayName(b) || ''),
+    undefined,
+    { sensitivity: 'base' }
+  )
+  if (byDisplay !== 0) return byDisplay
+  return String(a?.corpId || '').localeCompare(String(b?.corpId || ''), undefined, {
+    sensitivity: 'base'
+  })
 }
 
 function mergeUsers (rows) {
@@ -163,6 +180,14 @@ function mergeUsers (rows) {
     map.set(row.id, row)
   }
   userOptions.value = [...map.values()]
+}
+
+function cleanupOwnerScrollListener () {
+  if (scrollWrapEl?._reservedByScrollCleanup) {
+    scrollWrapEl._reservedByScrollCleanup()
+    delete scrollWrapEl._reservedByScrollCleanup
+  }
+  scrollWrapEl = null
 }
 
 async function fetchUsers ({ reset = false, keyword = ownerKeyword.value, showLoading = false } = {}) {
@@ -194,15 +219,9 @@ const displayedOptions = computed(() => {
   const list = [...userOptions.value]
   const current = props.defaultUser
   if (current?.id && !list.some((u) => u.id === current.id)) {
-    list.unshift(current)
+    list.push(current)
   }
-  const selected = list.find((u) => u.id === props.modelValue)
-  if (props.modelValue && !selected && current?.id === props.modelValue) {
-    list.unshift(current)
-  }
-  return list.sort((a, b) =>
-    String(formatUserDisplayName(a) || '').localeCompare(String(formatUserDisplayName(b) || ''))
-  )
+  return list.sort(compareOwnerOptions)
 })
 
 let filterTimer = null
@@ -215,17 +234,29 @@ function handleFilter (query) {
   }, 250)
 }
 
+function resolveOwnerDropdownWrap () {
+  const popperEl =
+    selectRef.value?.popperRef?.contentRef?.$el
+    ?? selectRef.value?.popperRef?.contentRef
+    ?? document.querySelector('.reserved-by-user-select')
+  if (!popperEl) return null
+  return popperEl.querySelector?.('.el-scrollbar__wrap') || null
+}
+
 function handleDropdownVisibleChange (visible) {
-  if (!visible) return
+  if (!visible) {
+    cleanupOwnerScrollListener()
+    return
+  }
   ownerKeyword.value = ''
   ownerPage.value = 1
   void fetchUsers({ reset: true, keyword: '', showLoading: true })
   nextTick(() => {
     requestAnimationFrame(() => {
-      const popper = selectRef.value?.popperRef?.contentRef?.$el
-        ?? document.querySelector('.reserved-by-user-select')
-      const wrap = popper?.querySelector?.('.el-scrollbar__wrap')
+      cleanupOwnerScrollListener()
+      const wrap = resolveOwnerDropdownWrap()
       if (!wrap) return
+      scrollWrapEl = wrap
       const onScroll = () => {
         if (!ownerHasMore.value || ownerLoading.value) return
         if (wrap.scrollTop + wrap.clientHeight >= wrap.scrollHeight - 24) {

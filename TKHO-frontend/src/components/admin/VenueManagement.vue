@@ -965,6 +965,7 @@ onUnmounted(() => {
 
 const handleExport = () => {
   const exportData = venueList.value.map(item => ({
+    ID: item.id ?? '',
     'Room / Venue Name': item.name,
     'Name (ZH)': item.nameZh || '',
     'Type': getTypeLabel(item.type),

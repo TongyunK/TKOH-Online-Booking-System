@@ -83,10 +83,10 @@
                       />
                     </template>
                   </el-table-column>
-                  <el-table-column width="170" class-name="table-nowrap-col quota-col" label-class-name="table-nowrap-col quota-col">
+                  <el-table-column width="168" class-name="table-nowrap-col quota-col" label-class-name="table-nowrap-col quota-col">
                     <template #header>
                       <button type="button" class="th-sort-btn" @click="toggleSort('user', 'venueQuota')">
-                        Venue Quota
+                        Venue {{ rowQuotaYearLabel('current') }}
                         <span class="sort-indicator">{{ getSortIndicator('user', 'venueQuota') }}</span>
                       </button>
                     </template>
@@ -95,16 +95,34 @@
                         type="button"
                         class="quota-cell-btn"
                         :title="`Current year (${row.quotaYear || currentQuotaYear}) — click for yearly details`"
-                        @click="openYearlyQuotaModal(row, 'venue')"
+                        @click="openYearlyQuotaModal(row, 'venue', row.quotaYear || currentQuotaYear)"
                       >
                         {{ formatQuotaDisplay(row.usedQuotaVenue, row.annualQuotaVenue) }}
                       </button>
                     </template>
                   </el-table-column>
-                  <el-table-column width="160" class-name="table-nowrap-col quota-col" label-class-name="table-nowrap-col quota-col">
+                  <el-table-column width="168" class-name="table-nowrap-col quota-col" label-class-name="table-nowrap-col quota-col">
+                    <template #header>
+                      <button type="button" class="th-sort-btn" @click="toggleSort('user', 'venueQuotaNext')">
+                        Venue {{ rowQuotaYearLabel('next') }}
+                        <span class="sort-indicator">{{ getSortIndicator('user', 'venueQuotaNext') }}</span>
+                      </button>
+                    </template>
+                    <template #default="{ row }">
+                      <button
+                        type="button"
+                        class="quota-cell-btn"
+                        :title="`Next year (${row.nextQuotaYear || nextQuotaYear}) — click for yearly details`"
+                        @click="openYearlyQuotaModal(row, 'venue', row.nextQuotaYear || nextQuotaYear)"
+                      >
+                        {{ formatQuotaDisplay(row.usedQuotaVenueNext, row.annualQuotaVenueNext) }}
+                      </button>
+                    </template>
+                  </el-table-column>
+                  <el-table-column width="150" class-name="table-nowrap-col quota-col" label-class-name="table-nowrap-col quota-col">
                     <template #header>
                       <button type="button" class="th-sort-btn" @click="toggleSort('user', 'evQuota')">
-                        EV Quota
+                        EV {{ rowQuotaYearLabel('current') }}
                         <span class="sort-indicator">{{ getSortIndicator('user', 'evQuota') }}</span>
                       </button>
                     </template>
@@ -113,7 +131,7 @@
                         type="button"
                         class="quota-cell-btn"
                         :title="`Current year (${row.quotaYear || currentQuotaYear}) — click for yearly details`"
-                        @click="openYearlyQuotaModal(row, 'ev')"
+                        @click="openYearlyQuotaModal(row, 'ev', row.quotaYear || currentQuotaYear)"
                       >
                         {{ formatQuotaDisplay(row.usedQuotaEV, row.annualQuotaEV) }}
                       </button>
@@ -265,10 +283,10 @@
                       />
                     </template>
                   </el-table-column>
-                  <el-table-column width="170" class-name="table-nowrap-col quota-col" label-class-name="table-nowrap-col quota-col">
+                  <el-table-column width="168" class-name="table-nowrap-col quota-col" label-class-name="table-nowrap-col quota-col">
                     <template #header>
                       <button type="button" class="th-sort-btn" @click="toggleSort('expired', 'venueQuota')">
-                        Venue Quota
+                        Venue {{ rowQuotaYearLabel('current') }}
                         <span class="sort-indicator">{{ getSortIndicator('expired', 'venueQuota') }}</span>
                       </button>
                     </template>
@@ -277,16 +295,34 @@
                         type="button"
                         class="quota-cell-btn"
                         :title="`Current year (${row.quotaYear || currentQuotaYear}) — click for yearly details`"
-                        @click="openYearlyQuotaModal(row, 'venue')"
+                        @click="openYearlyQuotaModal(row, 'venue', row.quotaYear || currentQuotaYear)"
                       >
                         {{ formatQuotaDisplay(row.usedQuotaVenue, row.annualQuotaVenue) }}
                       </button>
                     </template>
                   </el-table-column>
-                  <el-table-column width="160" class-name="table-nowrap-col quota-col" label-class-name="table-nowrap-col quota-col">
+                  <el-table-column width="168" class-name="table-nowrap-col quota-col" label-class-name="table-nowrap-col quota-col">
+                    <template #header>
+                      <button type="button" class="th-sort-btn" @click="toggleSort('expired', 'venueQuotaNext')">
+                        Venue {{ rowQuotaYearLabel('next') }}
+                        <span class="sort-indicator">{{ getSortIndicator('expired', 'venueQuotaNext') }}</span>
+                      </button>
+                    </template>
+                    <template #default="{ row }">
+                      <button
+                        type="button"
+                        class="quota-cell-btn"
+                        :title="`Next year (${row.nextQuotaYear || nextQuotaYear}) — click for yearly details`"
+                        @click="openYearlyQuotaModal(row, 'venue', row.nextQuotaYear || nextQuotaYear)"
+                      >
+                        {{ formatQuotaDisplay(row.usedQuotaVenueNext, row.annualQuotaVenueNext) }}
+                      </button>
+                    </template>
+                  </el-table-column>
+                  <el-table-column width="150" class-name="table-nowrap-col quota-col" label-class-name="table-nowrap-col quota-col">
                     <template #header>
                       <button type="button" class="th-sort-btn" @click="toggleSort('expired', 'evQuota')">
-                        EV Quota
+                        EV {{ rowQuotaYearLabel('current') }}
                         <span class="sort-indicator">{{ getSortIndicator('expired', 'evQuota') }}</span>
                       </button>
                     </template>
@@ -295,7 +331,7 @@
                         type="button"
                         class="quota-cell-btn"
                         :title="`Current year (${row.quotaYear || currentQuotaYear}) — click for yearly details`"
-                        @click="openYearlyQuotaModal(row, 'ev')"
+                        @click="openYearlyQuotaModal(row, 'ev', row.quotaYear || currentQuotaYear)"
                       >
                         {{ formatQuotaDisplay(row.usedQuotaEV, row.annualQuotaEV) }}
                       </button>
@@ -1228,16 +1264,26 @@ const adminStore = useAdminStore()
 const { pendingUsersCount } = storeToRefs(adminStore)
 
 const currentQuotaYear = ref(new Date().getFullYear())
+const nextQuotaYear = computed(() => Number(currentQuotaYear.value) + 1)
+
+function rowQuotaYearLabel (kind) {
+  const year = kind === 'next' ? nextQuotaYear.value : currentQuotaYear.value
+  return `(${year})`
+}
 
 /** 后端字段为 annualQuotaEv；表格与表单沿用 annualQuotaEV */
 function normalizeUserRow (u) {
+  const quotaYear = u.quotaYear ?? currentQuotaYear.value
   return {
     ...u,
-    quotaYear: u.quotaYear ?? currentQuotaYear.value,
+    quotaYear,
+    nextQuotaYear: u.nextQuotaYear ?? Number(quotaYear) + 1,
     annualQuotaEV: u.annualQuotaEv ?? u.annualQuotaEV ?? 0,
     usedQuotaEV: u.usedQuotaEv ?? u.usedQuotaEV ?? 0,
     annualQuotaVenue: u.annualQuotaVenue ?? u.annualQuotaVenue ?? 0,
     usedQuotaVenue: u.usedQuotaVenue ?? u.usedQuotaVenue ?? 0,
+    annualQuotaVenueNext: u.annualQuotaVenueNext ?? u.annualQuotaVenue ?? 0,
+    usedQuotaVenueNext: u.usedQuotaVenueNext ?? 0,
     defaultAnnualQuotaEV: u.defaultAnnualQuotaEv ?? u.defaultAnnualQuotaEV ?? u.annualQuotaEv ?? u.annualQuotaEV ?? 0,
     defaultAnnualQuotaVenue:
       u.defaultAnnualQuotaVenue ?? u.annualQuotaVenue ?? 0
@@ -1269,7 +1315,7 @@ const yearlyQuotaModalTitle = computed(() => {
   return `${kind} Quota — ${name}`
 })
 
-/** 仅「已有预订记录」的年份可改额度（与后端列表一致） */
+/** 当前年、下一年及已有预订年份可改额度（与后端列表一致） */
 const yearlyEditYearOptions = computed(() => {
   return (yearlyQuotaRows.value || [])
     .map((r) => Number(r.year))
@@ -1356,6 +1402,9 @@ function normalizeListResponse (payload) {
   }
   const items = Array.isArray(payload?.items) ? payload.items : []
   const total = Number(payload?.total)
+  if (payload?.quotaYear != null) {
+    currentQuotaYear.value = Number(payload.quotaYear) || currentQuotaYear.value
+  }
   return {
     items,
     total: Number.isFinite(total) ? total : items.length,
@@ -2231,7 +2280,7 @@ const onYearlyUsageRowClick = (row) => {
   selectYearlyEditYear(row.year)
 }
 
-const openYearlyQuotaModal = async (row, focus = 'ev') => {
+const openYearlyQuotaModal = async (row, focus = 'ev', preferredYear = null) => {
   yearlyQuotaUser.value = row
   yearlyQuotaFocus.value = focus === 'venue' ? 'venue' : 'ev'
   showYearlyQuotaDialog.value = true
@@ -2239,9 +2288,13 @@ const openYearlyQuotaModal = async (row, focus = 'ev') => {
   try {
     const payload = await getUserYearlyQuotas(row.id)
     applyYearlyPayload(payload)
-    const firstYear = yearlyEditYearOptions.value[0]
-    if (firstYear != null) {
-      fillYearlyEditFromRow(firstYear)
+    const preferred = Number(preferredYear)
+    const years = yearlyEditYearOptions.value
+    const targetYear =
+      (Number.isFinite(preferred) && years.includes(preferred) ? preferred : null)
+      ?? years[0]
+    if (targetYear != null) {
+      fillYearlyEditFromRow(targetYear)
     }
   } catch (e) {
     console.error(e)
@@ -2255,7 +2308,7 @@ const openYearlyQuotaModal = async (row, focus = 'ev') => {
 const saveYearlyQuota = async () => {
   if (!yearlyQuotaUser.value?.id) return
   if (!yearlyEditYearOptions.value.length) {
-    showNotice('No year with bookings available to edit', 'Warning')
+    showNotice('No editable year available', 'Warning')
     return
   }
   const year = Number.parseInt(String(yearlyEditForm.value.year), 10)
@@ -2264,7 +2317,7 @@ const saveYearlyQuota = async () => {
     return
   }
   if (!yearlyEditYearOptions.value.includes(year)) {
-    showNotice('Quota can only be changed for years that already have bookings', 'Warning')
+    showNotice('Please select a year from the list', 'Warning')
     return
   }
   yearlyEditForm.value.year = year
@@ -2296,6 +2349,7 @@ const handleExport = async () => {
     const { items } = normalizeListResponse(payload)
     const rows = items.map(normalizeUserRow)
     const exportData = rows.map(item => ({
+      ID: item.id ?? '',
       'CORP User ID': item.corpId,
       'Employee No.': item.employeeNo || '',
       'First Name': item.firstName || '',
@@ -2305,11 +2359,13 @@ const handleExport = async () => {
       'Email': item.email,
       'Contact No.': item.contact || '',
       'Role': item.role,
-      'Quota Year': item.quotaYear || currentQuotaYear.value,
-      'Venue Quota': item.annualQuotaVenue,
-      'Used Quota (Venue)': item.usedQuotaVenue,
-      'EV Quota': item.annualQuotaEV,
-      'Used Quota (EV)': item.usedQuotaEV,
+      'Quota Year (Current)': item.quotaYear || currentQuotaYear.value,
+      [`Venue Quota (${item.quotaYear || currentQuotaYear.value})`]: item.annualQuotaVenue,
+      [`Used Venue (${item.quotaYear || currentQuotaYear.value})`]: item.usedQuotaVenue,
+      [`Venue Quota (${item.nextQuotaYear || nextQuotaYear.value})`]: item.annualQuotaVenueNext,
+      [`Used Venue (${item.nextQuotaYear || nextQuotaYear.value})`]: item.usedQuotaVenueNext,
+      [`EV Quota (${item.quotaYear || currentQuotaYear.value})`]: item.annualQuotaEV,
+      [`Used EV (${item.quotaYear || currentQuotaYear.value})`]: item.usedQuotaEV,
       'Status': item.status === 'active' ? 'Active' : item.status === 'inactive' ? 'Inactive' : 'Expired',
       'Last login time': formatDateTimeDisplay(item.lastLoginTime),
       'Inactive Time': formatDateTimeDisplay(item.inactiveTime),

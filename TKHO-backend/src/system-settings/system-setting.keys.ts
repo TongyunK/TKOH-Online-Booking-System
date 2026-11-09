@@ -3,6 +3,12 @@ export const SystemSettingKey = {
   /** 无操作自动登出（分钟） */
   userAutoLogoutMinutes: 'user_auto_logout_minutes',
   hkPublicHolidaysUrl: 'hk_public_holidays_url',
+  /** 登录页 User Guide 链接 */
+  userGuideUrl: 'user_guide_url',
+  /** 登录页 Operations Manual 链接 */
+  operationsManualUrl: 'operations_manual_url',
+  /** 登录页底部 Points to Note 内容区宽度占比（%） */
+  loginPointsToNoteWidthPercent: 'login_points_to_note_width_percent',
   evDateUpdateTime: 'EV_date_update_time',
   evWeeklyBookingLimit: 'EV_weekly_booking_limit',
   venueBookingMinGapMinutes: 'venue_booking_min_gap_minutes',
@@ -48,6 +54,9 @@ export const SYSTEM_SETTING_DEFAULTS: Record<SystemSettingKeyName, string> = {
   [SystemSettingKey.userAutoLogoutMinutes]: '30',
   [SystemSettingKey.hkPublicHolidaysUrl]:
     'https://www.1823.gov.hk/common/ical/en.json',
+  [SystemSettingKey.userGuideUrl]: '',
+  [SystemSettingKey.operationsManualUrl]: '',
+  [SystemSettingKey.loginPointsToNoteWidthPercent]: '85',
   [SystemSettingKey.evDateUpdateTime]: '13:00',
   [SystemSettingKey.evWeeklyBookingLimit]: '1',
   [SystemSettingKey.venueBookingMinGapMinutes]: '15',
@@ -75,6 +84,12 @@ export const SYSTEM_SETTING_DESCRIPTIONS: Record<SystemSettingKeyName, string> =
       'Minutes of idle time without user activity before automatic logout',
     [SystemSettingKey.hkPublicHolidaysUrl]:
       'Hong Kong public holidays reference URL',
+    [SystemSettingKey.userGuideUrl]:
+      'Login page User Guide link URL (http/https)',
+    [SystemSettingKey.operationsManualUrl]:
+      'Login page Operations Manual link URL (http/https)',
+    [SystemSettingKey.loginPointsToNoteWidthPercent]:
+      'Login page Points to Note content width as percent of page (40–100)',
     [SystemSettingKey.evDateUpdateTime]:
       'Daily time (HH:mm, Hong Kong) when EV booking calendar rolls forward to release the next day quota',
     [SystemSettingKey.evWeeklyBookingLimit]:

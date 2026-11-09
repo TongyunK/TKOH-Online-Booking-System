@@ -2,8 +2,8 @@
   <header ref="headerRef" class="app-header w-full bg-[#0A3D1F] text-white">
     <div class="header-left flex items-center gap-3">
       <img src="../assets/TKOH_logo.png" alt="TKOH Logo" class="header-logo" />
-      <h1 class="text-lg font-semibold">
-        {{ headerTitle }}
+      <h1 class="header-title text-lg">
+        <span class="header-title-brand">{{ headerTitleBrand }}</span><span class="header-title-rest">{{ headerTitleRest }}</span>
       </h1>
     </div>
 
@@ -268,9 +268,20 @@ const isManageNavActive = computed(() => {
 
 const headerTitle = computed(() => {
   if (route.path.includes('/admin')) {
-    return 'TKOH GA Service Center'
+    return 'TKOH GA Venue and EV Charging Booking System'
   }
-  return isVenuePage.value ? 'TKOH Venue Booking' : 'TKOH EV Booking'
+  return isVenuePage.value ? 'TKOH Venue Booking' : 'TKOH EV Charging Booking'
+})
+
+/** 全大写 TKOH 同字重会显得更粗，拆开做光学平衡 */
+const headerTitleBrand = computed(() => {
+  const title = String(headerTitle.value || '')
+  return title.startsWith('TKOH') ? 'TKOH' : ''
+})
+
+const headerTitleRest = computed(() => {
+  const title = String(headerTitle.value || '')
+  return title.startsWith('TKOH') ? title.slice(4) : title
 })
 
 const switchButtonText = computed(() => {
@@ -325,7 +336,7 @@ const saveCurrentPath = () => {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.75rem 1.6rem;
+  padding: 0.65rem 1.6rem;
   flex-wrap: nowrap;
 }
 
@@ -366,6 +377,21 @@ const saveCurrentPath = () => {
   height: 32px;
   width: auto;
   object-fit: contain;
+}
+
+.header-title {
+  margin: 0;
+  color: #ffffff;
+}
+
+.header-title-brand,
+.header-title-rest {
+  font-weight: 700;
+}
+
+/* 全大写品牌词略减字重，避免比后半段更“胖” */
+.header-title-brand {
+  font-weight: 600;
 }
 
 .header-link {

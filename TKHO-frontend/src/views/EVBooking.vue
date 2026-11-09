@@ -1,5 +1,5 @@
 <template>
-  <div class="calendar-page h-screen bg-[#f5f5f5] flex flex-col overflow-hidden" style="padding-top: var(--app-header-height, 64px);">
+  <div class="calendar-page h-screen bg-[#f5f5f5] flex flex-col overflow-hidden" style="padding-top: var(--app-header-height, 60px);">
     <AppHeader />
 
     <div v-if="hasEvRuleNotice && !showTopTip" class="top-tip-toggle-wrapper">

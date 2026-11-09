@@ -73,8 +73,8 @@ const props = defineProps({
   clearable: { type: Boolean, default: true },
   /** true：挂到 body + fixed；false：相对输入框 absolute（html zoom） */
   teleported: { type: Boolean, default: true },
-  startHour: { type: Number, default: 7 },
-  endHour: { type: Number, default: 21 },
+  startHour: { type: Number, default: 8 },
+  endHour: { type: Number, default: 22 },
   minuteStep: { type: Number, default: 15 },
   /** 可选最小时间（含），用于 End Time：滚轮定位并限制不早于该时刻之后 */
   minTime: { type: String, default: '' }

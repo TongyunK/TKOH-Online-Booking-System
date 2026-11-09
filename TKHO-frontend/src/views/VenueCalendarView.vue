@@ -1,5 +1,5 @@
 <template>
-  <div class="calendar-page h-screen bg-[#f5f5f5] flex flex-col overflow-hidden" style="padding-top: var(--app-header-height, 64px);">
+  <div class="calendar-page h-screen bg-[#f5f5f5] flex flex-col overflow-hidden" style="padding-top: var(--app-header-height, 60px);">
     <AppHeader />
     <div v-if="hasVenueRuleNotice && !showTopTip" class="top-tip-toggle-wrapper">
       <button
@@ -534,7 +534,10 @@ function loadBlockRecordsFromVenues () {
   })
 }
 
-/** ??????????????????????????? storage ????URL ??roomType ????????? */
+/**
+ * 仅首次进入且无已保存/路由筛选时，按当前预订补勾选房间。
+ * 切日/周/月视图时不得再跑：周视图预订更多会把用户手动取消的房间重新勾上。
+ */
 function syncSelectedRoomsWithBookings (bookingList) {
   if (roomFilterRestoredFromStorage.value) {
     return
@@ -553,24 +556,37 @@ function syncSelectedRoomsWithBookings (bookingList) {
   }
 }
 
-async function fetchBookings () {
+/** 防止日↔周快速切换时旧请求覆盖新结果 */
+let fetchBookingsSeq = 0
+
+async function fetchBookings (options = {}) {
+  const { syncRoomFilter = false } = options
+  const seq = ++fetchBookingsSeq
+  const view = currentView.value
+  const date = currentDate.value
   calendarLoading.value = true
   try {
     const res = await fetchCalendarBookingsByView({
-      view: currentView.value,
-      currentDate: currentDate.value
+      view,
+      currentDate: date
     })
+    if (seq !== fetchBookingsSeq) return
     const list = unwrapCalendarBookings(res)
     bookings.value = list.map(booking => ({
       ...booking,
       color: booking.color || getRoomColor(booking.roomName)
     }))
-    syncSelectedRoomsWithBookings(bookings.value)
+    if (syncRoomFilter) {
+      syncSelectedRoomsWithBookings(bookings.value)
+    }
   } catch (error) {
+    if (seq !== fetchBookingsSeq) return
     console.error('Failed to fetch calendar bookings:', error)
     showNotice('Failed to load bookings', 'Error')
   } finally {
-    calendarLoading.value = false
+    if (seq === fetchBookingsSeq) {
+      calendarLoading.value = false
+    }
   }
 }
 
@@ -1222,7 +1238,9 @@ async function loadCalendarData () {
     if (!isDateInVenueWindow(currentDate.value)) {
       currentDate.value = new Date(`${venueBookingWindow.value.currentStartDate}T00:00:00`)
     }
-    await fetchBookings()
+    // 仅首屏在无持久化筛选时按预订补勾；之后锁定，避免切视图冲掉用户筛选
+    await fetchBookings({ syncRoomFilter: !roomFilterRestoredFromStorage.value })
+    roomFilterRestoredFromStorage.value = true
   } catch (error) {
     console.error('Failed to load calendar data:', error)
     showNotice('Failed to load calendar data', 'Error')
@@ -1254,6 +1272,8 @@ watch(
   () => allRooms.value.map((room) => `${room.id}:${room.selected}`).join(','),
   () => {
     if (!roomFilterPersistenceReady.value) return
+    // 用户改过筛选后锁定，防止后续 fetch 再按预订自动勾选
+    roomFilterRestoredFromStorage.value = true
     saveVenueCalendarRoomFilter(allRooms.value)
   }
 )

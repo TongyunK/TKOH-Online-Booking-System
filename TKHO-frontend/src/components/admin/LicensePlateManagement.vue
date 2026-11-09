@@ -534,6 +534,7 @@ const getRowIndex = (index) => (currentPage.value - 1) * pageSize.value + index 
 
 const handleExport = () => {
   const exportData = licensePlateList.value.map(item => ({
+    ID: item.id ?? '',
     'CORP User ID': item.corpId,
     'Plate Number': item.plateNumber,
     'Owner': item.owner

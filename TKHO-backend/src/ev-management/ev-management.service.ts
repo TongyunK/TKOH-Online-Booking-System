@@ -1215,7 +1215,7 @@ export class EvManagementService {
 
     if (!this.isAdminRole(auth) && this.toDateOnly(row.bookingDate) === getAppTodayYmd()) {
       throw new BadRequestException(
-        'Same-day EV bookings cannot be cancelled.',
+        'Same-day bookings cannot be cancelled.',
       );
     }
 

@@ -37,7 +37,7 @@ onMounted(async () => {
 
 <style>
 :root {
-  --app-header-height: 64px;
+  --app-header-height: 60px;
 }
 
 /* 自定义日期选择器样式 - 全局样式 */

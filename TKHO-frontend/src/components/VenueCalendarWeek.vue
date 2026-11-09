@@ -141,12 +141,12 @@ let resizeObserver = null
 
 const weekdayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-// 时间槽（30分钟间隔，从7:00到21:00）
+// 时间槽（30分钟间隔，从8:00到22:00）
 const timeSlots = computed(() => {
   const slots = []
-  for (let hour = 7; hour <= 21; hour++) {
+  for (let hour = 8; hour <= 22; hour++) {
     slots.push(`${String(hour).padStart(2, '0')}:00`)
-    if (hour < 21) {
+    if (hour < 22) {
       slots.push(`${String(hour).padStart(2, '0')}:30`)
     }
   }
@@ -202,9 +202,9 @@ function getDayBookings (dayDate) {
 }
 
 function parseTimeToMinutes (timeStr) {
-  if (!timeStr || typeof timeStr !== 'string') return 7 * 60
+  if (!timeStr || typeof timeStr !== 'string') return 8 * 60
   const [h, m] = timeStr.split(':').map(Number)
-  if (Number.isNaN(h) || Number.isNaN(m)) return 7 * 60
+  if (Number.isNaN(h) || Number.isNaN(m)) return 8 * 60
   return h * 60 + m
 }
 
@@ -470,10 +470,10 @@ function getBookingStyle (booking, dayDate) {
   let endTimeInMinutes = parseTimeToMinutes(booking.endTime)
   if (endTimeInMinutes <= startTimeInMinutes) endTimeInMinutes = startTimeInMinutes + 30
 
-  // 7:00 是起始时间（7 * 60 = 420分钟）
-  const dayStartInMinutes = 7 * 60
+  // 8:00 是起始时间（8 * 60 = 480分钟）
+  const dayStartInMinutes = 8 * 60
 
-  // 计算相对于7:00的偏移量（以30分钟为单位）
+  // 计算相对于8:00的偏移量（以30分钟为单位）
   const offsetSlots = (startTimeInMinutes - dayStartInMinutes) / 30
   const durationSlots = (endTimeInMinutes - startTimeInMinutes) / 30
 

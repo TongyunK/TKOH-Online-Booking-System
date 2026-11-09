@@ -609,6 +609,15 @@
             :max-units="meetingEventTitleMaxLength"
           />
         </el-form-item>
+        <el-form-item label="My Note" class="no-wrap-label">
+          <el-input
+            v-model="handleForm.myNote"
+            type="textarea"
+            :autosize="{ minRows: 1, maxRows: 6 }"
+            resize="none"
+            disabled
+          />
+        </el-form-item>
         <el-form-item label="Date">
           <el-input v-model="handleForm.date" disabled />
         </el-form-item>
@@ -1196,6 +1205,7 @@ const handleForm = ref({
   contactPhone: '',
   contactEmail: '',
   meetingTitle: '',
+  myNote: '-',
   date: '',
   time: '',
   participantCount: '-',
@@ -1314,8 +1324,9 @@ const handleExport = async () => {
       ...expiredItems.map(item => ({ ...item, status: 'Expired' })),
       ...approvedItems.map(item => ({ ...item, status: 'Approved' })),
     ]
-    const exportData = allData.map(item => ({
-      'Booking ID': item.bookingId,
+    const exportData = allData.map((item, index) => ({
+      '#': index + 1,
+      ID: item.id || item.bookingId || '',
       'Room / Venue': item.venueName,
       'Reserved By': formatReservedBy(item),
       'Department / Unit': item.department || '',
@@ -1353,6 +1364,7 @@ const handleOpen = (row) => {
     contactPhone: row.contactPhone || '-',
     contactEmail: row.contactEmail || '-',
     meetingTitle: row.meetingTitle || '',
+    myNote: String(row.myNote || row.notes || row.remark || '').trim() || '-',
     date: row.date || '',
     time: row.time || '',
     participantCount: row.attendeeCount

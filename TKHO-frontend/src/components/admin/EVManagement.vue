@@ -508,6 +508,7 @@ const formatDateTime = (value) => {
 const handleExport = () => {
   if (activeTab.value === 'parking') {
     const exportData = parkingList.value.map(item => ({
+      ID: item.id ?? '',
       'EV Space': item.evSpace,
       'Location': item.location,
       'Status': item.status === 'active' ? 'Active' : 'Inactive'
@@ -519,6 +520,7 @@ const handleExport = () => {
     XLSX.writeFile(wb, `EV_Parking_${new Date().toISOString().split('T')[0]}.xlsx`)
   } else {
     const exportData = timePeriodsList.value.map(item => ({
+      ID: item.id ?? '',
       'Time Period': item.period,
       'Start Time': item.startTime,
       'End Time': item.endTime,

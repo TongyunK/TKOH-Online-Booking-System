@@ -57,7 +57,7 @@ export class DataBackupMailService {
       auth: { user: from, pass },
     });
 
-    const subject = `TKOH GA Service Center System Data Backup — ${range.startYmd} to ${range.endYmd}`;
+    const subject = `TKOH GA Venue and EV Charging Booking System System Data Backup — ${range.startYmd} to ${range.endYmd}`;
     const text = [
       'Scheduled TKOH Online Booking System data backup.',
       '',

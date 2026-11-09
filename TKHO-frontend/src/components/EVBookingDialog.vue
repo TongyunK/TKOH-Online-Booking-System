@@ -176,7 +176,12 @@ import { getAccountVehicles } from '@/api/accountVehicle'
 import { getEvAssignmentPreview, getEvSlotOptions } from '@/api/parking'
 import { getMockAccountVehicleList, getMockEVParkingList } from '@/mocks/mockData'
 import { createDateAtMidnight, isEvSlotPast } from '@/utils/evSlotPast'
-import { isRestrictedBookingDay } from '@/utils/bookingDateRestriction'
+import {
+  isRestrictedBookingDay,
+  isSameDayOrPastBookingRestricted,
+  SAME_DAY_BOOKING_NOT_ALLOWED
+} from '@/utils/bookingDateRestriction'
+import { todayYmdInAppTimeZone } from '@/utils/appTimezone'
 import { HTML_ZOOM_BREAKPOINT_MQ } from '@/utils/venueCalendarApi'
 import { useUserStore } from '@/stores/user'
 import { formatUserDisplayName } from '@/utils/userDisplayName'
@@ -263,8 +268,8 @@ const defaultReservedByUser = computed(() => {
 
 const dialogTitle = computed(() =>
   props.mode === 'edit'
-    ? 'EDIT BOOKING | CARPARK EV BOOKING'
-    : 'ADD BOOKING | CARPARK EV BOOKING CALENDAR'
+    ? 'Edit Booking'
+    : 'Add Booking'
 )
 
 const isEditMode = computed(() => props.mode === 'edit')
@@ -745,12 +750,19 @@ function isTimeAvailable (period) {
   return !slot || slot.available > 0
 }
 
-// 禁用日期：须在预订窗口内，且不能早于今天
+// 禁用日期：须在预订窗口内；非管理员不可选今日及过去；管理员不可选过去
 function disabledDate (date) {
   const day = new Date(date)
   day.setHours(0, 0, 0, 0)
   const today = createDateAtMidnight()
+  const ymd = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`
   if (day < today) return true
+  if (isSameDayOrPastBookingRestricted(ymd, {
+    isAdmin: props.isAdmin,
+    todayYmd: todayYmdInAppTimeZone()
+  })) {
+    return true
+  }
 
   const startRaw = String(props.bookingWindowStart || '').trim()
   const endRaw = String(props.bookingWindowEnd || '').trim()
@@ -759,7 +771,6 @@ function disabledDate (date) {
   const end = createDateAtMidnight(new Date(`${endRaw}T00:00:00`))
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return true
   if (day < start || day > end) return true
-  const ymd = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`
   if (isRestrictedBookingDay(ymd, {
     isAdmin: props.isAdmin,
     publicHolidayDates: props.publicHolidayDates
@@ -812,6 +823,17 @@ function handleSave() {
     statusDialog.value = {
       visible: true,
       message: 'Please select a date'
+    }
+    return
+  }
+  if (isSameDayOrPastBookingRestricted(form.value.date, {
+    isAdmin: props.isAdmin,
+    todayYmd: todayYmdInAppTimeZone()
+  })) {
+    statusDialog.value = {
+      visible: true,
+      message: SAME_DAY_BOOKING_NOT_ALLOWED,
+      type: 'error'
     }
     return
   }
@@ -922,10 +944,9 @@ function handleSave() {
 }
 
 .modal-title {
-  font-size: clamp(0.625rem, 1.8vw, 0.875rem);
-  font-weight: 700;
-  letter-spacing: 0.3px;
-  line-height: 1.2;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.5;
 }
 
 .modal-close {
@@ -1284,10 +1305,10 @@ function handleSave() {
 
 .status-dialog-message {
   margin: 0;
-  font-size: 1.125rem;
+  font-size: 18px;
   text-align: center;
-  line-height: 1.55;
-  color: #333333;
+  line-height: 1.6;
+  color: #374151;
   white-space: pre-line;
 }
 
@@ -1346,11 +1367,6 @@ function handleSave() {
 
   .modal-header {
     padding: 0.625rem 0.875rem;
-  }
-
-  .modal-title {
-    font-size: 0.625rem;
-    letter-spacing: 0.2px;
   }
 
   .close-icon {

@@ -413,6 +413,7 @@ const loadPromptList = async () => {
 
 const handleExport = () => {
   const exportData = currentList.value.map(item => ({
+    ID: item.id ?? '',
     Type: item.key,
     Name: item.name,
     Content: item.content,

@@ -499,6 +499,7 @@ const formatAnnualQuota = (value) => (Number(value) === -1 ? 'unlimited bookings
 const handleExport = () => {
   if (activeTab.value === 'role') {
     const exportData = roleList.value.map(item => ({
+      ID: item.id ?? '',
       'Role Name': item.roleName,
       'Description': item.description,
       'Annual Venue Quota': item.AnnualVenueQuota,
@@ -512,6 +513,7 @@ const handleExport = () => {
     XLSX.writeFile(wb, `Role_Management_${new Date().toISOString().split('T')[0]}.xlsx`)
   } else {
     const exportData = departmentList.value.map(item => ({
+      ID: item.id ?? '',
       'Department / Unit Name': item.departmentName,
       'Description': item.description,
       'User Count': item.employeeCount

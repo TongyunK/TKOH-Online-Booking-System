@@ -188,6 +188,7 @@ export class MeetingApprovalService {
       contactPhone: row.reservedBy?.contact ?? '',
       contactEmail: row.reservedBy?.email ?? '',
       meetingTitle: row.meetingTitle ?? '',
+      myNote: row.notes ?? '',
       date: this.formatBookingDate(row.bookingDate),
       time: this.formatTimeRange(row.startTime, row.endTime),
       attendees: row.attendees ?? null,

@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Public } from '../auth/decorators/public.decorator';
 import { AdminRoleGuard } from '../auth/guards/admin-role.guard';
 import { UpdateSystemSettingsDto } from './dto/update-system-settings.dto';
 import { HkPublicHolidaysService } from './hk-public-holidays.service';
@@ -21,6 +22,13 @@ export class SystemSettingsController {
       userAutoLogoutMinutes:
         await this.systemSettingsService.getUserAutoLogoutMinutes(),
     };
+  }
+
+  /** 登录页：文档链接与 Points to Note 宽度等布局参数（无需登录） */
+  @Public()
+  @Get('login-docs')
+  getLoginDocs() {
+    return this.systemSettingsService.getLoginDocs();
   }
 
   @Get()

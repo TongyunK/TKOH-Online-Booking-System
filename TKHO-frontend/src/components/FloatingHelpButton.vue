@@ -1,5 +1,5 @@
 <template>
-  <div class="tips-root">
+  <div v-if="showTipsButton" class="tips-root">
     <button
       type="button"
       class="tips-button"
@@ -105,18 +105,16 @@ const loadPointsToNote = async () => {
   }
 }
 
-/** 按路由选系统；Admin 后台固定 Venue；Account：admin 用 Venue，普通用户按进入系统 */
+/** Admin 管理页不显示 i 图标 */
+const isAdminPage = computed(() => String(route.path || '').startsWith('/admin'))
+
+/** 按路由选系统；Account：admin 用 Venue，普通用户按进入系统 */
 const activeSystem = computed(() => {
   if (props.systemOverride === 'parking' || props.systemOverride === 'room') {
     return props.systemOverride
   }
   const fromRoute = resolveSystemFromPath(route.path)
   if (fromRoute) return fromRoute
-
-  // Admin 管理页：Venue Points to Note
-  if (route.path.startsWith('/admin')) {
-    return 'room'
-  }
 
   // My Account：admin 显示 Venue；非 admin 按进入系统
   if (route.path.startsWith('/Account')) {
@@ -142,11 +140,29 @@ const currentPointsToNoteKey = computed(() => {
   return POINTS_TO_NOTE_KEYS[activeSystem.value] || ''
 })
 
+function hasMeaningfulPointsToNote (html) {
+  const text = String(html || '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return text.length > 0
+}
+
 const currentPointsToNoteContent = computed(() => {
   const targetKey = currentPointsToNoteKey.value
   if (!targetKey) return ''
   const rawContent = pointsToNoteByKey.value[targetKey] || ''
   return formatPointsToNoteForDisplay(rawContent)
+})
+
+/** 仅当当前系统（EV / Venue）Points to Note 有内容时显示 */
+const showTipsButton = computed(() => {
+  if (isAdminPage.value) return false
+  if (pointsToNoteLoading.value) return false
+  const targetKey = currentPointsToNoteKey.value
+  if (!targetKey) return false
+  return hasMeaningfulPointsToNote(pointsToNoteByKey.value[targetKey])
 })
 
 onMounted(() => {

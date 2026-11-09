@@ -2705,6 +2705,22 @@ export class VenueManagementService {
     }
 
 
+    if (
+      next === 'cancelled' &&
+      !admin &&
+      row.bookingDate &&
+      this.toDateOnly(row.bookingDate) === getAppTodayYmd()
+    ) {
+
+
+      throw new BadRequestException(
+        'Same-day bookings cannot be cancelled.',
+      );
+
+
+    }
+
+
     const ownerUserId = row.reservedByUserId;
 
 

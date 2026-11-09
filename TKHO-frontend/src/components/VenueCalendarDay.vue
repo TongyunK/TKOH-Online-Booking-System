@@ -114,9 +114,9 @@ const emit = defineEmits(['time-slot-click'])
 
 const timeSlots = computed(() => {
   const slots = []
-  for (let hour = 7; hour <= 21; hour++) {
+  for (let hour = 8; hour <= 22; hour++) {
     slots.push(`${String(hour).padStart(2, '0')}:00`)
-    if (hour < 21) {
+    if (hour < 22) {
       slots.push(`${String(hour).padStart(2, '0')}:30`)
     }
   }
@@ -200,12 +200,12 @@ function getRoomBookings (roomName) {
 }
 
 function getBookingStyle (booking) {
-  const [startHour, startMinute] = (booking.startTime?.split(':') || ['7', '0']).map(Number)
-  const [endHour, endMinute] = (booking.endTime?.split(':') || ['7', '30']).map(Number)
+  const [startHour, startMinute] = (booking.startTime?.split(':') || ['8', '0']).map(Number)
+  const [endHour, endMinute] = (booking.endTime?.split(':') || ['8', '30']).map(Number)
 
   const startTimeInMinutes = startHour * 60 + startMinute
   const endTimeInMinutes = endHour * 60 + endMinute
-  const dayStartInMinutes = 7 * 60
+  const dayStartInMinutes = 8 * 60
 
   const offsetSlots = (startTimeInMinutes - dayStartInMinutes) / 30
   const durationSlots = (endTimeInMinutes - startTimeInMinutes) / 30
