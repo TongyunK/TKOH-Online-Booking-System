@@ -96,9 +96,11 @@
                 rel="noopener noreferrer"
               >Operations Manual</a>
               <span v-else class="login-docs-link is-disabled">Operations Manual</span>
-              before making bookings.
             </p>
-            <RouterLink to="/register" class="signup-link">Sign Up</RouterLink>
+            <div class="signup-second-row">
+              <span class="login-docs-tip-rest">before making bookings.</span>
+              <RouterLink to="/register" class="signup-link">Sign Up</RouterLink>
+            </div>
           </div>
         </el-form>
       </div>
@@ -400,28 +402,27 @@ const handleLogin = async () => {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  padding-bottom: 44px;
+  padding-bottom: 12px;
   box-sizing: border-box;
   position: relative;
   z-index: 1;
 }
 
 .login-copyright {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 20;
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 1;
   margin: 0;
   padding: 10px 16px;
   box-sizing: border-box;
   text-align: center;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.15;
   color: #4b5563;
-  background: linear-gradient(135deg, #f8ecdd 0%, #f5e6d3 50%, #f8ecdd 100%);
-  border-top: 1px solid rgba(234, 217, 196, 0.22);
+  /* 不单独铺底：承接整页暖橙渐变，内容也不会滚到字下面 */
+  background: none;
+  border-top: none;
 }
 
 .header-content {
@@ -513,6 +514,13 @@ const handleLogin = async () => {
   background-color: #fafafa;
 }
 
+.login-input :deep(.el-input__inner) {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: #1f2937;
+}
+
 .login-input :deep(.el-input__wrapper:hover) {
   border-color: #b8b8b8;
   background-color: #ffffff;
@@ -544,10 +552,12 @@ const handleLogin = async () => {
   padding-left: 0;
   padding-right: 0;
   height: 100%;
+  width: 106px; /* 96px 标签等宽 + 10px 与输入间距 */
 }
 
 .input-with-prefix :deep(.el-input__prefix-inner) {
   height: 100%;
+  width: 100%;
 }
 
 .input-prefix-text {
@@ -556,8 +566,9 @@ const handleLogin = async () => {
   justify-content: flex-start;
   box-sizing: border-box;
   height: 100%;
-  min-width: 92px;
-  padding: 0 14px;
+  width: 96px;
+  min-width: 96px;
+  padding: 0 10px;
   margin-right: 10px;
   white-space: nowrap;
   font-size: 14px;
@@ -666,7 +677,7 @@ const handleLogin = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 8px;
+  margin-bottom: 5px;
   font-size: 22px;
   position: relative;
   z-index: 1;
@@ -689,12 +700,12 @@ const handleLogin = async () => {
 }
 
 .button-label {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   text-align: center;
-  line-height: 1.2;
+  line-height: 1.15;
   color: #4a4a4a;
-  padding: 0 6px;
+  padding: 0 4px;
   position: relative;
   z-index: 1;
   transition: color 0.3s ease;
@@ -760,26 +771,40 @@ const handleLogin = async () => {
 
 .signup-row {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
   margin-top: -4px;
 }
 
 .login-docs-tip {
   margin: 0;
-  flex: 1 1 auto;
-  min-width: 0;
+  width: 100%;
   font-size: 14px;
   line-height: 1.4;
   color: #4b5563;
   text-align: left;
 }
 
+.signup-second-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 0;
+}
+
+.login-docs-tip-rest {
+  font-size: 14px;
+  line-height: 1.4;
+  color: #4b5563;
+}
+
 .login-docs-link {
   color: #0A3D1F;
   font-weight: 700;
   text-decoration: underline;
+  white-space: nowrap;
 }
 
 .login-docs-link:hover {
@@ -797,7 +822,7 @@ const handleLogin = async () => {
   font-size: 15px;
   font-weight: 700;
   text-decoration: underline;
-  line-height: 1.35;
+  line-height: 1.4;
   flex: 0 0 auto;
   white-space: nowrap;
 }
@@ -942,7 +967,7 @@ const handleLogin = async () => {
   }
 
   .button-label {
-    font-size: 12px;
+    font-size: 13px;
   }
 
   .system-buttons {
@@ -963,7 +988,7 @@ const handleLogin = async () => {
 
   .button-icon {
     font-size: 18px;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
   }
 
   .button-icon :deep(svg) {
@@ -972,7 +997,7 @@ const handleLogin = async () => {
   }
 
   .button-label {
-    font-size: 11px;
+    font-size: 12px;
   }
 
   .system-buttons {
