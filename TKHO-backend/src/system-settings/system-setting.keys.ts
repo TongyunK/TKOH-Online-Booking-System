@@ -39,6 +39,9 @@ export type SystemSettingKeyName =
 
 /** Keys not exposed to admin UI / GET settings API */
 export const SYSTEM_SETTING_HIDDEN_KEYS: SystemSettingKeyName[] = [
+  SystemSettingKey.userGuideUrl,
+  SystemSettingKey.operationsManualUrl,
+  SystemSettingKey.loginPointsToNoteWidthPercent,
   SystemSettingKey.dataBackupSendingEmail,
   SystemSettingKey.dataBackupSendingEmailHost,
   SystemSettingKey.dataBackupSendingEmailPassword,

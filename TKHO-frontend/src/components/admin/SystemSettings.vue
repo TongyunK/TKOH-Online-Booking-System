@@ -101,90 +101,6 @@
             </section>
 
             <section
-              v-if="isCategoryVisible('login')"
-              class="setting-card"
-            >
-              <div class="setting-card-header">
-                <div class="setting-card-title-row">
-                  <div class="setting-icon setting-icon--user">
-                    <font-awesome-icon :icon="['fas', 'book']" />
-                  </div>
-                  <h3 class="setting-title">User Guide</h3>
-                </div>
-              </div>
-
-              <div class="setting-card-body">
-                <label class="field-label" for="user-guide-url">User Guide URL</label>
-                <el-input
-                  id="user-guide-url"
-                  v-model.trim="form.userGuideUrl"
-                  clearable
-                  placeholder="https://..."
-                  class="field-control"
-                />
-                <p class="field-hint">Shown as the User Guide link on the login page.</p>
-              </div>
-            </section>
-
-            <section
-              v-if="isCategoryVisible('login')"
-              class="setting-card"
-            >
-              <div class="setting-card-header">
-                <div class="setting-card-title-row">
-                  <div class="setting-icon setting-icon--user">
-                    <font-awesome-icon :icon="['fas', 'book-open']" />
-                  </div>
-                  <h3 class="setting-title">Operations Manual</h3>
-                </div>
-              </div>
-
-              <div class="setting-card-body">
-                <label class="field-label" for="operations-manual-url">Operations Manual URL</label>
-                <el-input
-                  id="operations-manual-url"
-                  v-model.trim="form.operationsManualUrl"
-                  clearable
-                  placeholder="https://..."
-                  class="field-control"
-                />
-                <p class="field-hint">Shown as the Operations Manual link on the login page.</p>
-              </div>
-            </section>
-
-            <section
-              v-if="isCategoryVisible('login')"
-              class="setting-card"
-            >
-              <div class="setting-card-header">
-                <div class="setting-card-title-row">
-                  <div class="setting-icon setting-icon--user">
-                    <font-awesome-icon :icon="['fas', 'text-width']" />
-                  </div>
-                  <h3 class="setting-title">Points to Note Width</h3>
-                </div>
-                <span class="value-pill value-pill--green">
-                  <span class="value-pill-label">Current</span>
-                  <span class="value-pill-text">{{ saved.loginPointsToNoteWidthPercent }}%</span>
-                </span>
-              </div>
-
-              <div class="setting-card-body">
-                <label class="field-label" for="login-points-width">Content width (%)</label>
-                <el-input-number
-                  id="login-points-width"
-                  v-model="form.loginPointsToNoteWidthPercent"
-                  :min="40"
-                  :max="100"
-                  :step="5"
-                  controls-position="right"
-                  class="field-control"
-                />
-                <p class="field-hint">Login page bottom Points to Note width as percent of the page (centered).</p>
-              </div>
-            </section>
-
-            <section
               v-if="isCategoryVisible('holidays')"
               class="setting-card"
             >
@@ -455,7 +371,6 @@ const activeCategory = ref('account')
 
 const categoryOptions = [
   { id: 'account', label: 'User & Session' },
-  { id: 'login', label: 'Login Page' },
   { id: 'backup', label: 'Data Backup' },
   { id: 'ev', label: 'EV Booking' },
   { id: 'venue', label: 'Venue Booking' },
@@ -576,16 +491,6 @@ async function handleSave () {
     return
   }
 
-  const isHttpUrl = (value) => /^https?:\/\/.+/i.test(String(value || '').trim())
-  if (String(form.userGuideUrl || '').trim() && !isHttpUrl(form.userGuideUrl)) {
-    showNotice('User Guide URL must start with http:// or https://', 'Warning')
-    return
-  }
-  if (String(form.operationsManualUrl || '').trim() && !isHttpUrl(form.operationsManualUrl)) {
-    showNotice('Operations Manual URL must start with http:// or https://', 'Warning')
-    return
-  }
-
   if (
     !Number.isInteger(form.userAutoLogoutMinutes) ||
     form.userAutoLogoutMinutes < 1 ||
@@ -622,15 +527,6 @@ async function handleSave () {
     return
   }
 
-  if (
-    !Number.isInteger(form.loginPointsToNoteWidthPercent) ||
-    form.loginPointsToNoteWidthPercent < 40 ||
-    form.loginPointsToNoteWidthPercent > 100
-  ) {
-    showNotice('Points to Note width must be an integer between 40 and 100', 'Warning')
-    return
-  }
-
   const receivingEmail = String(form.dataBackupReceivingEmail || '').trim()
   if (receivingEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(receivingEmail)) {
     showNotice('Data backup receiving email must be a valid email address', 'Warning')
@@ -648,9 +544,7 @@ async function handleSave () {
       userInactiveAfterMonths: form.userInactiveAfterMonths,
       userAutoLogoutMinutes: form.userAutoLogoutMinutes,
       hkPublicHolidaysUrl: form.hkPublicHolidaysUrl,
-      userGuideUrl: String(form.userGuideUrl || '').trim(),
-      operationsManualUrl: String(form.operationsManualUrl || '').trim(),
-      loginPointsToNoteWidthPercent: form.loginPointsToNoteWidthPercent,
+      // Login Page 设置对管理员 UI 隐藏；不随 Save 提交，避免覆盖库中已有值
       evDateUpdateTime: form.evDateUpdateTime,
       evWeeklyBookingLimit: form.evWeeklyBookingLimit,
       venueBookingMinGapMinutes: form.venueBookingMinGapMinutes,
