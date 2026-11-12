@@ -1164,11 +1164,11 @@ const showHandleDialog = ref(false)
 const currentHandleRow = ref(null)
 /** 14" 视口（1100–1599）：Handle Booking 弹窗略增高，与 UserManagement 一致 */
 const HANDLE_BOOKING_MODAL_MQ = '(min-width: 1100px) and (max-width: 1599px)'
-const handleBookingModalMaxHeight = ref('94vh')
+const handleBookingModalMaxHeight = ref('86vh')
 
 function updateHandleBookingModalMaxHeight() {
   if (typeof window === 'undefined') return
-  handleBookingModalMaxHeight.value = window.matchMedia(HANDLE_BOOKING_MODAL_MQ).matches ? '120vh' : '94vh'
+  handleBookingModalMaxHeight.value = window.matchMedia(HANDLE_BOOKING_MODAL_MQ).matches ? '108vh' : '86vh'
 }
 
 let handleBookingModalMq = null
