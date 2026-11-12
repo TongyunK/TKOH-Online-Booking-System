@@ -59,16 +59,19 @@ body {
   min-height: var(--zoom-vh);
 }
 
-/* 14寸屏幕（1100-1599）：等同浏览器缩放 80%，并占满视口 */
+/* 14寸 / 中宽屏（1100-1599）：整体略缩并占满视口
+ * 与原先 0.8 同一套补偿思路：容器放大 1/zoom，抵消缩小后的空白
+ * 仅改缩放比例为 0.86；气泡仍用 teleported=false，勿对 Popper 做 ÷zoom 校正 */
 @media screen and (min-width: 1100px) and (max-width: 1599px) {
-
   html {
-    zoom: 0.8;  /* 让内容整体缩小（和浏览器缩放一样） */
+    --app-zoom: 0.86;
+    zoom: var(--app-zoom);
     overflow: hidden;
   }
 
   :root {
-    --zoom-vh: 125vh;
+    /* 1/0.86 ≈ 116.28% */
+    --zoom-vh: calc(100vh / var(--app-zoom));
   }
 
   body {
@@ -77,21 +80,17 @@ body {
     margin: 0;
     overflow: hidden;
   }
-  /* #app 宽度 / 高度设为 125vw / 125vh
-  缩放 0.8 = 缩小到 80%
-  反向计算：1 ÷ 0.8 = 1.25 = 125%
-  所以把容器放大 125%，就能抵消缩小带来的空白
-  → 内容自动填满屏幕 */
+
   #app {
-    width: 125vw;
+    width: calc(100vw / var(--app-zoom));
     height: var(--zoom-vh);
     min-height: var(--zoom-vh);
     margin: 0;
     overflow-x: hidden;
-    overflow-y: auto; /* 页面可以正常滚动 */
+    overflow-y: auto;
+    overflow-y: overlay;
   }
 
-  /* Compensate Tailwind viewport-height utilities under zoom: 0.8 */
   .h-screen {
     height: var(--zoom-vh) !important;
   }

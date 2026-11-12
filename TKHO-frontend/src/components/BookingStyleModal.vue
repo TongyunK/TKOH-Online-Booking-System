@@ -3,6 +3,7 @@
     <div
       v-if="modelValue"
       :class="['modal-overlay booking-style-modal-root', customClass]"
+      :style="overlayStyle"
       @click.self="onOverlayClick"
     >
       <div
@@ -34,7 +35,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onUnmounted, computed } from 'vue'
+import { ref, watch, onMounted, onUnmounted, computed } from 'vue'
 
 const props = defineProps({
   modelValue: {
@@ -85,15 +86,62 @@ const dragStartX = ref(0)
 const dragStartY = ref(0)
 const dialogX = ref(0)
 const dialogY = ref(0)
+/** 按可视视口算出的 CSS 像素高度（已考虑 html zoom） */
+const fitHeightPx = ref('')
 
-const wrapperStyle = computed(() => ({
-  transform: `translate(${dialogX.value}px, ${dialogY.value}px)`,
-  '--bsm-width': props.dialogWidth,
-  '--bsm-max-width': props.maxWidth,
-  '--bsm-max-height': props.maxHeight,
-  '--bsm-height': props.dialogHeight || 'auto',
-  '--bsm-overlay-padding': props.overlayPadding
+const isEditBookingModal = computed(() =>
+  String(props.customClass || '').split(/\s+/).includes('edit-booking-modal')
+)
+
+function getHtmlZoomScale () {
+  if (typeof window === 'undefined') return 1
+  const raw = Number.parseFloat(window.getComputedStyle(document.documentElement).zoom || '1')
+  return Number.isFinite(raw) && raw > 0 ? raw : 1
+}
+
+/**
+ * 保证弹窗视觉高度不超过窗口：
+ * 缩放后显示高度 ≈ cssPx * zoom，故 cssPx = visualTarget / zoom
+ */
+function refreshFitHeightPx () {
+  if (typeof window === 'undefined') {
+    fitHeightPx.value = ''
+    return
+  }
+  const shouldFit = isEditBookingModal.value || Boolean(props.dialogHeight)
+  if (!shouldFit) {
+    fitHeightPx.value = ''
+    return
+  }
+  const visualH = window.visualViewport?.height || window.innerHeight || 800
+  const zoom = getHtmlZoomScale()
+  const pad = 24 // 上下留白
+  const ratio = isEditBookingModal.value ? 0.88 : 0.9
+  const visualTarget = Math.max(280, visualH * ratio - pad)
+  fitHeightPx.value = `${Math.round(visualTarget / zoom)}px`
+}
+
+const overlayStyle = computed(() => ({
+  padding: isEditBookingModal.value ? '12px 16px' : props.overlayPadding
 }))
+
+const wrapperStyle = computed(() => {
+  const style = {
+    transform: `translate(${dialogX.value}px, ${dialogY.value}px)`,
+    width: props.dialogWidth,
+    maxWidth: props.maxWidth,
+    maxHeight: props.maxHeight
+  }
+  const lock = fitHeightPx.value || props.dialogHeight || ''
+  if (lock) {
+    style.height = lock
+    style.maxHeight = lock
+    style.minHeight = '0'
+    style.overflow = 'hidden'
+    style.flexShrink = '1'
+  }
+  return style
+})
 
 function handleMouseDown(e) {
   if (e.target.closest('.modal-close')) return
@@ -130,11 +178,12 @@ function onKeydown(e) {
 }
 
 watch(
-  () => props.modelValue,
-  (val) => {
-    if (val) {
+  () => [props.modelValue, props.dialogHeight, props.customClass],
+  ([open]) => {
+    if (open) {
       dialogX.value = 0
       dialogY.value = 0
+      refreshFitHeightPx()
       document.addEventListener('keydown', onKeydown)
     } else {
       document.removeEventListener('keydown', onKeydown)
@@ -142,15 +191,31 @@ watch(
   }
 )
 
+function onViewportChange () {
+  if (props.modelValue) refreshFitHeightPx()
+}
+
+onMounted(() => {
+  if (typeof window === 'undefined') return
+  window.addEventListener('resize', onViewportChange, { passive: true })
+  window.visualViewport?.addEventListener('resize', onViewportChange)
+  window.visualViewport?.addEventListener('scroll', onViewportChange)
+})
+
 onUnmounted(() => {
   document.removeEventListener('mousemove', handleMouseMove)
   document.removeEventListener('mouseup', handleMouseUp)
   document.removeEventListener('keydown', onKeydown)
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('resize', onViewportChange)
+    window.visualViewport?.removeEventListener('resize', onViewportChange)
+    window.visualViewport?.removeEventListener('scroll', onViewportChange)
+  }
 })
 </script>
 
 <style>
-/* 与 VenueBookingDialog.vue 弹窗外壳一致 */
+/* 与 VenueBookingDialog.vue 弹窗外壳一致（选择器均挂在 booking-style-modal-root 下，避免互相污染） */
 .booking-style-modal-root.modal-overlay {
   position: fixed;
   top: 0;
@@ -163,7 +228,7 @@ onUnmounted(() => {
   justify-content: center;
   z-index: 10050;
   overflow-y: auto;
-  padding: var(--bsm-overlay-padding, 24px 28px);
+  box-sizing: border-box;
 }
 
 .booking-style-modal-root .booking-dialog-wrapper {
@@ -176,11 +241,11 @@ onUnmounted(() => {
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
-  /* teleported=false 时下拉在弹窗内，避免 overflow:hidden 裁切 */
   overflow: visible;
   position: relative;
   z-index: 10051;
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .booking-style-modal-root .modal-header {
@@ -259,16 +324,23 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 
-/* Edit Booking：时间/场地下拉 teleported=false，短表单时避免 modal-body 裁切 */
-.booking-style-modal-root.edit-booking-modal .modal-body {
-  overflow: visible;
+/* Edit Booking：高度由 :style 像素锁定；此处保证不撑破、内容区内滚 */
+.booking-style-modal-root.edit-booking-modal {
+  align-items: center;
+  overflow-y: auto;
 }
 
-/* Tea Service = Yes：整段表单在弹窗内容区统一上下滚动 */
-.booking-style-modal-root.edit-booking-modal.edit-booking-modal--unified-scroll .modal-body {
-  overflow-y: auto;
-  overflow-x: clip;
-  min-height: 0;
+.booking-style-modal-root.edit-booking-modal .booking-dialog-wrapper {
+  min-height: 0 !important;
+  flex-shrink: 1 !important;
+  overflow: hidden !important;
+}
+
+.booking-style-modal-root.edit-booking-modal .modal-body {
+  flex: 1 1 auto !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  min-height: 0 !important;
 }
 
 /* EV Important Note 等：Teleport 到 body，父页面 scoped 样式无法作用到此外壳，须在本组件内覆盖 */
@@ -283,44 +355,33 @@ onUnmounted(() => {
   background: #ef1515;
   border-top-left-radius: 24px;
   border-top-right-radius: 24px;
-  position: relative;
 }
 
 .booking-style-modal-root.important-note-modal .modal-title {
-  width: 100%;
-  text-align: center;
-  font-size: 1.1875rem;
-  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 800;
 }
 
 .booking-style-modal-root.important-note-modal .modal-close {
-  position: absolute;
-  right: 14px;
-  top: 50%;
-  transform: translateY(-50%);
+  filter: drop-shadow(0 0 0 transparent);
 }
 
-/* EV / Venue Important Note 正文：统一字号（弹窗 Teleport 到 body，样式须写在此处） */
 .booking-style-modal-root.important-note-modal .ev-rule-notice-content,
 .booking-style-modal-root.important-note-modal .venue-rule-notice-content {
-  color: #1f2937;
-  font-size: 16px;
+  color: #111827;
+  font-size: 0.95rem;
   line-height: 1.65;
-  text-align: center;
-  font-synthesis: style;
 }
 
 .booking-style-modal-root.important-note-modal .ev-rule-notice-empty,
 .booking-style-modal-root.important-note-modal .venue-rule-notice-empty {
-  text-align: center;
   color: #6b7280;
-  font-size: 16px;
 }
 
 .booking-style-modal-root.important-note-modal .ev-rule-notice-content :deep(p),
 .booking-style-modal-root.important-note-modal .venue-rule-notice-content :deep(p) {
-  margin: 0 0 10px;
-  font-size: 16px;
+  margin: 0 0 0.5rem;
 }
 
 .booking-style-modal-root.important-note-modal .ev-rule-notice-content :deep(strong),
@@ -328,87 +389,62 @@ onUnmounted(() => {
 .booking-style-modal-root.important-note-modal .venue-rule-notice-content :deep(strong),
 .booking-style-modal-root.important-note-modal .venue-rule-notice-content :deep(b) {
   font-weight: 700;
-  color: inherit;
 }
 
 .booking-style-modal-root.important-note-modal .ev-rule-notice-content :deep(.attention-line),
 .booking-style-modal-root.important-note-modal .ev-rule-notice-content :deep(.main-title) {
-  color: #ef4444;
   font-weight: 700;
-  text-align: center;
 }
 
 .booking-style-modal-root.important-note-modal .ev-rule-notice-content :deep(.attention-line) {
-  margin-bottom: 4px;
-  font-size: 17px;
+  color: #b91c1c;
 }
 
 .booking-style-modal-root.important-note-modal .ev-rule-notice-content :deep(.main-title) {
-  margin-bottom: 12px;
-  font-size: 17px;
+  font-size: 1.05rem;
   line-height: 1.5;
 }
 
 .booking-style-modal-root.important-note-modal .ev-rule-notice-content :deep(.section-title) {
-  font-size: 16px;
+  margin-top: 0.75rem;
   font-weight: 700;
-  color: #111827;
-  text-decoration: underline;
 }
 
 .booking-style-modal-root.important-note-modal .ev-rule-notice-content :deep(.line-item) {
-  margin-bottom: 4px;
-  font-size: 16px;
-  color: #111827;
+  margin: 0.25rem 0;
 }
 
 .booking-style-modal-root.important-note-modal .ev-rule-notice-content :deep(.line-item .change-highlight) {
-  color: #ef4444;
+  color: #b91c1c;
 }
 
 .booking-style-modal-root.important-note-modal .venue-rule-notice-content :deep(.venue-notice-line) {
-  margin: 0 0 12px;
-  font-size: 18px;
-  font-weight: 700;
-  color: #ef4444;
+  margin: 0.35rem 0;
 }
 
 .booking-style-modal-root.important-note-modal .venue-rule-notice-content :deep(.venue-notice-line.zh) {
-  color: #111827;
-  font-size: 16px;
-  font-weight: 700;
+  color: #374151;
 }
 
-/* License Plate owner selector:
- * keep dropdown inside modal (teleported=false) but allow it to overflow body area.
- * This is scoped by custom-class to avoid affecting other dialogs.
- */
 .booking-style-modal-root.license-plate-edit-modal .modal-body {
   overflow: visible;
 }
 
-/* Pending approval details：与 Edit User 一致，内容区可滚动（14" zoom 断点下避免表单溢出） */
 .booking-style-modal-root.pending-approval-detail-modal .modal-body {
   overflow-y: auto;
-  overflow-x: clip;
   min-height: 0;
 }
 
-/* Reject Registration：模板下拉在弹窗内展开；收紧左右留白，减少左侧「空栏」感 */
 .booking-style-modal-root.reject-registration-modal .modal-body {
   overflow: visible;
-  padding-left: 1rem;
-  padding-right: 1.25rem;
 }
 
 .booking-style-modal-root.reject-registration-modal .modal-footer {
-  padding-left: 1rem;
-  padding-right: 1.25rem;
+  justify-content: flex-end;
 }
 
 /* System Prompt 富文本：工具栏/选区下拉可溢出 modal-body（配合 wangeditor modalAppendToBody） */
 .booking-style-modal-root.system-prompt-edit-modal .modal-body {
-  position: relative;
   overflow: visible;
 }
 
@@ -417,33 +453,24 @@ onUnmounted(() => {
   overflow: visible;
 }
 
-/* 14 寸 html zoom 断点：w-e 下拉留在弹窗 DOM 内，避免挂 body 后坐标偏移 */
 .booking-style-modal-root.system-prompt-edit-modal .w-e-toolbar .w-e-bar-item,
 .booking-style-modal-root.system-prompt-edit-modal .w-e-hover-bar .w-e-bar-item {
   position: relative;
-  overflow: visible;
 }
 
 .booking-style-modal-root.system-prompt-edit-modal .w-e-toolbar,
 .booking-style-modal-root.system-prompt-edit-modal .w-e-hover-bar {
   overflow: visible;
-  z-index: 25;
 }
 
 .booking-style-modal-root.system-prompt-edit-modal .modal-body > .w-e-modal {
-  z-index: 10060 !important;
+  z-index: 20;
 }
 
-/* insertLink modalAppendToBody：默认 z-index:1 会被遮罩盖住 */
-body > .w-e-modal {
-  z-index: 10060 !important;
-}
-
-/* 14 寸 zoom：校正完成前不绘制 hoverbar，避免先错后对再闪动 */
 @media screen and (min-width: 1100px) and (max-width: 1599px) {
   .booking-style-modal-root.system-prompt-edit-modal
-    .w-e-hover-bar.w-e-bar-show:not(.wang-hover-bar-positioned) {
-    visibility: hidden !important;
+    .modal-body {
+    overflow: visible;
   }
 }
 </style>

@@ -69,7 +69,11 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import CalendarBookingPopover from './CalendarBookingPopover.vue'
-import { getCalendarBookingBlockStyle, formatDateISO } from '@/utils/venueCalendarApi'
+import {
+  getCalendarBookingBlockStyle,
+  formatDateISO,
+  sortVenueCalendarBookings
+} from '@/utils/venueCalendarApi'
 
 const props = defineProps({
   currentDate: {
@@ -196,7 +200,10 @@ function updateLayoutMetrics () {
 }
 
 function getRoomBookings (roomName) {
-  return props.bookings.filter(booking => booking.roomName === roomName)
+  return sortVenueCalendarBookings(
+    props.bookings.filter(booking => booking.roomName === roomName),
+    props.selectedRooms
+  )
 }
 
 function getBookingStyle (booking) {

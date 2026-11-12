@@ -1,6 +1,6 @@
 <template>
   <!-- 自定义遮罩 + 弹窗 -->
-  <div class="modal-overlay" @click.self="handleClose" v-if="visible">
+  <div class="venue-booking-dialog-root modal-overlay" @click.self="handleClose" v-if="visible">
     <div
       class="booking-dialog-wrapper"
       :style="dialogWrapperStyle"
@@ -803,15 +803,28 @@ const bookingPopperTeleported = ref(true)
 function updateVenueBookingDialogMaxHeight () {
   if (typeof window === 'undefined') return
   const mq = window.matchMedia(VENUE_BOOKING_DIALOG_MODAL_MQ)
-  venueBookingDialogMaxHeight.value = mq.matches ? '124vh' : ''
   bookingPopperTeleported.value = !mq.matches
+  // 按可视视口限高（考虑 html zoom），避免弹窗超出窗口
+  const zoomRaw = Number.parseFloat(window.getComputedStyle(document.documentElement).zoom || '1')
+  const zoom = Number.isFinite(zoomRaw) && zoomRaw > 0 ? zoomRaw : 1
+  const visualH = window.visualViewport?.height || window.innerHeight || 800
+  const px = Math.max(280, Math.round((visualH * 0.9 - 24) / zoom))
+  venueBookingDialogMaxHeight.value = `${px}px`
 }
 
 let venueBookingDialogModalMq = null
 
 const dialogWrapperStyle = computed(() => ({
   transform: `translate(${dialogX.value}px, ${dialogY.value}px)`,
-  ...(venueBookingDialogMaxHeight.value ? { maxHeight: venueBookingDialogMaxHeight.value } : {})
+  ...(venueBookingDialogMaxHeight.value
+    ? {
+        height: venueBookingDialogMaxHeight.value,
+        maxHeight: venueBookingDialogMaxHeight.value,
+        minHeight: '0',
+        overflow: 'hidden',
+        flexShrink: '1'
+      }
+    : {})
 }))
 
 function handleMouseDown(e) {
@@ -839,6 +852,8 @@ onMounted(async () => {
   updateVenueBookingDialogMaxHeight()
   venueBookingDialogModalMq = window.matchMedia(VENUE_BOOKING_DIALOG_MODAL_MQ)
   venueBookingDialogModalMq.addEventListener('change', updateVenueBookingDialogMaxHeight)
+  window.addEventListener('resize', updateVenueBookingDialogMaxHeight, { passive: true })
+  window.visualViewport?.addEventListener('resize', updateVenueBookingDialogMaxHeight)
   meetingEventTitleMaxLength.value = await fetchMeetingEventTitleMaxLength()
   try {
     const prompts = await getPrompts()
@@ -851,6 +866,8 @@ onMounted(async () => {
 onUnmounted(() => {
   document.removeEventListener('mousemove', handleMouseMove)
   document.removeEventListener('mouseup', handleMouseUp)
+  window.removeEventListener('resize', updateVenueBookingDialogMaxHeight)
+  window.visualViewport?.removeEventListener('resize', updateVenueBookingDialogMaxHeight)
   if (venueBookingDialogModalMq) {
     venueBookingDialogModalMq.removeEventListener('change', updateVenueBookingDialogMaxHeight)
   }
@@ -1338,7 +1355,7 @@ watch(() => form.value.teaServiceOption, (option) => {
 
 <style>
 /* 遮罩层 */
-.modal-overlay {
+.venue-booking-dialog-root.modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -1355,10 +1372,10 @@ watch(() => form.value.teaServiceOption, (option) => {
 }
 
 /* 弹窗容器 */
-.booking-dialog-wrapper {
+.venue-booking-dialog-root .booking-dialog-wrapper {
   width: 75%;
   max-width: 900px;
-  max-height: 94vh;
+  max-height: min(90vh, 100dvh - 24px);
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
@@ -1373,7 +1390,7 @@ watch(() => form.value.teaServiceOption, (option) => {
 }
 
 /* 头部 */
-.modal-header {
+.venue-booking-dialog-root .modal-header {
   background: #00723a;
   color: #fff;
   padding: 0.75rem 1.25rem;
@@ -1386,14 +1403,14 @@ watch(() => form.value.teaServiceOption, (option) => {
   border-top-left-radius: 12px;
   border-top-right-radius: 12px;
 }
-.modal-title {
+.venue-booking-dialog-root .modal-title {
   font-size: 1.0625rem;
   font-weight: 600;
   line-height: 1.5;
 }
 
 /* 关闭按钮（加粗 ×） */
-.modal-close {
+.venue-booking-dialog-root .modal-close {
   background: none;
   border: none;
   padding: 0;
@@ -1404,7 +1421,7 @@ watch(() => form.value.teaServiceOption, (option) => {
   justify-content: center;
   cursor: pointer;
 }
-.close-icon {
+.venue-booking-dialog-root .close-icon {
   width: 20px;
   height: 20px;
   stroke: white;
@@ -1413,12 +1430,12 @@ watch(() => form.value.teaServiceOption, (option) => {
   stroke-linejoin: round;
   fill: none;
 }
-.modal-close:hover .close-icon {
+.venue-booking-dialog-root .modal-close:hover .close-icon {
   stroke: #d1fae5;
 }
 
 /* 内容区 - 修复滚动和日期选择器样式问题 */
-.modal-body {
+.venue-booking-dialog-root .modal-body {
   padding: 1.125rem 1.75rem;
   flex: 1;
   /* clip：teleported=false 时提示可越界显示，且不会像 visible+auto 那样把 overflow-x 算成 auto 产生横滚 */
@@ -1428,20 +1445,20 @@ watch(() => form.value.teaServiceOption, (option) => {
   /* 确保内容区高度计算正确 */
   min-height: 0;
 }
-.modal-body::-webkit-scrollbar {
+.venue-booking-dialog-root .modal-body::-webkit-scrollbar {
   width: 6px;
 }
-.modal-body::-webkit-scrollbar-track {
+.venue-booking-dialog-root .modal-body::-webkit-scrollbar-track {
   background: #f3f4f6;
   border-radius: 3px;
 }
-.modal-body::-webkit-scrollbar-thumb {
+.venue-booking-dialog-root .modal-body::-webkit-scrollbar-thumb {
   background: #d1d5db;
   border-radius: 3px;
 }
 
 /* 底部 */
-.modal-footer {
+.venue-booking-dialog-root .modal-footer {
   padding: 1rem 1.5rem;
   border-top: 1px solid #e5e7eb;
   display: flex;
@@ -2145,11 +2162,11 @@ watch(() => form.value.teaServiceOption, (option) => {
 }
 
 @media (max-width: 389px) {
-  .booking-dialog-wrapper {
+  .venue-booking-dialog-root .booking-dialog-wrapper {
     width: 95% !important;
     max-height: 90vh; /* 小屏降低最大高度，留出更多滚动空间 */
   }
-  .modal-body {
+  .venue-booking-dialog-root .modal-body {
     padding: 1rem;
   }
   .form-row {
@@ -2165,11 +2182,11 @@ watch(() => form.value.teaServiceOption, (option) => {
 }
 
 @media (min-width: 390px) and (max-width: 767px) {
-  .booking-dialog-wrapper {
+  .venue-booking-dialog-root .booking-dialog-wrapper {
     width: 95% !important;
     max-height: 90vh; /* 小屏降低最大高度，留出更多滚动空间 */
   }
-  .modal-body {
+  .venue-booking-dialog-root .modal-body {
     padding: 1rem;
   }
   .form-row {
@@ -2185,7 +2202,7 @@ watch(() => form.value.teaServiceOption, (option) => {
 }
 
 @media (min-width: 1100px) and (max-width: 1599px) {
-  .booking-dialog-wrapper {
+  .venue-booking-dialog-root .booking-dialog-wrapper {
     width: 95% !important;
     /* max-height：124vh 由脚本 dialogWrapperStyle 控制（与 MeetingApproval 一致） */
   }

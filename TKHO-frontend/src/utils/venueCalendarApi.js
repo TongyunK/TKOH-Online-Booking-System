@@ -86,7 +86,7 @@ export function parseCalendarDateLocal (raw) {
 }
 
 /** 日历块左侧色条 / 背景：优先 booking.color，否则按 roomName 从场地列表取色 */
-/** 与 src/style.css 中 html { zoom: 0.8 } 媒体查询一致 */
+/** 与 src/style.css 中 html zoom 媒体查询一致（当前 zoom 约 0.86） */
 export const HTML_ZOOM_BREAKPOINT_MQ = '(min-width: 1100px) and (max-width: 1599px)'
 
 export function getHtmlZoomScale () {
@@ -131,6 +131,51 @@ export function createHtmlZoomAwarePopperOptions (extra = {}) {
   }
 }
 
+/**
+ * 按「浏览器可视窗口」翻转/收拢气泡（不要用 #app 作边界）。
+ * 中宽屏 html zoom 时 #app 比视口更宽，若按 #app 判断会误以为右侧还有空间而伸出窗外。
+ * 不做 ÷zoom 坐标改写，避免 teleported=false 时箭头错位。
+ */
+export function createBrowserViewportPopperOptions (extra = {}) {
+  const extraModifiers = Array.isArray(extra.modifiers) ? extra.modifiers : []
+  const named = new Set(extraModifiers.map((m) => m?.name).filter(Boolean))
+  const base = [
+    {
+      name: 'flip',
+      options: {
+        padding: 8,
+        boundary: 'viewport',
+        rootBoundary: 'viewport',
+        fallbackPlacements: [
+          'left-start',
+          'right-end',
+          'left-end',
+          'top-start',
+          'bottom-start',
+          'right',
+          'left'
+        ]
+      }
+    },
+    {
+      name: 'preventOverflow',
+      options: {
+        padding: 8,
+        altAxis: true,
+        tether: true,
+        boundary: 'viewport',
+        rootBoundary: 'viewport'
+      }
+    }
+  ].filter((m) => !named.has(m.name))
+
+  return {
+    strategy: 'absolute',
+    ...extra,
+    modifiers: [...base, ...extraModifiers]
+  }
+}
+
 export function resolveBookingAccentColor (booking, rooms = []) {
   const direct = String(booking?.color || '').trim()
   if (direct) return direct
@@ -169,4 +214,51 @@ export function getCalendarBookingBlockStyle (booking, layoutStyle = {}, rooms =
     borderLeft: `4px solid ${accent}`,
     backgroundColor: background
   }
+}
+
+export function parseBookingTimeToMinutes (timeStr) {
+  if (!timeStr || typeof timeStr !== 'string') return 8 * 60
+  const [h, m] = timeStr.split(':').map(Number)
+  if (Number.isNaN(h) || Number.isNaN(m)) return 8 * 60
+  return h * 60 + m
+}
+
+/** 解析 venue 排序 id：优先 booking.venueId，否则按房间名匹配列表 id */
+export function resolveVenueSortId (booking, rooms = []) {
+  const raw = booking?.venueId ?? booking?.roomId
+  const n = Number(raw)
+  if (Number.isFinite(n) && n > 0) return n
+  const name = String(booking?.roomName || '').trim()
+  if (!name) return Number.MAX_SAFE_INTEGER
+  const room = (rooms || []).find((r) => r.name === name)
+  const id = Number(room?.id)
+  return Number.isFinite(id) && id > 0 ? id : Number.MAX_SAFE_INTEGER
+}
+
+/** 日/周/月统一：先开始时间，再 venue id（1→7） */
+export function compareVenueCalendarBookings (a, b, rooms = []) {
+  const ta = parseBookingTimeToMinutes(a?.startTime)
+  const tb = parseBookingTimeToMinutes(b?.startTime)
+  if (ta !== tb) return ta - tb
+  const va = resolveVenueSortId(a, rooms)
+  const vb = resolveVenueSortId(b, rooms)
+  if (va !== vb) return va - vb
+  return String(a?.id ?? '').localeCompare(String(b?.id ?? ''))
+}
+
+export function sortVenueCalendarBookings (bookings, rooms = []) {
+  return [...(bookings || [])].sort((a, b) => compareVenueCalendarBookings(a, b, rooms))
+}
+
+/** 日视图房间列：按 venue id 升序 */
+export function sortVenueRoomsById (rooms = []) {
+  return [...(rooms || [])].sort((a, b) => {
+    const ia = Number(a?.id)
+    const ib = Number(b?.id)
+    const aOk = Number.isFinite(ia)
+    const bOk = Number.isFinite(ib)
+    if (aOk && bOk && ia !== ib) return ia - ib
+    if (aOk !== bOk) return aOk ? -1 : 1
+    return String(a?.name || '').localeCompare(String(b?.name || ''), undefined, { sensitivity: 'base' })
+  })
 }

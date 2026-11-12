@@ -1,11 +1,13 @@
 <template>
   <el-popover
     placement="right-start"
+    :fallback-placements="bookingFallbackPlacements"
     :width="380"
     trigger="hover"
     :show-after="180"
     :hide-after="80"
     :teleported="resolvedTeleported"
+    :popper-options="bookingPopperOptions"
     popper-class="calendar-booking-popover"
     @show="emit('visible-change', true)"
     @hide="emit('visible-change', false)"
@@ -47,8 +49,19 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import {
   getCalendarBookingPopoverTitleStyle,
-  HTML_ZOOM_BREAKPOINT_MQ
+  HTML_ZOOM_BREAKPOINT_MQ,
+  createBrowserViewportPopperOptions
 } from '@/utils/venueCalendarApi'
+
+/** 右侧不够时翻到左侧，避免伸出浏览器窗口 */
+const bookingFallbackPlacements = [
+  'left-start',
+  'right-end',
+  'left-end',
+  'top-start',
+  'bottom-start'
+]
+const bookingPopperOptions = createBrowserViewportPopperOptions()
 
 const props = defineProps({
   booking: {
@@ -89,7 +102,7 @@ let zoomBreakpointMq = null
 
 function syncAutoTeleported () {
   if (typeof window === 'undefined') return
-  // 与 style.css html zoom:0.8 断点一致：挂 body 的 fixed 浮层会坐标偏移
+  // 与 style.css 中宽屏 html zoom 断点一致：挂 body 的 fixed 浮层会坐标偏移，故断点内 teleported=false
   autoTeleported.value = !window.matchMedia(HTML_ZOOM_BREAKPOINT_MQ).matches
 }
 

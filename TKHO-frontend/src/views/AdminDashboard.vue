@@ -4,7 +4,7 @@
       <div class="hero-text">
         <h2 class="hero-title">Administration</h2>
         <p class="hero-sub">
-          Welcome to TKOH GA Service Center — use the shortcuts below or the sidebar to manage venues, EV, users and approvals.
+          Welcome to TKOH GA Venue and EV Charging Booking System — use the shortcuts below or the sidebar to manage venues, EV, users and approvals.
         </p>
       </div>
       <div class="clock-card" aria-live="polite">

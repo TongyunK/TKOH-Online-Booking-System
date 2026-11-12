@@ -377,7 +377,13 @@ import {
   updateVenueBooking,
   deleteVenueBooking
 } from '@/api/calendar'
-import { unwrapCalendarBookings, isSameCalendarDay, isActiveVenue, parseCalendarDateLocal } from '@/utils/venueCalendarApi'
+import {
+  unwrapCalendarBookings,
+  isSameCalendarDay,
+  isActiveVenue,
+  parseCalendarDateLocal,
+  sortVenueRoomsById
+} from '@/utils/venueCalendarApi'
 import { getVenueManagementVenues, getVenueBookingWindow, createVenueBlock } from '@/api/venueManagement'
 import { notifyAdminPendingUpdated } from '@/utils/adminPendingSync'
 import { getRestrictedBookingMessage, isRestrictedBookingDay } from '@/utils/bookingDateRestriction'
@@ -800,9 +806,9 @@ const filteredDayBookings = computed(() => {
   )
 })
 
-// Currently selected rooms
+// Currently selected rooms（日视图列序按 venue id 1→7）
 const selectedRoomsList = computed(() => {
-  return allRooms.value.filter(room => room.selected)
+  return sortVenueRoomsById(allRooms.value.filter(room => room.selected))
 })
 
 // Get week start (Sunday)

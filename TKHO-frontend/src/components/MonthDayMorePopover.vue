@@ -3,10 +3,11 @@
   <el-popover
     v-model:visible="popoverVisible"
     placement="top-start"
-    :fallback-placements="['bottom-start', 'left-start', 'right-start']"
+    :fallback-placements="['bottom-start', 'left-start', 'right-start', 'top', 'bottom']"
     :width="320"
     trigger="click"
     :teleported="popoverTeleported"
+    :popper-options="morePopperOptions"
     popper-class="month-day-more-popover"
     :show-arrow="true"
   >
@@ -65,7 +66,8 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import CalendarBookingPopover from './CalendarBookingPopover.vue'
 import {
   resolveBookingAccentColor,
-  HTML_ZOOM_BREAKPOINT_MQ
+  HTML_ZOOM_BREAKPOINT_MQ,
+  createBrowserViewportPopperOptions
 } from '@/utils/venueCalendarApi'
 
 const props = defineProps({
@@ -94,6 +96,8 @@ const props = defineProps({
 const emit = defineEmits(['visible-change'])
 
 const popoverVisible = ref(false)
+/** 按浏览器视口翻转，避免 zoom 下 #app 更宽导致仍往窗外排 */
+const morePopperOptions = createBrowserViewportPopperOptions()
 /** 14" html zoom 断点内挂 body 会偏移，与 style.css 说明一致：留在缩放 DOM 内 */
 const popoverTeleported = ref(true)
 let zoomBreakpointMq = null

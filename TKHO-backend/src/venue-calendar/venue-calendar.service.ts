@@ -404,7 +404,11 @@ export class VenueCalendarService {
     const endDate = this.parseDateOnly(end);
     const rows = await this.prisma.venueBookings.findMany({
       where: this.calendarBookingWhere(startDate, endDate, roomType),
-      orderBy: [{ bookingDate: 'asc' }, { startTime: 'asc' }],
+      orderBy: [
+        { bookingDate: 'asc' },
+        { startTime: 'asc' },
+        { venueId: 'asc' },
+      ],
       include: bookingInclude,
     });
     const bookings = rows.map((r) => this.mapCalendarBooking(r));
@@ -415,7 +419,11 @@ export class VenueCalendarService {
     const start = this.parseDateOnly(date);
     const rows = await this.prisma.venueBookings.findMany({
       where: this.calendarBookingWhere(start, start, roomType),
-      orderBy: [{ bookingDate: 'asc' }, { startTime: 'asc' }],
+      orderBy: [
+        { bookingDate: 'asc' },
+        { startTime: 'asc' },
+        { venueId: 'asc' },
+      ],
       include: bookingInclude,
     });
     const bookings = rows.map((r) => this.mapCalendarBooking(r));
@@ -426,7 +434,11 @@ export class VenueCalendarService {
     const { start, end } = this.getWeekDateRange(weekStart);
     const rows = await this.prisma.venueBookings.findMany({
       where: this.calendarBookingWhere(start, end, roomType),
-      orderBy: [{ bookingDate: 'asc' }, { startTime: 'asc' }],
+      orderBy: [
+        { bookingDate: 'asc' },
+        { startTime: 'asc' },
+        { venueId: 'asc' },
+      ],
       include: bookingInclude,
     });
     const bookings = rows.map((r) => this.mapCalendarBooking(r));
@@ -437,7 +449,11 @@ export class VenueCalendarService {
     const { start, end } = this.getMonthGridDateRange(year, month);
     const rows = await this.prisma.venueBookings.findMany({
       where: this.calendarBookingWhere(start, end, roomType),
-      orderBy: [{ bookingDate: 'asc' }, { startTime: 'asc' }],
+      orderBy: [
+        { bookingDate: 'asc' },
+        { startTime: 'asc' },
+        { venueId: 'asc' },
+      ],
       include: bookingInclude,
     });
     const bookings = rows.map((r) => this.mapCalendarBooking(r));

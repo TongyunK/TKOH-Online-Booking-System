@@ -66,7 +66,14 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import CalendarBookingPopover from './CalendarBookingPopover.vue'
-import { formatDateISO, isSameCalendarDay, getCalendarBookingBlockStyle } from '@/utils/venueCalendarApi'
+import {
+  formatDateISO,
+  isSameCalendarDay,
+  getCalendarBookingBlockStyle,
+  sortVenueCalendarBookings,
+  resolveVenueSortId,
+  parseBookingTimeToMinutes
+} from '@/utils/venueCalendarApi'
 
 const props = defineProps({
   currentDate: {
@@ -198,27 +205,20 @@ function getDayBookings (dayDate) {
   }
 
   const selectedRoomNames = props.selectedRooms.map(room => room.name)
-  return dayBookings.filter(booking => selectedRoomNames.includes(booking.roomName))
+  return sortVenueCalendarBookings(
+    dayBookings.filter(booking => selectedRoomNames.includes(booking.roomName)),
+    props.selectedRooms
+  )
 }
 
 function parseTimeToMinutes (timeStr) {
-  if (!timeStr || typeof timeStr !== 'string') return 8 * 60
-  const [h, m] = timeStr.split(':').map(Number)
-  if (Number.isNaN(h) || Number.isNaN(m)) return 8 * 60
-  return h * 60 + m
-}
-
-/** 与房间筛选列表顺序一致（CR1 → CR2 → CR3 …），未知房间靠后 */
-function roomOrderIndex (roomName) {
-  const rooms = props.selectedRooms || []
-  const idx = rooms.findIndex((r) => r.name === roomName)
-  return idx === -1 ? Number.MAX_SAFE_INTEGER : idx
+  return parseBookingTimeToMinutes(timeStr)
 }
 
 /**
- * 按房间顺序固定列位（不按开始时间排左右）：
- * 当日出现的房间按筛选列表顺序（CR1 → CR2 → CR3…）占列，同房间全天同一列。
- * 同房间若有时间重叠，在该房间列组内再拆子列。
+ * 周视图并排：每列仅同一 venue。
+ * 列序按 venue id（1→7）；列内按开始时间，同时间再按 booking id。
+ * 同 venue 时间重叠时再拆子列。
  */
 function buildDayOverlapLayout (dayBookings) {
   const layout = new Map()
@@ -227,15 +227,15 @@ function buildDayOverlapLayout (dayBookings) {
   const roomNames = [...new Set(
     dayBookings.map((b) => b.roomName || '').filter(Boolean)
   )].sort((a, b) => {
-    const d = roomOrderIndex(a) - roomOrderIndex(b)
-    return d !== 0 ? d : a.localeCompare(b)
+    const va = resolveVenueSortId({ roomName: a }, props.selectedRooms)
+    const vb = resolveVenueSortId({ roomName: b }, props.selectedRooms)
+    if (va !== vb) return va - vb
+    return a.localeCompare(b)
   })
 
-  // 无房间名的预订排在最后一「房间组」
   const hasUnnamed = dayBookings.some((b) => !b.roomName)
   const roomGroups = hasUnnamed ? [...roomNames, ''] : roomNames
 
-  /** 每个房间组内：按时间贪心拆子列（同房重叠时） */
   const groupLayouts = new Map()
   let totalCols = 0
 

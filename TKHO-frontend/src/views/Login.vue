@@ -1,16 +1,13 @@
 <template>
-  <div class="login-container flex flex-col bg-[#f8ecdd]">
+  <div class="login-container flex flex-col bg-[#f8ecdd]" :class="{ 'login-compact': loginCompact }">
     <header class="login-header w-full">
       <div class="header-content">
         <img src="../assets/TKOH_logo.png" alt="TKOH Logo" class="login-header-logo" />
-        <h1 class="login-title">
-          <span class="login-title-brand">TKOH</span><span class="login-title-rest"> GA Venue and EV Charging Booking System</span>
-        </h1>
+        <h1 class="login-title">TKOH GA Venue and EV Charging Booking System</h1>
       </div>
     </header>
 
-    <div class="login-main">
-      <!-- 系统选择按钮区：在不同屏幕下自适应宽度和间距 -->
+    <div ref="loginMainRef" class="login-main">
       <div class="system-buttons-container w-full max-w-md md:max-w-lg mx-auto mt-6 mb-3 px-4">
         <p class="system-caption">Please select</p>
         <el-form-item prop="system" class="system-buttons-item">
@@ -25,13 +22,18 @@
               <span class="button-icon">
                 <font-awesome-icon :icon="['fas', item.icon]" />
               </span>
-              <span class="button-label">{{ item.label }}</span>
+              <span class="button-label" :aria-label="item.label">
+                <span
+                  v-for="(line, lineIdx) in item.labelLines"
+                  :key="`${item.value}-line-${lineIdx}`"
+                  class="button-label-line"
+                >{{ line }}</span>
+              </span>
             </button>
           </div>
         </el-form-item>
       </div>
 
-      <!-- 登录卡片：自适应宽度，居中显示 -->
       <div class="login-card w-full max-w-md md:max-w-lg mx-auto px-4">
         <el-form
           ref="loginFormRef"
@@ -65,7 +67,7 @@
               </template>
             </el-input>
           </el-form-item>
-          <el-form-item>
+          <el-form-item class="login-submit-item">
             <el-button
               type="primary"
               :loading="loading"
@@ -77,6 +79,7 @@
             </el-button>
           </el-form-item>
           <div class="signup-row">
+            <RouterLink to="/register" class="signup-link">Sign Up</RouterLink>
             <p class="login-docs-tip">
               Please read
               <a
@@ -97,18 +100,13 @@
               >Operations Manual</a>
               <span v-else class="login-docs-link is-disabled">Operations Manual</span>
             </p>
-            <div class="signup-second-row">
-              <span class="login-docs-tip-rest">before making bookings.</span>
-              <RouterLink to="/register" class="signup-link">Sign Up</RouterLink>
-            </div>
           </div>
         </el-form>
       </div>
 
-      <!-- 底部说明：EV / Venue 切换时显示对应 Points to Note（后台 system_fixed） -->
       <section
         v-if="showPointsToNoteSection"
-        class="login-notes mt-6 py-3 px-0"
+        class="login-notes"
         :style="loginNotesStyle"
       >
         <div class="login-notes-inner">
@@ -129,7 +127,7 @@
 </template>
 
 <script setup>
-import { computed, ref, reactive, onMounted } from 'vue'
+import { computed, ref, reactive, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { useStatusDialogStore } from '@/stores/statusDialog'
@@ -168,9 +166,24 @@ function onCorpIdInput (val) {
 }
 
 const systemOptions = [
-  { label: 'EV Charging Booking', value: 'parking', icon: 'car' },
-  { label: 'Venue Booking', value: 'room', icon: 'building' },
-  { label: 'Admin Management', value: 'admin', icon: 'user-gear' }
+  {
+    label: 'EV Charging Booking',
+    labelLines: ['EV Charging', 'Booking'],
+    value: 'parking',
+    icon: 'car'
+  },
+  {
+    label: 'Venue Booking',
+    labelLines: ['Venue', 'Booking'],
+    value: 'room',
+    icon: 'building'
+  },
+  {
+    label: 'Admin Management',
+    labelLines: ['Admin', 'Management'],
+    value: 'admin',
+    icon: 'user-gear'
+  }
 ]
 
 const POINTS_TO_NOTE_KEYS = {
@@ -185,13 +198,31 @@ const pointsToNoteByKey = ref({
 const pointsToNoteLoading = ref(false)
 const userGuideUrl = ref('')
 const operationsManualUrl = ref('')
+/** 后台配置为「参考宽」下的基准百分比；窗口变窄时按视口宽度缩小（幅度加大） */
 const loginPointsToNoteWidthPercent = ref(85)
+const NOTES_WIDTH_REF_PX = 1920
+/** >1 时变窄缩得更狠（线性为 1） */
+const NOTES_WIDTH_SHRINK_POWER = 1.45
+const NOTES_WIDTH_PCT_FLOOR = 42
+const viewportWidthPx = ref(
+  typeof window !== 'undefined' ? window.innerWidth : NOTES_WIDTH_REF_PX
+)
+
+function syncViewportWidthPx () {
+  if (typeof window === 'undefined') return
+  viewportWidthPx.value = window.innerWidth || NOTES_WIDTH_REF_PX
+}
 
 const loginNotesStyle = computed(() => {
-  const pct = loginPointsToNoteWidthPercent.value
-  const width = Number.isFinite(pct) ? Math.min(100, Math.max(40, pct)) : 85
+  const base = Number.isFinite(loginPointsToNoteWidthPercent.value)
+    ? Math.min(100, Math.max(40, loginPointsToNoteWidthPercent.value))
+    : 85
+  // ≥ 参考宽：用配置百分比；变窄：percent × (当前宽/参考宽)^power
+  const linear = Math.min(1, viewportWidthPx.value / NOTES_WIDTH_REF_PX)
+  const scale = Math.pow(linear, NOTES_WIDTH_SHRINK_POWER)
+  const pct = Math.max(NOTES_WIDTH_PCT_FLOOR, Math.round(base * scale * 10) / 10)
   return {
-    width: `${width}%`,
+    width: `${pct}%`,
     maxWidth: '100%'
   }
 })
@@ -259,10 +290,53 @@ const currentPointsToNoteContent = computed(() => {
   return formatPointsToNoteForDisplay(raw, { includeHeading: true })
 })
 
+const loginMainRef = ref(null)
+/** 内容略紧时收紧 Notes↔版权间距 */
+const loginCompact = ref(false)
+let loginFitRo = null
+let loginFitTimer = 0
+
+async function syncLoginFit () {
+  await nextTick()
+  const el = loginMainRef.value
+  if (!el) return
+  loginCompact.value = false
+  await nextTick()
+  loginCompact.value = el.scrollHeight > el.clientHeight + 1
+}
+
+function scheduleLoginFit () {
+  window.clearTimeout(loginFitTimer)
+  loginFitTimer = window.setTimeout(() => { void syncLoginFit() }, 50)
+}
+
 onMounted(() => {
-  void loadPointsToNote()
+  syncViewportWidthPx()
+  window.addEventListener('resize', syncViewportWidthPx, { passive: true })
+  window.addEventListener('resize', scheduleLoginFit, { passive: true })
+  void nextTick(() => {
+    if (typeof ResizeObserver !== 'undefined' && loginMainRef.value) {
+      loginFitRo = new ResizeObserver(() => scheduleLoginFit())
+      loginFitRo.observe(loginMainRef.value)
+    }
+    scheduleLoginFit()
+  })
+  void loadPointsToNote().finally(() => scheduleLoginFit())
   void loadLoginDocs()
 })
+
+onUnmounted(() => {
+  window.removeEventListener('resize', syncViewportWidthPx)
+  window.removeEventListener('resize', scheduleLoginFit)
+  window.clearTimeout(loginFitTimer)
+  loginFitRo?.disconnect()
+  loginFitRo = null
+})
+
+watch(
+  [showPointsToNoteSection, currentPointsToNoteContent, () => loginForm.system],
+  () => scheduleLoginFit()
+)
 
 const loginRules = {
   corpId: [
@@ -399,13 +473,46 @@ const handleLogin = async () => {
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
+  /* 事先留出滚动条槽，避免出现时先挤左再回弹闪一下；槽透出页面底色，不显白边 */
+  scrollbar-gutter: stable;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  padding-bottom: 12px;
+  padding-bottom: 0;
   box-sizing: border-box;
   position: relative;
   z-index: 1;
+  background: transparent;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(10, 61, 31, 0.4) transparent;
+}
+
+/* 不支持 scrollbar-gutter 时始终占位，同样避免闪动 */
+@supports not (scrollbar-gutter: stable) {
+  .login-main {
+    overflow-y: scroll;
+  }
+}
+
+.login-main::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background: transparent;
+}
+
+.login-main::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.login-main::-webkit-scrollbar-thumb {
+  background-color: rgba(10, 61, 31, 0.35);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.login-main::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(10, 61, 31, 0.5);
 }
 
 .login-copyright {
@@ -413,7 +520,7 @@ const handleLogin = async () => {
   position: relative;
   z-index: 1;
   margin: 0;
-  padding: 10px 16px;
+  padding: 10px 16px 10px;
   box-sizing: border-box;
   text-align: center;
   font-size: 14px;
@@ -442,20 +549,12 @@ const handleLogin = async () => {
   font-size: 1.125rem; /* 与内页 header text-lg 一致 */
   line-height: 1.75rem;
   color: #ffffff;
-}
-
-.login-title-brand,
-.login-title-rest {
   font-weight: 700;
 }
 
-/* 与内页 AppHeader 一致：全大写 TKOH 略减字重做光学平衡 */
-.login-title-brand {
-  font-weight: 600;
-}
-
 .system-buttons-container {
-  width: min(100vw - 2rem, 480px);
+  /* 用 100% 而非 100vw，避免视口滚动条宽度变化时左右位移 */
+  width: min(calc(100% - 2rem), 480px);
   margin: 2rem auto 1rem;
   position: relative;
   z-index: 1;
@@ -472,7 +571,7 @@ const handleLogin = async () => {
 }
 
 .login-card {
-  width: min(100vw - 2rem, 480px);
+  width: min(calc(100% - 2rem), 480px);
   margin: 0 auto;
   background: #ffffff;
   border-radius: 16px;
@@ -504,6 +603,10 @@ const handleLogin = async () => {
 
 .login-form :deep(.el-form-item:last-child) {
   margin-bottom: 0;
+}
+
+.login-form :deep(.login-submit-item) {
+  margin-bottom: 8px;
 }
 
 .login-input :deep(.el-input__wrapper) {
@@ -700,6 +803,11 @@ const handleLogin = async () => {
 }
 
 .button-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
   font-size: 15px;
   font-weight: 600;
   text-align: center;
@@ -709,6 +817,11 @@ const handleLogin = async () => {
   position: relative;
   z-index: 1;
   transition: color 0.3s ease;
+}
+
+.button-label-line {
+  display: block;
+  white-space: nowrap;
 }
 
 .system-button:hover .button-label {
@@ -773,8 +886,8 @@ const handleLogin = async () => {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0;
-  margin-top: -4px;
+  gap: 2px;
+  margin-top: 0;
 }
 
 .login-docs-tip {
@@ -784,20 +897,7 @@ const handleLogin = async () => {
   line-height: 1.4;
   color: #4b5563;
   text-align: left;
-}
-
-.signup-second-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 0;
-}
-
-.login-docs-tip-rest {
-  font-size: 14px;
-  line-height: 1.4;
-  color: #4b5563;
+  white-space: nowrap;
 }
 
 .login-docs-link {
@@ -819,11 +919,11 @@ const handleLogin = async () => {
 
 .signup-link {
   color: #0A3D1F;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   text-decoration: underline;
   line-height: 1.4;
-  flex: 0 0 auto;
+  align-self: flex-end;
   white-space: nowrap;
 }
 
@@ -832,10 +932,13 @@ const handleLogin = async () => {
 }
 
 .login-notes {
+  /* 与登录卡同列滚动；多余空白在卡与 Points 之间 */
+  flex: 0 0 auto;
   margin-top: auto;
   margin-left: auto;
   margin-right: auto;
-  padding: 1.5rem 1.5rem 0;
+  margin-bottom: 0;
+  padding: 0.35rem 0 0;
   background: transparent;
   border-top: none;
   box-sizing: border-box;
@@ -844,6 +947,16 @@ const handleLogin = async () => {
   color: #2d4a32;
   text-align: left;
   box-shadow: none;
+}
+
+/* compact 只再收紧 Points↔版权 */
+.login-compact .login-notes {
+  padding-top: 0.2rem;
+}
+
+.login-compact .login-copyright {
+  padding-top: 10px;
+  padding-bottom: 10px;
 }
 
 .login-notes-inner {

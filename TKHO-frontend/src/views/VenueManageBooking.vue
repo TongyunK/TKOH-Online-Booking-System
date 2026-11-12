@@ -163,10 +163,12 @@
               class="export-excel-btn"
               :class="{ active: showExportMenu }"
               :disabled="exportingExcel"
+              title="Export Excel"
               @click="toggleExportMenu"
             >
               <font-awesome-icon :icon="['fas', 'file-excel']" />
-              <span>{{ exportingExcel ? 'Exporting...' : 'Export Excel' }}</span>
+              <span class="export-excel-label-full">{{ exportingExcel ? 'Exporting...' : 'Export Excel' }}</span>
+              <span class="export-excel-label-short">{{ exportingExcel ? '…' : 'Excel' }}</span>
               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="arrow-icon">
                 <polyline points="6 9 12 15 18 9"></polyline>
               </svg>
@@ -740,8 +742,10 @@
       v-model="showEditDialog"
       title="Edit Booking"
       max-width="800px"
-      :max-height="editBookingModalMaxHeight"
-      :custom-class="editBookingModalClass"
+      :max-height="editBookingModalHeightPx"
+      :dialog-height="editBookingModalHeightPx"
+      overlay-padding="12px 16px"
+      custom-class="edit-booking-modal"
     >
       <el-form :model="editForm" :rules="editFormRules" label-width="150px" class="edit-booking-form">
         <el-form-item label="Room / Venue" prop="room">
@@ -1948,13 +1952,8 @@ function updateCardPopoverTeleported () {
 /** 14" ????100??599??Handle Booking ?????? MeetingApproval ???*/
 const HANDLE_BOOKING_MODAL_MQ = HTML_ZOOM_BREAKPOINT_MQ
 const handleBookingModalMaxHeight = ref('94vh')
-const editBookingModalMaxHeight = ref('98vh')
-/** Tea Service ??Yes ?????? modal-body ????? */
-const editBookingModalClass = computed(() =>
-  editForm.value.teaServiceRequired
-    ? 'edit-booking-modal edit-booking-modal--unified-scroll'
-    : 'edit-booking-modal'
-)
+/** Edit Booking：直接用视口像素限高（避免 vh/zoom/全局样式互相抵消） */
+const editBookingModalHeightPx = ref('520px')
 const editPickerOffsetY = ref(0)
 const editPickerPopperOptions = computed(() => ({
   modifiers: [
@@ -1983,12 +1982,21 @@ const editDatePopperOptions = computed(() => ({
   ]
 }))
 
+function updateEditBookingModalHeightPx () {
+  if (typeof window === 'undefined') return
+  // 与 BookingStyleModal 一致：按可视高度限制，避免 zoom 0.88 后弹窗超出窗口
+  const zoomRaw = Number.parseFloat(window.getComputedStyle(document.documentElement).zoom || '1')
+  const zoom = Number.isFinite(zoomRaw) && zoomRaw > 0 ? zoomRaw : 1
+  const visualH = window.visualViewport?.height || window.innerHeight || 800
+  const px = Math.max(280, Math.round((visualH * 0.88 - 24) / zoom))
+  editBookingModalHeightPx.value = `${px}px`
+}
+
 function updateHandleBookingModalMaxHeight () {
   if (typeof window === 'undefined') return
   const isLaptop14 = window.matchMedia(HANDLE_BOOKING_MODAL_MQ).matches
   handleBookingModalMaxHeight.value = isLaptop14 ? '120vh' : '94vh'
-  // 14??zoom:0.8????????????modal body ????
-  editBookingModalMaxHeight.value = isLaptop14 ? '112vh' : '98vh'
+  updateEditBookingModalHeightPx()
   editPickerOffsetY.value = 0
 }
 
@@ -3027,6 +3035,7 @@ const editBooking = (id) => {
   }
   applyEditTeaServiceVisibilityRules()
   applyEditUploadEventTitleVisibilityRules()
+  updateEditBookingModalHeightPx()
   showEditDialog.value = true
 }
 
@@ -3379,6 +3388,7 @@ onMounted(() => {
   cardPopoverTeleportedMq = window.matchMedia(HTML_ZOOM_BREAKPOINT_MQ)
   cardPopoverTeleportedMq.addEventListener('change', updateCardPopoverTeleported)
   window.addEventListener('resize', updateTableScrollShadows, { passive: true })
+  window.addEventListener('resize', updateEditBookingModalHeightPx, { passive: true })
   void fetchMeetingEventTitleMaxLength().then((maxLength) => {
     meetingEventTitleMaxLength.value = maxLength
   })
@@ -3401,6 +3411,7 @@ onUnmounted(() => {
   if (cardPopoverTeleportedMq) {
     cardPopoverTeleportedMq.removeEventListener('change', updateCardPopoverTeleported)
   }
+  window.removeEventListener('resize', updateEditBookingModalHeightPx)
   window.removeEventListener('resize', updateTableScrollShadows)
   document.removeEventListener('mousedown', handleDateFilterClickOutside, true)
   document.removeEventListener('click', handleExportMenuClickOutside)
@@ -3688,22 +3699,45 @@ onUnmounted(() => {
 
 .export-excel-wrapper {
   position: relative;
+  flex-shrink: 0;
 }
 
 .export-excel-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
   height: 34px;
-  padding: 0 0.75rem;
+  padding: 0 0.65rem;
   border: 1px solid #86c8a3;
   border-radius: 0.375rem;
   background: #f5fbf7;
   color: #14532d;
   font-size: 0.8125rem;
   font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  flex-shrink: 0;
   cursor: pointer;
   transition: all 0.2s;
+}
+
+.export-excel-btn > span {
+  white-space: nowrap;
+}
+
+.export-excel-label-short {
+  display: none;
+}
+
+/* 中宽屏 / 0.86 缩放区间：空间紧时只显示 Excel */
+@media screen and (max-width: 1599px) {
+  .export-excel-label-full {
+    display: none;
+  }
+
+  .export-excel-label-short {
+    display: inline;
+  }
 }
 
 .export-excel-btn .arrow-icon {

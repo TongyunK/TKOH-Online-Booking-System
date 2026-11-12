@@ -1,15 +1,17 @@
 <template>
-  <header ref="headerRef" class="app-header w-full bg-[#0A3D1F] text-white">
-    <div class="header-left flex items-center gap-3">
+  <header
+    ref="headerRef"
+    class="app-header w-full bg-[#0A3D1F] text-white"
+    :class="{ 'header-stacked': headerStacked }"
+  >
+    <div ref="headerLeftRef" class="header-left flex items-center gap-3">
       <img src="../assets/TKOH_logo.png" alt="TKOH Logo" class="header-logo" />
-      <h1 class="header-title text-lg">
-        <span class="header-title-brand">{{ headerTitleBrand }}</span><span class="header-title-rest">{{ headerTitleRest }}</span>
-      </h1>
+      <h1 class="header-title text-lg">{{ headerTitle }}</h1>
     </div>
 
-    <div class="header-right">
+    <div ref="headerRightRef" class="header-right">
       <div class="header-nav-scroll">
-        <nav class="header-nav">
+        <nav ref="headerNavRef" class="header-nav">
           <div v-if="isAdmin" class="admin-link-wrapper">
             <RouterLink
               to="/admin"
@@ -21,7 +23,7 @@
             <span v-if="totalPendingCount > 0" class="badge-dot">{{ totalPendingCount > 99 ? '99+' : totalPendingCount }}</span>
           </div>
 
-      <!-- 仅管理员：Calendar / Manage Booking 悬停下拉，顺序 Venue 上、EV 下 -->
+      <!-- 仅管理员：Calendar / Manage Booking 悬停下拉，顺序 Venue 上、EV Charging 下 -->
       <template v-if="isAdmin">
         <div class="nav-dropdown">
           <button
@@ -45,7 +47,7 @@
                 class="dropdown-link"
                 :class="{ 'is-active-sub': route.path === '/evBooking/Calendar' || route.path === '/evBooking' }"
               >
-                EV
+                EV Charging
               </RouterLink>
             </div>
           </div>
@@ -73,7 +75,7 @@
                 class="dropdown-link"
                 :class="{ 'is-active-sub': route.path === '/evBooking/ManageBooking' }"
               >
-                EV
+                EV Charging
               </RouterLink>
             </div>
           </div>
@@ -109,7 +111,7 @@
         </nav>
       </div>
 
-      <div class="header-actions">
+      <div ref="headerActionsRef" class="header-actions">
         <div class="logout-wrapper">
           <button type="button" class="logout-btn" @click="userStore.performLogout">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -167,7 +169,14 @@ watch(isAdmin, (isAdminUser) => {
 
 let pollingInterval = null
 const headerRef = ref(null)
+const headerLeftRef = ref(null)
+const headerRightRef = ref(null)
+const headerNavRef = ref(null)
+const headerActionsRef = ref(null)
+/** 仅当标题+导航真实放不下时才叠成两行（避免 0.86 缩放时过早换行） */
+const headerStacked = ref(false)
 let headerResizeObserver = null
+let headerLayoutTimer = 0
 
 const updateHeaderHeight = () => {
   const el = headerRef.value
@@ -175,18 +184,50 @@ const updateHeaderHeight = () => {
   document.documentElement.style.setProperty('--app-header-height', `${el.offsetHeight}px`)
 }
 
+async function syncHeaderLayout () {
+  const header = headerRef.value
+  const left = headerLeftRef.value
+  const nav = headerNavRef.value
+  const actions = headerActionsRef.value
+  if (!header || !left || !nav || !actions) return
+
+  const wasStacked = headerStacked.value
+  // 先按单行测量自然宽度，再决定是否叠行
+  headerStacked.value = false
+  await nextTick()
+
+  const style = getComputedStyle(header)
+  const padX = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0)
+  const gap = parseFloat(style.columnGap || style.gap) || 0
+  const rightGap = parseFloat(getComputedStyle(headerRightRef.value || header).columnGap || getComputedStyle(headerRightRef.value || header).gap) || 0
+  const needWidth = left.scrollWidth + nav.scrollWidth + actions.scrollWidth + padX + gap + rightGap
+  headerStacked.value = needWidth > header.clientWidth + 2
+
+  await nextTick()
+  updateHeaderHeight()
+  if (wasStacked !== headerStacked.value) {
+    await nextTick()
+    updateHeaderHeight()
+  }
+}
+
+function scheduleHeaderLayout () {
+  window.clearTimeout(headerLayoutTimer)
+  headerLayoutTimer = window.setTimeout(() => { void syncHeaderLayout() }, 40)
+}
+
 onMounted(() => {
   nextTick(() => {
-    updateHeaderHeight()
+    void syncHeaderLayout()
   })
 
   if (typeof ResizeObserver !== 'undefined' && headerRef.value) {
     headerResizeObserver = new ResizeObserver(() => {
-      updateHeaderHeight()
+      scheduleHeaderLayout()
     })
     headerResizeObserver.observe(headerRef.value)
   }
-  window.addEventListener('resize', updateHeaderHeight, { passive: true })
+  window.addEventListener('resize', scheduleHeaderLayout, { passive: true })
 
   if (isAdmin.value) {
     const isOnAdminShell = () => route.path === '/admin' || route.path.startsWith('/admin/')
@@ -201,7 +242,8 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  window.removeEventListener('resize', updateHeaderHeight)
+  window.removeEventListener('resize', scheduleHeaderLayout)
+  window.clearTimeout(headerLayoutTimer)
   if (headerResizeObserver) {
     headerResizeObserver.disconnect()
     headerResizeObserver = null
@@ -210,6 +252,11 @@ onUnmounted(() => {
     clearInterval(pollingInterval)
   }
 })
+
+watch(
+  [isAdmin, showSwitchButton, () => route.path, totalPendingCount],
+  () => scheduleHeaderLayout()
+)
 
 const isActive = (path) => route.path === path
 
@@ -271,17 +318,6 @@ const headerTitle = computed(() => {
     return 'TKOH GA Venue and EV Charging Booking System'
   }
   return isVenuePage.value ? 'TKOH Venue Booking' : 'TKOH EV Charging Booking'
-})
-
-/** 全大写 TKOH 同字重会显得更粗，拆开做光学平衡 */
-const headerTitleBrand = computed(() => {
-  const title = String(headerTitle.value || '')
-  return title.startsWith('TKOH') ? 'TKOH' : ''
-})
-
-const headerTitleRest = computed(() => {
-  const title = String(headerTitle.value || '')
-  return title.startsWith('TKOH') ? title.slice(4) : title
 })
 
 const switchButtonText = computed(() => {
@@ -382,16 +418,7 @@ const saveCurrentPath = () => {
 .header-title {
   margin: 0;
   color: #ffffff;
-}
-
-.header-title-brand,
-.header-title-rest {
   font-weight: 700;
-}
-
-/* 全大写品牌词略减字重，避免比后半段更“胖” */
-.header-title-brand {
-  font-weight: 600;
 }
 
 .header-link {
@@ -642,32 +669,31 @@ const saveCurrentPath = () => {
   box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
 }
 
-@media (max-width: 1180px) {
-  .app-header {
-    padding-inline: 0.9rem;
-    flex-wrap: wrap;
-    row-gap: 0.5rem;
-  }
+/* 内容实测放不下才叠成两行（不再用固定 1180 断点，避免 0.86 缩放后仍有空位却换行） */
+.app-header.header-stacked {
+  padding-inline: 0.9rem;
+  flex-wrap: wrap;
+  row-gap: 0.5rem;
+}
 
-  .app-header h1 {
-    font-size: 1rem;
-  }
+.app-header.header-stacked h1 {
+  font-size: 1rem;
+}
 
-  .header-left {
-    flex: 1 1 100%;
-  }
+.app-header.header-stacked .header-left {
+  flex: 1 1 100%;
+}
 
-  .header-right {
-    width: 100%;
-    flex: 1 1 100%;
-    margin-left: 0;
-    justify-content: flex-end;
-    gap: 0.5rem;
-  }
+.app-header.header-stacked .header-right {
+  width: 100%;
+  flex: 1 1 100%;
+  margin-left: 0;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
 
-  .header-nav {
-    gap: 0.625rem;
-  }
+.app-header.header-stacked .header-nav {
+  gap: 0.625rem;
 }
 
 @media (max-width: 389px) {

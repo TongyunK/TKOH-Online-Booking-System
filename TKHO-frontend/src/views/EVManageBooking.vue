@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="page h-screen bg-[#f5f5f5] flex flex-col overflow-hidden" style="padding-top: var(--app-header-height, 60px);">
     <AppHeader />
 
@@ -136,10 +136,12 @@
               class="export-excel-btn"
               :class="{ active: showExportMenu }"
               :disabled="exportingExcel"
+              title="Export Excel"
               @click="toggleExportMenu"
             >
               <font-awesome-icon :icon="['fas', 'file-excel']" />
-              <span>{{ exportingExcel ? 'Exporting...' : 'Export Excel' }}</span>
+              <span class="export-excel-label-full">{{ exportingExcel ? 'Exporting...' : 'Export Excel' }}</span>
+              <span class="export-excel-label-short">{{ exportingExcel ? '…' : 'Excel' }}</span>
               <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="arrow-icon">
                 <polyline points="6 9 12 15 18 9"></polyline>
               </svg>
@@ -2259,22 +2261,45 @@ onUnmounted(() => {
 /* View Toggle Buttons */
 .export-excel-wrapper {
   position: relative;
+  flex-shrink: 0;
 }
 
 .export-excel-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
   height: 34px;
-  padding: 0 0.75rem;
+  padding: 0 0.65rem;
   border: 1px solid #86c8a3;
   border-radius: 0.375rem;
   background: #f5fbf7;
   color: #14532d;
   font-size: 0.8125rem;
   font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  flex-shrink: 0;
   cursor: pointer;
   transition: all 0.2s;
+}
+
+.export-excel-btn > span {
+  white-space: nowrap;
+}
+
+.export-excel-label-short {
+  display: none;
+}
+
+/* 中宽屏 / 0.86 缩放区间：空间紧时只显示 Excel */
+@media screen and (max-width: 1599px) {
+  .export-excel-label-full {
+    display: none;
+  }
+
+  .export-excel-label-short {
+    display: inline;
+  }
 }
 
 .export-excel-btn .arrow-icon {

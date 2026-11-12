@@ -1,6 +1,6 @@
 <template>
   <!-- 自定义遮罩 + 弹窗 -->
-  <div class="modal-overlay" @click.self="handleClose" v-if="visible">
+  <div class="ev-booking-dialog-root modal-overlay" @click.self="handleClose" v-if="visible">
     <div
       class="booking-dialog-wrapper"
       :style="dialogWrapperStyle"
@@ -292,7 +292,7 @@ const dialogY = ref(0)
 
 /** 14" 视口（1100–1599，html zoom 0.8）：仅放宽 max-height，布局与其他断点一致 */
 const EV_BOOKING_DIALOG_MODAL_MQ = HTML_ZOOM_BREAKPOINT_MQ
-const EV_BOOKING_DIALOG_14_MAX_HEIGHT = '124vh'
+const EV_BOOKING_DIALOG_14_MAX_HEIGHT = '100vh'
 const evBookingDialogMaxHeight = ref('')
 /** 14" html zoom：下拉/日期勿挂 body，避免坐标偏移；其余视口挂 body 以免被弹窗 overflow 裁切 */
 const bookingPopperTeleported = ref(true)

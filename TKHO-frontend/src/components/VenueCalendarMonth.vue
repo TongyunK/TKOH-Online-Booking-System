@@ -224,7 +224,8 @@ import {
   isSameCalendarDay,
   getCalendarBookingBlockStyle,
   formatDateISO,
-  getHtmlZoomScale
+  getHtmlZoomScale,
+  sortVenueCalendarBookings
 } from '@/utils/venueCalendarApi'
 
 const props = defineProps({
@@ -249,8 +250,6 @@ const props = defineProps({
 const emit = defineEmits(['day-click'])
 
 const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
-
 const monthGridRef = ref(null)
 const measureBarRef = ref(null)
 const measureMoreRef = ref(null)
@@ -701,13 +700,10 @@ function getBookingsForDay (day, segment = 'current') {
   }
 
   const selectedRoomNames = props.selectedRooms.map(room => room.name)
-  return dayBookings
-    .filter(booking => selectedRoomNames.includes(booking.roomName))
-    .sort((a, b) => {
-      const timeCmp = (a.startTime || '').localeCompare(b.startTime || '')
-      if (timeCmp !== 0) return timeCmp
-      return (a.roomName || '').localeCompare(b.roomName || '', undefined, { sensitivity: 'base' })
-    })
+  return sortVenueCalendarBookings(
+    dayBookings.filter(booking => selectedRoomNames.includes(booking.roomName)),
+    props.selectedRooms
+  )
 }
 
 /** 与模板一致的 35/42 格顺序 */
@@ -858,7 +854,8 @@ watch(
 
 .weekday-header {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  /* minmax(0,1fr)：与月格对齐，避免内容/气泡撑破列宽 */
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 1px;
   margin-bottom: 0;
   background-color: #e5e7eb;
@@ -888,7 +885,8 @@ watch(
 
 .month-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  /* 勿用纯 1fr（=minmax(auto,1fr)）：teleported=false 放开 overflow 后气泡会撑宽整列 */
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 1px;
   background-color: #e5e7eb;
   border-radius: 0 0 0.5rem 0.5rem;
@@ -913,17 +911,21 @@ watch(
   flex-direction: column;
   gap: 0.25rem;
   overflow: hidden;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   height: 100%;
   min-height: 0;
   max-height: 100%;
   position: relative;
+  z-index: 0; /* 形成独立层叠上下文，避免他格 +N 的 z-index 穿透当前气泡 */
   box-sizing: border-box;
   align-self: stretch;
 }
 
 .date-cell.has-bookings {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
   gap: 0.25rem;
   align-content: stretch;
@@ -1032,10 +1034,27 @@ watch(
   .date-cell.is-popover-open {
     overflow: visible;
     z-index: 80;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    /* 锁住格子行内尺寸，避免 teleported=false 的 +N 气泡把格子/条带/+N 撑宽 */
+    contain: inline-size;
   }
 
   .date-cell.is-popover-open .month-booking-list {
     overflow: visible;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .date-cell.is-popover-open .month-more-root {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .date-cell.is-popover-open :deep(.el-popper) {
+    position: absolute !important;
+    z-index: 100 !important;
   }
 }
 
