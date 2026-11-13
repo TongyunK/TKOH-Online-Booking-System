@@ -2705,20 +2705,7 @@ export class VenueManagementService {
     }
 
 
-    if (
-      next === 'cancelled' &&
-      !admin &&
-      row.bookingDate &&
-      this.toDateOnly(row.bookingDate) === getAppTodayYmd()
-    ) {
-
-
-      throw new BadRequestException(
-        'Same-day bookings cannot be cancelled.',
-      );
-
-
-    }
+    // Venue：非管理员可取消当日预订（仅 EV 禁止取消当日）
 
 
     const ownerUserId = row.reservedByUserId;

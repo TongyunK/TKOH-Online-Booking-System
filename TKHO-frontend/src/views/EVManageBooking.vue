@@ -1584,14 +1584,14 @@ onUnmounted(() => {
 <style scoped>
 .cancel-confirm-message {
   margin: 0;
-  font-size: 15px;
-  line-height: 1.55;
+  font-size: 0.9rem;
+  line-height: 1.6;
   color: #374151;
 }
 
 .notice-message {
   margin: 0;
-  font-size: 15px;
+  font-size: 0.9rem;
   line-height: 1.6;
   color: #374151;
 }

@@ -1154,10 +1154,7 @@ import { formatTeaServiceDisplay, parseTeaServiceToForm, validateTeaServiceForm,
 import { validateVenueBookingDateRange, isYmdOutsideVenueBookingDateRange } from '@/utils/venueBookingDateRange'
 import { pickPromptTooltipText } from '@/utils/promptTooltip'
 import { todayYmdInAppTimeZone } from '@/utils/appTimezone'
-import {
-  isRestrictedBookingDay,
-  SAME_DAY_CANCEL_NOT_ALLOWED
-} from '@/utils/bookingDateRestriction'
+import { isRestrictedBookingDay } from '@/utils/bookingDateRestriction'
 import { useHkPublicHolidays } from '@/composables/useHkPublicHolidays'
 import {
   DEFAULT_MEETING_EVENT_TITLE_MAX_LENGTH,
@@ -1385,12 +1382,7 @@ const canToggleBookingStatus = (booking) => {
   return startAt.getTime() > Date.now()
 }
 
-const isSameDayVenueBooking = (booking) => {
-  const ymd = parseDisplayDateToIso(booking?.date || '')
-  return Boolean(ymd && ymd === todayYmdInAppTimeZone())
-}
-
-/** My Bookings：仅 upcoming 显示取消按钮（当日仍显示，点击后再提示不可取消） */
+/** My Bookings：仅 upcoming 显示取消按钮（含当日） */
 const canShowCancelButton = (booking) => {
   return String(booking?.status || '').toLowerCase() === 'upcoming'
 }
@@ -2946,10 +2938,6 @@ const cancelBooking = (id) => {
     showNotice('Cancelled bookings cannot be restored.', 'Warning')
     return
   }
-  if (!isAdmin.value && isSameDayVenueBooking(booking)) {
-    showNotice(SAME_DAY_CANCEL_NOT_ALLOWED, 'Notice')
-    return
-  }
   if (!canManageBookingCancel(booking)) {
     showNotice(
       isAdminAllBookingsView.value
@@ -2966,11 +2954,6 @@ const cancelBooking = (id) => {
 const confirmCancel = async () => {
   const booking = bookings.value.find(b => b.id === cancelBookingId.value)
   if (!booking) return
-  if (!isAdmin.value && isSameDayVenueBooking(booking)) {
-    showCancelDialog.value = false
-    showNotice(SAME_DAY_CANCEL_NOT_ALLOWED, 'Notice')
-    return
-  }
   if (isBookingCanceledStatus(booking.status) || !canManageBookingCancel(booking)) {
     showCancelDialog.value = false
     showNotice(
@@ -5349,6 +5332,13 @@ onUnmounted(() => {
 .reject-booking-form :deep(.el-form-item__label) {
   white-space: nowrap;
   padding-right: 8px;
+}
+
+.cancel-confirm-message {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: #374151;
 }
 
 .notice-message {
