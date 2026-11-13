@@ -1157,7 +1157,7 @@ onUnmounted(() => {
 
 .status-dialog-message {
   margin: 0;
-  font-size: 1.125rem;
+  font-size: 1rem;
   text-align: center;
   line-height: 1.55;
   color: #333333;

@@ -122,9 +122,9 @@ const { visible, message, type } = storeToRefs(store)
 
 .status-dialog-message {
   margin: 0;
-  font-size: 15px;
+  font-size: 0.9rem;
   text-align: center;
-  line-height: 1.5;
+  line-height: 1.55;
   color: #333333;
 }
 

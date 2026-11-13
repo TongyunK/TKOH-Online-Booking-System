@@ -781,7 +781,9 @@ export class VenueCalendarService {
     const startTime = this.parseTimeHm(dto.startTime);
     const endTime = this.parseTimeHm(dto.endTime);
 
-    await this.hkPublicHolidaysService.assertBookableForUser(bookingDate, auth);
+    await this.hkPublicHolidaysService.assertBookableForUser(bookingDate, auth, {
+      allowSameDay: true,
+    });
     await this.assertWithinVenueBookingDateRange(bookingDate);
     this.assertWithinDailyBookingWindow(venue, startTime, endTime, auth);
     await this.assertSlotAvailable(venue.id, bookingDate, startTime, endTime);
@@ -901,7 +903,9 @@ export class VenueCalendarService {
       ? this.parseTimeHm(dto.endTime)
       : existing.endTime!;
 
-    await this.hkPublicHolidaysService.assertBookableForUser(bookingDate, auth);
+    await this.hkPublicHolidaysService.assertBookableForUser(bookingDate, auth, {
+      allowSameDay: true,
+    });
     await this.assertWithinVenueBookingDateRange(bookingDate);
     this.assertWithinDailyBookingWindow(venue, startTime, endTime, auth);
     await this.assertSlotAvailable(

@@ -4,6 +4,9 @@ export const RESTRICTED_BOOKING_CONTACT_ADMIN =
 export const SAME_DAY_BOOKING_NOT_ALLOWED =
   'Same-day bookings are not allowed. Please select a future date.'
 
+export const PAST_BOOKING_NOT_ALLOWED =
+  'Past dates cannot be booked. Please select today or a future date.'
+
 export const SAME_DAY_CANCEL_NOT_ALLOWED =
   'Same-day bookings cannot be cancelled. Please contact an administrator.'
 
@@ -39,7 +42,20 @@ export function isWeekendDate (dateLike) {
   return day === 0 || day === 6
 }
 
-/** 非管理员：今日及过去日期不可预订。 */
+/** 非管理员：过去日期不可预订（今日可订；用于 Venue）。 */
+export function isPastBookingRestricted (
+  dateLike,
+  { isAdmin = false, todayYmd } = {}
+) {
+  if (isAdmin) return false
+  const ymd = toBookingDateYmd(dateLike)
+  if (!ymd) return false
+  const today = String(todayYmd || '').trim()
+  if (!today) return false
+  return ymd < today
+}
+
+/** 非管理员：今日及过去日期不可预订（用于 EV）。 */
 export function isSameDayOrPastBookingRestricted (
   dateLike,
   { isAdmin = false, todayYmd } = {}

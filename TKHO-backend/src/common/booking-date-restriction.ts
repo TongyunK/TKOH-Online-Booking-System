@@ -16,14 +16,28 @@ export function formatBookingDateYmdUtc(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-/** 非管理员不可预订今日及过去日期；管理员不受限。 */
+/**
+ * 非管理员日期下限校验；管理员不受限。
+ * - allowSameDay=false（默认，EV）：不可订今日及过去
+ * - allowSameDay=true（Venue）：可订今日，不可订过去
+ */
 export function assertFutureBookingDateForUser(
   date: Date,
   auth: { role?: string; system?: string } | null | undefined,
+  options?: { allowSameDay?: boolean },
 ): void {
   if (isAdminRole(auth)) return;
   const bookingYmd = formatBookingDateYmdUtc(date);
   const todayYmd = getAppTodayYmd();
+  const allowSameDay = Boolean(options?.allowSameDay);
+  if (allowSameDay) {
+    if (bookingYmd < todayYmd) {
+      throw new BadRequestException(
+        'Past dates cannot be booked. Please select today or a future date.',
+      );
+    }
+    return;
+  }
   if (bookingYmd <= todayYmd) {
     throw new BadRequestException(
       'Same-day bookings are not allowed. Please select a future date.',

@@ -2970,7 +2970,9 @@ export class VenueManagementService {
       : row.endTime!;
 
 
-    await this.hkPublicHolidaysService.assertBookableForUser(bookingDate, auth);
+    await this.hkPublicHolidaysService.assertBookableForUser(bookingDate, auth, {
+      allowSameDay: true,
+    });
 
 
     await this.assertVenueSlotAvailable(venue.id, bookingDate, startTime, endTime, row.id);

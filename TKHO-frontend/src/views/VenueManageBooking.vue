@@ -5353,7 +5353,7 @@ onUnmounted(() => {
 
 .notice-message {
   margin: 0;
-  font-size: 15px;
+  font-size: 0.9rem;
   color: #374151;
   line-height: 1.6;
 }

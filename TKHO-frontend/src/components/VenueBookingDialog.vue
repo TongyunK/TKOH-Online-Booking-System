@@ -480,8 +480,8 @@ import { getUser } from '@/api/userManagement'
 import { HTML_ZOOM_BREAKPOINT_MQ } from '@/utils/venueCalendarApi'
 import {
   isRestrictedBookingDay,
-  isSameDayOrPastBookingRestricted,
-  SAME_DAY_BOOKING_NOT_ALLOWED
+  isPastBookingRestricted,
+  PAST_BOOKING_NOT_ALLOWED
 } from '@/utils/bookingDateRestriction'
 import { todayYmdInAppTimeZone } from '@/utils/appTimezone'
 import { useUserStore } from '@/stores/user'
@@ -1029,10 +1029,10 @@ function applyUploadEventTitleVisibilityRules() {
   form.value.displayOnHomepage = false
 }
 
-// 非管理员禁用今日及过去；所有人禁用 Venue Booking Date Range 之外；管理员可选周末/假日
+// 非管理员禁用过去（当日可订）；所有人禁用 Venue Booking Date Range 之外；管理员可选周末/假日
 function disabledDate(date) {
   const ymd = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-  if (isSameDayOrPastBookingRestricted(ymd, {
+  if (isPastBookingRestricted(ymd, {
     isAdmin: props.isAdmin,
     todayYmd: todayYmdInAppTimeZone()
   })) {
@@ -1240,11 +1240,11 @@ function handleConfirm() {
     return
   }
 
-  if (isSameDayOrPastBookingRestricted(form.value.date, {
+  if (isPastBookingRestricted(form.value.date, {
     isAdmin: props.isAdmin,
     todayYmd: todayYmdInAppTimeZone()
   })) {
-    showNotice(SAME_DAY_BOOKING_NOT_ALLOWED, 'Warning')
+    showNotice(PAST_BOOKING_NOT_ALLOWED, 'Warning')
     return
   }
 
@@ -2129,7 +2129,7 @@ watch(() => form.value.teaServiceOption, (option) => {
 
 .notice-message {
   margin: 0;
-  font-size: 15px;
+  font-size: 0.9rem;
   color: #374151;
   line-height: 1.6;
 }

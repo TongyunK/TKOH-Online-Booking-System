@@ -1305,10 +1305,10 @@ function handleSave() {
 
 .status-dialog-message {
   margin: 0;
-  font-size: 18px;
+  font-size: 1rem;
   text-align: center;
-  line-height: 1.6;
-  color: #374151;
+  line-height: 1.55;
+  color: #333333;
   white-space: pre-line;
 }
 

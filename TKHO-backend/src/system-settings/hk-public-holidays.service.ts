@@ -117,12 +117,16 @@ export class HkPublicHolidaysService implements OnModuleInit {
     );
   }
 
-  /** 普通用户不可预订今日/过去、周末及公众假期；管理员不受限。 */
+  /**
+   * 普通用户：周末/公众假期不可订；管理员不受限。
+   * allowSameDay：Venue 为 true（可订当日）；EV 默认 false（不可订当日）。
+   */
   async assertBookableForUser(
     date: Date,
     auth: { role?: string; system?: string } | null | undefined,
+    options?: { allowSameDay?: boolean },
   ) {
-    assertFutureBookingDateForUser(date, auth);
+    assertFutureBookingDateForUser(date, auth, options);
     assertWeekendBookableForUser(date, auth);
     const row = await this.prisma.hk_public_holidays.findUnique({
       where: { holiday_date: date },
