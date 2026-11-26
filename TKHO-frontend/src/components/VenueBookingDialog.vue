@@ -2,6 +2,7 @@
   <!-- 自定义遮罩 + 弹窗 -->
   <div class="venue-booking-dialog-root modal-overlay" @click.self="handleClose" v-if="visible">
     <div
+      ref="dialogWrapperRef"
       class="booking-dialog-wrapper"
       :style="dialogWrapperStyle"
     >
@@ -197,11 +198,18 @@
                   <span class="service-label-with-icon">
                     Tea Service Required?
                     <el-tooltip
-                      :content="promptContentByKey.venue_add_booking_tea_service"
                       placement="top-start"
-                      :teleported="bookingPopperTeleported"
+                      :teleported="true"
+                      :append-to="promptTooltipAppendTo"
+                      :disabled="!promptContentByKey.venue_add_booking_tea_service"
                       popper-class="venue-booking-prompt-tooltip"
                     >
+                      <template #content>
+                        <div
+                          class="venue-booking-prompt-tooltip-html rich-content"
+                          v-html="promptContentByKey.venue_add_booking_tea_service"
+                        />
+                      </template>
                       <span class="service-info-trigger">
                         <el-icon class="service-info-icon"><InfoFilled /></el-icon>
                       </span>
@@ -221,11 +229,18 @@
                   <span class="service-label-with-icon">
                     Venue Setup
                     <el-tooltip
-                      :content="promptContentByKey.venue_add_booking_setup"
                       placement="top"
-                      :teleported="bookingPopperTeleported"
+                      :teleported="true"
+                      :append-to="promptTooltipAppendTo"
+                      :disabled="!promptContentByKey.venue_add_booking_setup"
                       popper-class="venue-booking-prompt-tooltip venue-booking-prompt-tooltip--service"
                     >
+                      <template #content>
+                        <div
+                          class="venue-booking-prompt-tooltip-html rich-content"
+                          v-html="promptContentByKey.venue_add_booking_setup"
+                        />
+                      </template>
                       <span class="service-info-trigger">
                         <el-icon class="service-info-icon"><InfoFilled /></el-icon>
                       </span>
@@ -239,11 +254,18 @@
                   <span class="service-label-with-icon">
                     Equipment
                     <el-tooltip
-                      :content="promptContentByKey.venue_add_booking_equipment"
                       placement="top"
-                      :teleported="bookingPopperTeleported"
+                      :teleported="true"
+                      :append-to="promptTooltipAppendTo"
+                      :disabled="!promptContentByKey.venue_add_booking_equipment"
                       popper-class="venue-booking-prompt-tooltip venue-booking-prompt-tooltip--service"
                     >
+                      <template #content>
+                        <div
+                          class="venue-booking-prompt-tooltip-html rich-content"
+                          v-html="promptContentByKey.venue_add_booking_equipment"
+                        />
+                      </template>
                       <span class="service-info-trigger">
                         <el-icon class="service-info-icon"><InfoFilled /></el-icon>
                       </span>
@@ -257,11 +279,18 @@
                   <span class="service-label-with-icon">
                     Tools and Materials
                     <el-tooltip
-                      :content="promptContentByKey.venue_add_booking_tools_materials"
                       placement="top"
-                      :teleported="bookingPopperTeleported"
+                      :teleported="true"
+                      :append-to="promptTooltipAppendTo"
+                      :disabled="!promptContentByKey.venue_add_booking_tools_materials"
                       popper-class="venue-booking-prompt-tooltip venue-booking-prompt-tooltip--service"
                     >
+                      <template #content>
+                        <div
+                          class="venue-booking-prompt-tooltip-html rich-content"
+                          v-html="promptContentByKey.venue_add_booking_tools_materials"
+                        />
+                      </template>
                       <span class="service-info-trigger">
                         <el-icon class="service-info-icon"><InfoFilled /></el-icon>
                       </span>
@@ -275,11 +304,18 @@
                   <span class="service-label-with-icon">
                     Others / Special Requests
                     <el-tooltip
-                      :content="promptContentByKey.venue_add_booking_others_special_requests"
                       placement="top"
-                      :teleported="bookingPopperTeleported"
+                      :teleported="true"
+                      :append-to="promptTooltipAppendTo"
+                      :disabled="!promptContentByKey.venue_add_booking_others_special_requests"
                       popper-class="venue-booking-prompt-tooltip venue-booking-prompt-tooltip--service"
                     >
+                      <template #content>
+                        <div
+                          class="venue-booking-prompt-tooltip-html rich-content"
+                          v-html="promptContentByKey.venue_add_booking_others_special_requests"
+                        />
+                      </template>
                       <span class="service-info-trigger">
                         <el-icon class="service-info-icon"><InfoFilled /></el-icon>
                       </span>
@@ -496,7 +532,8 @@ import {
   isVenueBookingRangePast,
   VENUE_BOOKING_PAST_RANGE_MESSAGE
 } from '@/utils/venueBookingPast'
-import { pickPromptTooltipText } from '@/utils/promptTooltip'
+import { pickPromptTooltipHtml } from '@/utils/promptTooltip'
+import '@/styles/rich-content.css'
 import {
   DEFAULT_MEETING_EVENT_TITLE_MAX_LENGTH,
   fetchMeetingEventTitleMaxLength,
@@ -779,11 +816,11 @@ function setAvailabilityFail () {
 const promptContentByKey = computed(() => {
   const list = promptList.value
   return {
-    venue_add_booking_setup: pickPromptTooltipText(list, 'venue_add_booking_setup'),
-    venue_add_booking_equipment: pickPromptTooltipText(list, 'venue_add_booking_equipment'),
-    venue_add_booking_tools_materials: pickPromptTooltipText(list, 'venue_add_booking_tools_materials'),
-    venue_add_booking_others_special_requests: pickPromptTooltipText(list, 'venue_add_booking_others_special_requests'),
-    venue_add_booking_tea_service: pickPromptTooltipText(list, 'venue_add_booking_tea_service')
+    venue_add_booking_setup: pickPromptTooltipHtml(list, 'venue_add_booking_setup'),
+    venue_add_booking_equipment: pickPromptTooltipHtml(list, 'venue_add_booking_equipment'),
+    venue_add_booking_tools_materials: pickPromptTooltipHtml(list, 'venue_add_booking_tools_materials'),
+    venue_add_booking_others_special_requests: pickPromptTooltipHtml(list, 'venue_add_booking_others_special_requests'),
+    venue_add_booking_tea_service: pickPromptTooltipHtml(list, 'venue_add_booking_tea_service')
   }
 })
 
@@ -797,8 +834,11 @@ const dialogY = ref(0)
 /** 14" 视口（1100–1599）：弹窗略增高，与 MeetingApproval / UserManagement 一致 */
 const VENUE_BOOKING_DIALOG_MODAL_MQ = HTML_ZOOM_BREAKPOINT_MQ
 const venueBookingDialogMaxHeight = ref('')
-/** 14" html zoom：Room / Date / Time / Prompt Tooltip 勿挂 body，避免坐标偏移与 Teleport 目标为 null */
+/** 14" html zoom：Room / Date / Time 勿挂 body，避免坐标偏移与 Teleport 目标为 null */
 const bookingPopperTeleported = ref(true)
+/** Prompt tip 挂到弹窗 wrapper（仍在 zoom DOM / transform 内），避开 modal-body 裁切 */
+const dialogWrapperRef = ref(null)
+const promptTooltipAppendTo = computed(() => dialogWrapperRef.value || 'body')
 
 function updateVenueBookingDialogMaxHeight () {
   if (typeof window === 'undefined') return
@@ -821,7 +861,8 @@ const dialogWrapperStyle = computed(() => ({
         height: venueBookingDialogMaxHeight.value,
         maxHeight: venueBookingDialogMaxHeight.value,
         minHeight: '0',
-        overflow: 'hidden',
+        /* visible：让 append 到 wrapper 的 prompt tip 可画出白底弹窗，滚动仍由 modal-body 负责 */
+        overflow: 'visible',
         flexShrink: '1'
       }
     : {})
@@ -1543,20 +1584,51 @@ watch(() => form.value.teaServiceOption, (option) => {
 .venue-booking-prompt-tooltip {
   z-index: 100001 !important;
   box-sizing: border-box;
-  /* teleported=false 时不被窄列锁死宽度；短文案随内容，长文案到上限后换行 */
-  width: fit-content !important;
-  max-width: min(320px, 90vw) !important;
-  white-space: pre-line;
+  /*
+   * 小屏 teleported=false 时 tip 落在 label(position:relative) 内。
+   * fit-content 会按窄包含块收缩，加 max-width 无效；改用 max-content，再由 max-width 封顶。
+   */
+  width: max-content !important;
+  max-width: min(520px, 90vw) !important;
+  font-size: 13px;
+  white-space: normal;
   overflow-wrap: break-word;
   word-break: break-word;
   line-height: 1.45;
   text-align: left;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
 }
 
-/* 右侧 Venue Setup 等：与主提示同一尺寸规则，避免 14" 窄列挤换行或超长单行 */
+.venue-booking-prompt-tooltip .venue-booking-prompt-tooltip-html {
+  font-size: inherit;
+  width: max-content;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.venue-booking-prompt-tooltip .venue-booking-prompt-tooltip-html p + p {
+  margin-top: 0.35em;
+}
+
+/* 右侧 Venue Setup 等 */
 .venue-booking-prompt-tooltip--service {
   min-width: 10rem;
-  max-width: min(320px, 90vw) !important;
+  max-width: min(560px, 90vw) !important;
+}
+
+/* 14" html zoom:0.86：CSS px 视觉缩小，÷zoom 补偿到接近大屏观感 */
+@media screen and (min-width: 1100px) and (max-width: 1599px) {
+  .venue-booking-prompt-tooltip {
+    max-width: min(calc(520px / 0.86), 92vw) !important;
+  }
+
+  .venue-booking-prompt-tooltip--service {
+    max-width: min(calc(560px / 0.86), 92vw) !important;
+  }
 }
 </style>
 

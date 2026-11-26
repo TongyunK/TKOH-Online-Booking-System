@@ -49,6 +49,17 @@ Upgrade (recommended):
 EOF
 }
 
+# sudo certbot 会清空环境变量，deploy-hook 读不到 LE_RECREATE_NGINX。
+# 把容器名单写进文件，由 install hook 读取。
+write_recreate_list() {
+  local list="${LE_RECREATE_NGINX:-tkho-booking-nginx}"
+  local dest="${ACME_EDGE_ROOT}/.recreate-nginx"
+  printf '%s\n' "${list}" > "${dest}.tmp"
+  mv -f "${dest}.tmp" "${dest}"
+  chmod 644 "${dest}" 2>/dev/null || true
+  echo "Nginx recreate list: ${list}"
+}
+
 ensure_edge() {
   if [[ ! -f "${EDGE_COMPOSE}" ]]; then
     echo "ERROR: missing ${EDGE_COMPOSE}"
@@ -75,6 +86,7 @@ run_certbot_issue() {
     extra+=(--staging)
     echo "NOTE: --staging (test only)"
   fi
+  write_recreate_list
   sudo certbot certonly \
     --non-interactive \
     --agree-tos \
@@ -93,6 +105,7 @@ run_certbot_renew() {
     extra+=(--staging)
   fi
   ensure_edge
+  write_recreate_list
   sudo certbot renew \
     --preferred-profile shortlived \
     --deploy-hook "${INSTALL_HOOK}" \

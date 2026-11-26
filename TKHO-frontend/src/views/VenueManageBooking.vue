@@ -863,11 +863,17 @@
             <span class="service-label-with-icon service-label-with-icon--edit">
               Tea Service Required?
               <el-tooltip
-                :content="teaServicePromptTooltip"
                 placement="top-start"
                 :teleported="cardPopoverTeleported"
+                :disabled="!teaServicePromptTooltip"
                 popper-class="venue-booking-prompt-tooltip"
               >
+                <template #content>
+                  <div
+                    class="venue-booking-prompt-tooltip-html rich-content"
+                    v-html="teaServicePromptTooltip"
+                  />
+                </template>
                 <span class="service-info-trigger">
                   <el-icon class="service-info-icon"><InfoFilled /></el-icon>
                 </span>
@@ -1152,7 +1158,8 @@ import { notifyAdminPendingUpdated } from '@/utils/adminPendingSync'
 import { HTML_ZOOM_BREAKPOINT_MQ } from '@/utils/venueCalendarApi'
 import { formatTeaServiceDisplay, parseTeaServiceToForm, validateTeaServiceForm, buildTeaServiceApiPayload, venueOffersTeaService, stripTeaServiceSpecialSuffix } from '@/utils/venueTeaService'
 import { validateVenueBookingDateRange, isYmdOutsideVenueBookingDateRange } from '@/utils/venueBookingDateRange'
-import { pickPromptTooltipText } from '@/utils/promptTooltip'
+import { pickPromptTooltipHtml } from '@/utils/promptTooltip'
+import '@/styles/rich-content.css'
 import { todayYmdInAppTimeZone } from '@/utils/appTimezone'
 import { isRestrictedBookingDay } from '@/utils/bookingDateRestriction'
 import { useHkPublicHolidays } from '@/composables/useHkPublicHolidays'
@@ -1719,7 +1726,7 @@ const isEditDetailsLocked = computed(() => isEditApprovedOnlyNote.value)
 const promptList = ref([])
 const systemFixedPromptList = ref([])
 const teaServicePromptTooltip = computed(() =>
-  pickPromptTooltipText(systemFixedPromptList.value, 'venue_add_booking_tea_service')
+  pickPromptTooltipHtml(systemFixedPromptList.value, 'venue_add_booking_tea_service')
 )
 const meetingRejectTemplateOptions = computed(() =>
   promptList.value.filter(item => item.category === 'reject_template' && item.templateType === 'meeting_approval')
@@ -1935,7 +1942,6 @@ const checkEditAvailability = async () => {
 /** 14" html zoom ??????Popover / ??????body ??????style.css / MonthDayMorePopover ???*/
 const cardPopoverTeleported = ref(true)
 let cardPopoverTeleportedMq = null
-
 function updateCardPopoverTeleported () {
   if (typeof window === 'undefined') return
   cardPopoverTeleported.value = !window.matchMedia(HTML_ZOOM_BREAKPOINT_MQ).matches
@@ -5376,12 +5382,35 @@ onUnmounted(() => {
 .venue-booking-prompt-tooltip {
   z-index: 100001 !important;
   box-sizing: border-box;
-  width: fit-content !important;
-  max-width: min(320px, 90vw) !important;
-  white-space: pre-line;
+  width: max-content !important;
+  max-width: min(520px, 90vw) !important;
+  font-size: 13px;
+  white-space: normal;
   overflow-wrap: break-word;
   word-break: break-word;
   line-height: 1.45;
   text-align: left;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
+}
+
+.venue-booking-prompt-tooltip .venue-booking-prompt-tooltip-html {
+  font-size: inherit;
+  width: max-content;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.venue-booking-prompt-tooltip .venue-booking-prompt-tooltip-html p + p {
+  margin-top: 0.35em;
+}
+
+@media screen and (min-width: 1100px) and (max-width: 1599px) {
+  .venue-booking-prompt-tooltip {
+    max-width: min(calc(520px / 0.86), 92vw) !important;
+  }
 }
 </style>

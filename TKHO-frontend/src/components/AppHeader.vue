@@ -315,7 +315,7 @@ const isManageNavActive = computed(() => {
 
 const headerTitle = computed(() => {
   if (route.path.includes('/admin')) {
-    return 'TKOH GA Venue and EV Charging Booking System'
+    return 'TKOH Venue & EV Charging Booking System'
   }
   return isVenuePage.value ? 'TKOH Venue Booking' : 'TKOH EV Charging Booking'
 })

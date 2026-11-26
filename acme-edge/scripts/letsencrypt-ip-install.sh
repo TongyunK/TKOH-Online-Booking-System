@@ -7,6 +7,10 @@ ACME_EDGE_ROOT="${ACME_EDGE_ROOT:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
 LIVE_DIR="${LE_LIVE_DIR:-}"
 IP="${LE_IP:-103.68.62.241}"
 SSL_DIR="${ACME_SSL_DIR:-${ACME_EDGE_ROOT}/ssl}"
+RECREATE_FILE="${ACME_EDGE_ROOT}/.recreate-nginx"
+if [[ -z "${LE_RECREATE_NGINX:-}" && -r "${RECREATE_FILE}" ]]; then
+  LE_RECREATE_NGINX="$(tr -d '\r' < "${RECREATE_FILE}" | head -n1)"
+fi
 RECREATE_LIST="${LE_RECREATE_NGINX:-tkho-booking-nginx}"
 
 readable_dir() {
@@ -69,6 +73,7 @@ copy_as_needed "${FULLCHAIN}" "${SSL_DIR}/cert.pem" 644
 copy_as_needed "${PRIVKEY}" "${SSL_DIR}/key.pem" 600
 
 echo "Installed shared certs to ${SSL_DIR}"
+echo "Recreate list: ${RECREATE_LIST}"
 echo "Mount this directory in every business Nginx as /etc/nginx/ssl"
 
 for cname in ${RECREATE_LIST}; do

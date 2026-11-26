@@ -3,7 +3,7 @@
     <header class="login-header w-full">
       <div class="header-content">
         <img src="../assets/TKOH_logo.png" alt="TKOH Logo" class="login-header-logo" />
-        <h1 class="login-title">TKOH GA Venue and EV Charging Booking System</h1>
+        <h1 class="login-title">TKOH Venue & EV Charging Booking System</h1>
       </div>
     </header>
 
@@ -99,6 +99,8 @@
                 rel="noopener noreferrer"
               >Operations Manual</a>
               <span v-else class="login-docs-link is-disabled">Operations Manual</span>
+              <br />
+              (for intranet use only)
             </p>
           </div>
         </el-form>

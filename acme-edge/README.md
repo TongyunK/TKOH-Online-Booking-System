@@ -114,7 +114,8 @@ docker compose -f docker-compose.nginx.yml up -d --force-recreate nginx
 
 ### 其他系统（如 leapbud）
 
-同样挂载 `/home/proj_deploy/Documents/acme-edge/ssl` → 容器内 `/etc/nginx/ssl`，然后 recreate 其 nginx。
+同样挂载 `/home/proj_deploy/Documents/acme-edge/ssl` → 容器内 `/etc/nginx/ssl`，然后 recreate 其 nginx。  
+简短步骤见 **[HTTPS-其他项目.md](./HTTPS-其他项目.md)**。
 
 访问示例：`https://103.68.62.241:3243/`
 
