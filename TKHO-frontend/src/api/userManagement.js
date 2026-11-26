@@ -4,6 +4,10 @@ export function listUsers (params) {
   return request.get('/user-management/users', { params })
 }
 
+export function getActiveUserCapacity () {
+  return request.get('/user-management/users/active-capacity')
+}
+
 export function listUserOwnerOptions (params) {
   return request.get('/user-management/users/options', { params })
 }

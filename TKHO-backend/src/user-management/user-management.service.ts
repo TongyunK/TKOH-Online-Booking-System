@@ -30,6 +30,7 @@ import {
   yearDateBounds,
 } from '../common/user-quota';
 import { UpsertYearlyQuotaDto } from './dto/upsert-yearly-quota.dto';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
 
 const MAX_PAGE_SIZE = 100;
 const MAX_EXPORT_SIZE = 5000;
@@ -60,7 +61,49 @@ const userSelect = {
 
 @Injectable()
 export class UserManagementService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly systemSettings: SystemSettingsService,
+  ) {}
+
+  /** Count Active users that consume the capacity limit (excludes system-hidden accounts). */
+  private async countActiveUsersForCapacity(): Promise<number> {
+    return this.prisma.user.count({
+      where: {
+        AND: [
+          { isSystemHidden: false },
+          { status: { equals: 'Active', mode: 'insensitive' } },
+          this.hideSuperAdminWhere(),
+        ],
+      },
+    });
+  }
+
+  /** Admin User Management capacity summary. */
+  async getActiveUserCapacity() {
+    const [maxActiveUsers, activeUsers] = await Promise.all([
+      this.systemSettings.getMaxActiveUsers(),
+      this.countActiveUsersForCapacity(),
+    ]);
+    return { maxActiveUsers, activeUsers };
+  }
+
+  /**
+   * Block creating/activating another Active user when at capacity.
+   * Message surfaces on Add / Approve / Activate.
+   */
+  private async assertActiveUserCapacityAvailable(options?: {
+    roleName?: string | null;
+  }): Promise<void> {
+    if (isSuperAdminRole(options?.roleName)) return;
+    const max = await this.systemSettings.getMaxActiveUsers();
+    const activeCount = await this.countActiveUsersForCapacity();
+    if (activeCount >= max) {
+      throw new BadRequestException(
+        `Active user limit reached (${max}). Cannot add or activate more users.`,
+      );
+    }
+  }
 
   private async assertTargetUserVisibleToActor(
     id: bigint,
@@ -1160,6 +1203,9 @@ export class UserManagementService {
     this.assertCanAssignRole(dto.role, auth);
     const id = await this.nextUserId();
     const statusDb = this.statusToDb(dto.status);
+    if (statusDb === 'Active') {
+      await this.assertActiveUserCapacityAvailable({ roleName: dto.role });
+    }
     const plateNumber = this.normalizeCarPlateNo(dto.carPlateNo);
     const inactivedBy =
       statusDb === 'Inactive' ? await this.resolveActorDisplayName(auth) : null;
@@ -1230,9 +1276,28 @@ export class UserManagementService {
     if (dto.annualQuotaEV !== undefined) data.annualQuotaEv = dto.annualQuotaEV;
     if (dto.annualQuotaVenue !== undefined) data.annualQuotaVenue = dto.annualQuotaVenue;
     if (dto.status !== undefined) {
-      data.status = this.statusToDb(dto.status);
+      const nextStatusDb = this.statusToDb(dto.status);
+      if (nextStatusDb === 'Active') {
+        const current = await this.prisma.user.findUnique({
+          where: { id: bid },
+          select: {
+            status: true,
+            access_roles: { select: { role_name: true } },
+          },
+        });
+        const wasActive =
+          String(current?.status ?? '').toLowerCase() === 'active';
+        if (!wasActive) {
+          const roleName =
+            dto.role !== undefined
+              ? dto.role
+              : current?.access_roles?.role_name;
+          await this.assertActiveUserCapacityAvailable({ roleName });
+        }
+      }
+      data.status = nextStatusDb;
       const actorName =
-        this.statusToDb(dto.status) === 'Inactive'
+        nextStatusDb === 'Inactive'
           ? await this.resolveActorDisplayName(auth)
           : null;
       Object.assign(data, this.inactiveFieldsForStatus(dto.status, actorName));
@@ -1320,9 +1385,26 @@ export class UserManagementService {
   ) {
     const bid = BigInt(id);
     await this.assertTargetUserVisibleToActor(bid, auth);
-    const data: Prisma.UserUpdateInput = { status: this.statusToDb(statusFe) };
+    const nextStatusDb = this.statusToDb(statusFe);
+    if (nextStatusDb === 'Active') {
+      const current = await this.prisma.user.findUnique({
+        where: { id: bid },
+        select: {
+          status: true,
+          access_roles: { select: { role_name: true } },
+        },
+      });
+      const wasActive =
+        String(current?.status ?? '').toLowerCase() === 'active';
+      if (!wasActive) {
+        await this.assertActiveUserCapacityAvailable({
+          roleName: current?.access_roles?.role_name,
+        });
+      }
+    }
+    const data: Prisma.UserUpdateInput = { status: nextStatusDb };
     const actorName =
-      this.statusToDb(statusFe) === 'Inactive'
+      nextStatusDb === 'Inactive'
         ? await this.resolveActorDisplayName(auth)
         : null;
     Object.assign(data, this.inactiveFieldsForStatus(statusFe, actorName));
@@ -1532,6 +1614,8 @@ export class UserManagementService {
     }
     this.assertCanAssignRole(roleName, auth);
     const accessRoleId = await this.resolveAccessRoleId(roleName);
+
+    await this.assertActiveUserCapacityAvailable({ roleName });
 
     const newId = await this.nextUserId();
     try {

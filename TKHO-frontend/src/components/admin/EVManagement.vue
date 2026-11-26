@@ -835,8 +835,12 @@ const confirmDelete = async (cascadeRelated = false) => {
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.4rem;
   min-height: 2.25rem;
+}
+
+.header-actions :deep(.el-button + .el-button) {
+  margin-left: 0;
 }
 
 .pagination-bar {

@@ -24,6 +24,23 @@
     </div>
 
     <div class="page-content">
+      <div class="tabs-with-capacity">
+        <div class="active-user-capacity" aria-live="polite">
+          <span
+            class="capacity-pill capacity-pill--active"
+            title="Current number of active users"
+          >
+            <span class="capacity-pill-label">Active Users</span>
+            <span class="capacity-pill-text">{{ activeUsers }}</span>
+          </span>
+          <span
+            class="capacity-pill capacity-pill--max"
+            title="Maximum number of allowed active users"
+          >
+            <span class="capacity-pill-label">User Limit</span>
+            <span class="capacity-pill-text">{{ maxActiveUsers }}</span>
+          </span>
+        </div>
       <el-tabs v-model="activeTab">
         <el-tab-pane label="User List" name="list">
           <div class="table-card">
@@ -772,6 +789,7 @@
           </el-tabs>
         </el-tab-pane>
       </el-tabs>
+      </div>
     </div>
 
     <BookingStyleModal
@@ -1245,6 +1263,7 @@ import { useAdminStore } from '@/stores/admin'
 import { getAccessRoles, getAccessDepartments } from '@/api/accessRight'
 import {
   listUsers,
+  getActiveUserCapacity,
   createUser,
   updateUser,
   deleteUser,
@@ -1262,6 +1281,19 @@ import { notifyPendingUsersUpdated } from '@/utils/pendingUsersSync'
 
 const adminStore = useAdminStore()
 const { pendingUsersCount } = storeToRefs(adminStore)
+
+const maxActiveUsers = ref(400)
+const activeUsers = ref(0)
+
+async function loadActiveUserCapacity () {
+  try {
+    const data = await getActiveUserCapacity()
+    maxActiveUsers.value = Number(data?.maxActiveUsers) || 400
+    activeUsers.value = Number(data?.activeUsers) || 0
+  } catch (e) {
+    console.error(e)
+  }
+}
 
 const currentQuotaYear = ref(new Date().getFullYear())
 const nextQuotaYear = computed(() => Number(currentQuotaYear.value) + 1)
@@ -1519,7 +1551,8 @@ async function loadExpiredUsers ({ includeOptions = false } = {}) {
 async function loadUsers () {
   await Promise.all([
     loadActiveUsers({ includeOptions: true }),
-    loadExpiredUsers({ includeOptions: true })
+    loadExpiredUsers({ includeOptions: true }),
+    loadActiveUserCapacity()
   ])
 }
 
@@ -1683,7 +1716,8 @@ onMounted(async () => {
       loadRoleAndDepartmentOptions(),
       loadUsers(),
       loadPendingUsers(),
-      loadRejectTemplatePrompts()
+      loadRejectTemplatePrompts(),
+      loadActiveUserCapacity()
     ])
   } catch (e) {
     console.error(e)
@@ -2778,9 +2812,13 @@ const confirmReject = async () => {
 .toolbar-right {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
   margin-left: auto;
   min-width: 0;
+}
+
+.toolbar-right :deep(.el-button + .el-button) {
+  margin-left: 0;
 }
 
 .toolbar-search {
@@ -2838,8 +2876,82 @@ const confirmReject = async () => {
   border-color: #9ca3af !important;
 }
 
+.tabs-with-capacity {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.active-user-capacity {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  height: 44px;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0.15rem 0 0.75rem;
+  white-space: nowrap;
+}
+
+.capacity-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.capacity-pill--active {
+  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+  border: 1px solid #86efac;
+}
+
+.capacity-pill--max {
+  background: linear-gradient(135deg, #e0ecfb 0%, #c9ddf7 100%);
+  border: 1px solid #6ea3e8;
+}
+
+.capacity-pill-label {
+  color: #ffffff;
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.capacity-pill--active .capacity-pill-label {
+  background: #166534;
+}
+
+.capacity-pill--max .capacity-pill-label {
+  background: #2563eb;
+}
+
+.capacity-pill-text {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.capacity-pill--active .capacity-pill-text {
+  color: #14532d;
+}
+
+.capacity-pill--max .capacity-pill-text {
+  color: #1d4ed8;
+}
+
 .page-content :deep(.el-tabs__header) {
   margin-bottom: 0.35rem;
+  padding-right: 20rem;
 }
 
 .page-content :deep(.el-tabs) {

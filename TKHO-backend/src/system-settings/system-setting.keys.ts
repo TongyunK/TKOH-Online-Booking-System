@@ -2,6 +2,8 @@ export const SystemSettingKey = {
   userInactiveAfterMonths: 'user_inactive_after_months',
   /** 无操作自动登出（分钟） */
   userAutoLogoutMinutes: 'user_auto_logout_minutes',
+  /** Active 用户上限；无 Admin UI，由工程师改库。Add / Approve / Activate 时校验 */
+  maxActiveUsers: 'max_active_users',
   hkPublicHolidaysUrl: 'hk_public_holidays_url',
   /** 登录页 User Guide 链接 */
   userGuideUrl: 'user_guide_url',
@@ -39,6 +41,7 @@ export type SystemSettingKeyName =
 
 /** Keys not exposed to admin UI / GET settings API */
 export const SYSTEM_SETTING_HIDDEN_KEYS: SystemSettingKeyName[] = [
+  SystemSettingKey.maxActiveUsers,
   SystemSettingKey.userGuideUrl,
   SystemSettingKey.operationsManualUrl,
   SystemSettingKey.loginPointsToNoteWidthPercent,
@@ -69,6 +72,7 @@ export const SYSTEM_SETTING_UI_EDITABLE_KEYS: SystemSettingKeyName[] = [
 export const SYSTEM_SETTING_DEFAULTS: Record<SystemSettingKeyName, string> = {
   [SystemSettingKey.userInactiveAfterMonths]: '6',
   [SystemSettingKey.userAutoLogoutMinutes]: '30',
+  [SystemSettingKey.maxActiveUsers]: '400',
   [SystemSettingKey.hkPublicHolidaysUrl]:
     'https://www.1823.gov.hk/common/ical/en.json',
   [SystemSettingKey.userGuideUrl]: '',
@@ -99,6 +103,8 @@ export const SYSTEM_SETTING_DESCRIPTIONS: Record<SystemSettingKeyName, string> =
       'Months without login before user status becomes Inactive',
     [SystemSettingKey.userAutoLogoutMinutes]:
       'Minutes of idle time without user activity before automatic logout',
+    [SystemSettingKey.maxActiveUsers]:
+      'Maximum number of Active users (admin UI hidden; enforced on add / pending approve / activate)',
     [SystemSettingKey.hkPublicHolidaysUrl]:
       'Hong Kong public holidays reference URL',
     [SystemSettingKey.userGuideUrl]:

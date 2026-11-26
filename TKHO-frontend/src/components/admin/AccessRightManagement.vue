@@ -826,7 +826,11 @@ const confirmDelete = async () => {
 
 .header-actions {
   display: flex;
-  gap: 0.75rem;
+  gap: 0.4rem;
+}
+
+.header-actions :deep(.el-button + .el-button) {
+  margin-left: 0;
 }
 
 .pagination-bar {

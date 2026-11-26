@@ -87,6 +87,14 @@ export class SystemSettingsService {
     return null;
   }
 
+  private parseMaxActiveUsers(raw: string): number | null {
+    const value = Number.parseInt(String(raw ?? '').trim(), 10);
+    if (Number.isFinite(value) && value >= 1 && value <= 100000) {
+      return value;
+    }
+    return null;
+  }
+
   private parseEvDateUpdateTime(raw: string): string | null {
     const value = String(raw ?? '').trim();
     if (/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) return value;
@@ -392,6 +400,19 @@ export class SystemSettingsService {
       this.parseAutoLogoutMinutes(
         this.getSetting(map, SystemSettingKey.userAutoLogoutMinutes),
       ) ?? DEFAULT_AUTO_LOGOUT_MINUTES
+    );
+  }
+
+  async getMaxActiveUsers(): Promise<number> {
+    const map = await this.ensureDefaultSettings();
+    return (
+      this.parseMaxActiveUsers(
+        this.getSetting(map, SystemSettingKey.maxActiveUsers),
+      ) ??
+      Number.parseInt(
+        SYSTEM_SETTING_DEFAULTS[SystemSettingKey.maxActiveUsers],
+        10,
+      )
     );
   }
 

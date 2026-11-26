@@ -1762,9 +1762,13 @@ const handlePreview = (file) => {
 
 .header-actions {
   display: flex;
-  gap: 0.75rem;
+  gap: 0.4rem;
   min-height: 32px;
   align-items: center;
+}
+
+.header-actions :deep(.el-button + .el-button) {
+  margin-left: 0;
 }
 
 .block-period-cell {

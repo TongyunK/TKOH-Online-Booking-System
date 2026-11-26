@@ -1783,8 +1783,12 @@ const confirmHandleApprove = async () => {
 
 .header-actions {
   display: flex;
-  gap: 0.75rem;
+  gap: 0.4rem;
   align-items: center;
+}
+
+.header-actions :deep(.el-button + .el-button) {
+  margin-left: 0;
 }
 
 .toolbar-search {

@@ -42,6 +42,13 @@ export class UserManagementController {
 
   @ApiBearerAuth()
   @UseGuards(AdminRoleGuard)
+  @Get('users/active-capacity')
+  getActiveUserCapacity() {
+    return this.userManagementService.getActiveUserCapacity();
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(AdminRoleGuard)
   @Get('users/options')
   listUserOwnerOptions(
     @Req() req: any,
