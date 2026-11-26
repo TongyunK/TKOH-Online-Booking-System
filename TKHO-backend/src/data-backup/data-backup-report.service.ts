@@ -22,6 +22,8 @@ import {
 } from '../common/user-quota';
 import { isSuperAdminRole } from '../auth/super-admin.util';
 import { PrismaService } from '../prisma/prisma.service';
+import { DISPLAY_CONFIG_UI_EDITABLE_KEYS } from '../display-management/display-config.keys';
+import { SYSTEM_SETTING_UI_EDITABLE_KEYS } from '../system-settings/system-setting.keys';
 
 export type DataBackupDateRange = {
   startYmd: string;
@@ -326,7 +328,6 @@ export class DataBackupReportService {
         '#': index + 1,
         ID: this.bigintText(row.id),
         Venue: row.venue?.name ?? '',
-        'Booking Type': row.bookingType ?? '',
         Date: this.formatBookingDate(row.bookingDate),
         'Start Time': this.formatTimeValue(row.startTime),
         'End Time': this.formatTimeValue(row.endTime),
@@ -511,20 +512,22 @@ export class DataBackupReportService {
   }
 
   private async loadUsers() {
-    const rows = await this.prisma.user.findMany({
-      where: { isSystemHidden: false },
-      include: {
-        access_roles: {
-          select: {
-            role_name: true,
+    const rows = (
+      await this.prisma.user.findMany({
+        where: { isSystemHidden: false },
+        include: {
+          access_roles: {
+            select: {
+              role_name: true,
+            },
+          },
+          department: {
+            select: { department_name: true },
           },
         },
-        department: {
-          select: { department_name: true },
-        },
-      },
-      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }, { id: 'asc' }],
-    });
+        orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }, { id: 'asc' }],
+      })
+    ).filter((row) => !isSuperAdminRole(row.access_roles?.role_name));
 
     const quotaYear = getAppCalendarYear();
     const userIds = rows.map((row) => row.id);
@@ -635,7 +638,6 @@ export class DataBackupReportService {
         display_venue_rules: {
           select: {
             display_name: true,
-            arrow_direction: true,
           },
         },
       },
@@ -662,7 +664,6 @@ export class DataBackupReportService {
       'Daily Booking Start': row.dailyBookingStartTime ?? '',
       'Daily Booking End': row.dailyBookingEndTime ?? '',
       'Display Rule Name': row.display_venue_rules?.display_name ?? '',
-      'Display Rule Arrow': row.display_venue_rules?.arrow_direction ?? '',
       'Created At': this.formatDateTimeHkt(row.createdAt),
     }));
   }
@@ -826,6 +827,7 @@ export class DataBackupReportService {
 
   private async loadSystemSettings() {
     const rows = await this.prisma.system_settings.findMany({
+      where: { setting_key: { in: [...SYSTEM_SETTING_UI_EDITABLE_KEYS] } },
       orderBy: [{ setting_key: 'asc' }],
     });
 
@@ -843,6 +845,7 @@ export class DataBackupReportService {
 
   private async loadDisplayConfigSettings() {
     const rows = await this.prisma.display_config_settings.findMany({
+      where: { config_key: { in: [...DISPLAY_CONFIG_UI_EDITABLE_KEYS] } },
       orderBy: [{ config_key: 'asc' }],
     });
 

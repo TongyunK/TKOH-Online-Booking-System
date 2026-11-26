@@ -100,7 +100,7 @@
               >Operations Manual</a>
               <span v-else class="login-docs-link is-disabled">Operations Manual</span>
               <br />
-              (for intranet use only)
+              (for intranet use only).
             </p>
           </div>
         </el-form>

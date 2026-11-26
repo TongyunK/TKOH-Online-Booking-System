@@ -14,6 +14,16 @@ export const DisplayConfigKey = {
 export type DisplayConfigKeyName =
   (typeof DisplayConfigKey)[keyof typeof DisplayConfigKey];
 
+/** Keys editable on Admin Display Management UI; used by backup Excel sheet filter */
+export const DISPLAY_CONFIG_UI_EDITABLE_KEYS: DisplayConfigKeyName[] = [
+  DisplayConfigKey.venueDisplayMode,
+  DisplayConfigKey.evDisplayMode,
+  DisplayConfigKey.mergePanelTitleText,
+  DisplayConfigKey.mergeFooterTickerText,
+  DisplayConfigKey.mergeQrCodeImage,
+  DisplayConfigKey.evFooterTickerText,
+];
+
 export const DISPLAY_CONFIG_DEFAULTS: Record<DisplayConfigKeyName, string> = {
   [DisplayConfigKey.venueDisplayMode]: 'mixed',
   [DisplayConfigKey.evDisplayMode]: 'single',

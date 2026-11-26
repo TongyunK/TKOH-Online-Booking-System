@@ -52,6 +52,20 @@ export const SYSTEM_SETTING_HIDDEN_KEYS: SystemSettingKeyName[] = [
   SystemSettingKey.displayDataPollIntervalMs,
 ];
 
+/** Keys editable on Admin System Settings UI (Save payload); used by backup Excel sheet filter */
+export const SYSTEM_SETTING_UI_EDITABLE_KEYS: SystemSettingKeyName[] = [
+  SystemSettingKey.userInactiveAfterMonths,
+  SystemSettingKey.userAutoLogoutMinutes,
+  SystemSettingKey.hkPublicHolidaysUrl,
+  SystemSettingKey.evDateUpdateTime,
+  SystemSettingKey.evWeeklyBookingLimit,
+  SystemSettingKey.venueBookingMinGapMinutes,
+  SystemSettingKey.venueMeetingEventTitleMaxLength,
+  SystemSettingKey.dataBackupReceivingEmail,
+  SystemSettingKey.dataBackupEmailSendTime,
+  SystemSettingKey.dataBackupEmailEnabled,
+];
+
 export const SYSTEM_SETTING_DEFAULTS: Record<SystemSettingKeyName, string> = {
   [SystemSettingKey.userInactiveAfterMonths]: '6',
   [SystemSettingKey.userAutoLogoutMinutes]: '30',
