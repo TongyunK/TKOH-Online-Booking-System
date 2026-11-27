@@ -1,6 +1,8 @@
 # Data Retention
 
-在线库按配置月数滚动保留业务数据；更早记录依赖客户侧 **每日 Data Backup 邮件**，本系统服务器**不另存** retention Excel 归档包。
+在线库按配置月数滚动保留业务预订数据；更早记录依赖客户侧 **每日 Data Backup 邮件**，本系统服务器**不另存** retention Excel 归档包。
+
+**用户账号与车牌不参与月度清除**（含 Active / Inactive / Expired）；长期未登录仍可由 inactivity 任务标为 Inactive，但不会被本任务删除。
 
 ## 政策摘要
 
@@ -8,12 +10,13 @@
 |------|------|
 | 默认保留期 | **24 个月**（可在 System Settings 调整） |
 | 历史备份 | 客户邮箱收到的每日 / 按配置发送的 Data Backup Excel |
-| 服务器角色 | 仅保留在线可查数据；超龄数据由月度任务从生产库删除 |
+| 服务器角色 | 仅保留在线可查预订数据；超龄预订由月度任务从生产库删除 |
+| 用户数据 | **永不**由 data retention purge 删除 |
 | 时区 | 定时任务按 **Asia/Hong_Kong (HKT)** |
 
 对客户可表述为：
 
-> 在线系统约保留最近 N 个月数据；更早记录请以每日备份邮件为准。
+> 在线系统约保留最近 N 个月的预订数据；更早预订请以每日备份邮件为准。用户账号保留在系统中。
 
 ## 清理规则
 
@@ -25,19 +28,9 @@
 |------|----------|------|------|
 | Venue 预订 | `created_at` + `booking_date` | `created_at < cutoff` **且**（`booking_date < 今天(HKT)` **或** `booking_date` 为空） | 删除（茶水子表随 DB cascade） |
 | EV 预订 | `created_at` + `booking_date` | `created_at < cutoff` **且** `booking_date < 今天(HKT)` | 删除 |
-| 用户 | `user.inactive_time` + `status` | `status = Inactive` 且 `inactive_time < cutoff` | 删除用户及其车牌 |
-| Active 用户 | — | 任意 | **永不删除** |
-| SuperAdmin / `is_system_hidden` | — | — | **不纳入** Inactive 用户清理 |
+| 用户 / 车牌 | — | — | **不删除** |
 
 因此「今天创建、预约日在两年后」的预订不会被清；须创建已超龄 **且** 预约日已过才会删。
-
-### Inactive 用户与车牌
-
-1. 查出符合条件的 Inactive 用户  
-2. 查找其 `license_plates`  
-3. 因 EV 预订对车牌为 `ON DELETE NO ACTION`，先删除仍引用这些车牌的 EV 预订（含未满 N 个月的）  
-4. 删除车牌  
-5. 再删除用户（Venue 预订对人 FK 为 `SET NULL`，未超龄的场地预订行会保留，预订人置空）
 
 ## 调度
 
@@ -78,23 +71,23 @@ WHERE setting_key = 'data_retention_ops_email';
 
 ## 运行流程（最小安全项）
 
-1. **计划日志**：清理前统计将删除的预订数、Inactive 用户数、车牌数  
+1. **计划日志**：清理前统计将删除的 Venue / EV 预订数  
 2. **分批删除**：每批最多 500 条，降低长锁风险  
 3. **结果日志**：成功 / 失败均写应用日志（含 summary JSON）  
 4. **运维邮件**：若配置了 Ops email，发送 SUCCESS / FAILED 摘要；SMTP 失败只记日志，不掩盖 purge 结果  
 
-邮件正文大致包含：retention months、cutoff、各类删除计数、起止时间、失败时的 error。
+邮件正文大致包含：retention months、cutoff、各类预订删除计数、起止时间、失败时的 error。
 
 ## 与 Data Backup 的关系
 
 | | Data Backup | Data Retention Purge |
 |--|-------------|----------------------|
-| 目的 | 给客户留业务快照 | 控制在线库体积与留存期 |
+| 目的 | 给客户留业务快照 | 控制在线库预订体积与留存期 |
 | 频率 | 按 Settings（常为每日） | 每月一次 |
-| 是否删库 | 否 | 是（超龄数据） |
+| 是否删库 | 否 | 是（超龄预订） |
 | 服务器存 Excel | 否（发邮件） | 否 |
 
-两者应同时启用：Backup 保证客户有历史副本，Retention 保证服务器不无限堆积。
+两者应同时启用：Backup 保证客户有历史副本，Retention 保证服务器不无限堆积预订。
 
 ## 代码位置
 
@@ -126,11 +119,9 @@ TKHO-backend/src/system-settings/system-setting.keys.ts
 
 ## 风险与说明
 
-- **不可恢复**：服务器 purge 后无法从本系统恢复；只能依赖客户备份邮件或其它外部备份。  
+- **不可恢复**：服务器 purge 后无法从本系统恢复预订；只能依赖客户备份邮件或其它外部备份。  
 - **未来预约不删**：即使 `created_at` 已超龄，只要 `booking_date` ≥ 今天（HKT），预订保留；Venue 的 `booking_date` 为空且已超龄则会删。  
-- **删用户时可能删较新 EV 预订**：若 Inactive 用户仍有未满 N 个月、但挂在其车牌上的 EV 预订，会一并删除以便删车牌（该路径不受 booking_date 双条件约束）。  
-- **Venue 预订人变空**：未超龄 Venue 预订在用户被删后 `reserved_by` 等为 null，列表可能显示不出原预订人姓名。  
-- **Expired 用户**：当前任务只清理 `Inactive`；`Expired` 不在本任务范围内（如需可另定规则）。  
+- **用户不删**：月度任务不删除任何用户、车牌；Inactive 仅由 inactivity 任务改状态，不触发账号清除。  
 
 ## 变更记录
 
@@ -140,3 +131,4 @@ TKHO-backend/src/system-settings/system-setting.keys.ts
 | 2026-08-27 | Data Retention 从 Admin System Settings UI 隐藏；改由 DB / 默认值配置 |
 | 2026-10-09 | 预订 purge 改为 `created_at` 超龄 **且** `booking_date` 早于今天（HKT）双条件 |
 | 2026-10-09 | Venue：超龄且 `booking_date` 为空的记录也纳入 purge |
+| 2026-11-27 | 月度 purge **不再删除** Inactive 用户及车牌；仅清理超龄 Venue / EV 预订 |

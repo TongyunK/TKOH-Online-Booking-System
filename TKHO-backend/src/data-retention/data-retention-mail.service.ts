@@ -55,18 +55,15 @@ export class DataRetentionMailService {
       '',
       `Timezone: ${APP_TIMEZONE}`,
       `Retention months: ${summary.retentionMonths}`,
-      `Cutoff (created_at / inactive_time): ${summary.cutoffIso}`,
+      `Cutoff (created_at): ${summary.cutoffIso}`,
       `Started: ${summary.startedAtIso}`,
       `Finished: ${summary.finishedAtIso}`,
       '',
       `Venue bookings deleted (by created_at): ${summary.venueBookingsDeleted}`,
       `EV bookings deleted (by created_at): ${summary.evBookingsDeletedByAge}`,
-      `EV bookings deleted (plates of purged users): ${summary.evBookingsDeletedForUserPlates}`,
-      `License plates deleted: ${summary.licensePlatesDeleted}`,
-      `Inactive users deleted: ${summary.usersDeleted}`,
       '',
       summary.ok
-        ? 'Active users are never deleted by this job.'
+        ? 'Users and license plates are never deleted by this job.'
         : `Error: ${summary.errorMessage || 'unknown'}`,
     ].join('\n');
 

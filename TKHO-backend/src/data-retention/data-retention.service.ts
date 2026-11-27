@@ -40,9 +40,6 @@ export class DataRetentionService {
       cutoffIso: cutoff.toISOString(),
       venueBookingsDeleted: 0,
       evBookingsDeletedByAge: 0,
-      evBookingsDeletedForUserPlates: 0,
-      licensePlatesDeleted: 0,
-      usersDeleted: 0,
       startedAtIso: startedAt.toISOString(),
       finishedAtIso: startedAt.toISOString(),
       ok: false,
@@ -55,18 +52,13 @@ export class DataRetentionService {
     try {
       const planned = await this.countPlannedDeletes(cutoff, todayDate);
       this.logger.log(
-        `Data retention purge plan: venueBookings=${planned.venueBookings}, evBookingsByAge=${planned.evBookingsByAge}, inactiveUsers=${planned.inactiveUsers}, licensePlates=${planned.licensePlates}`,
+        `Data retention purge plan: venueBookings=${planned.venueBookings}, evBookingsByAge=${planned.evBookingsByAge}`,
       );
 
       summary.venueBookingsDeleted =
         await this.deleteVenueBookingsByAgeAndPastDate(cutoff, todayDate);
       summary.evBookingsDeletedByAge =
         await this.deleteEvBookingsByAgeAndPastDate(cutoff, todayDate);
-
-      const userPurge = await this.deleteInactiveUsersAndPlates(cutoff);
-      summary.evBookingsDeletedForUserPlates = userPurge.evBookingsForPlates;
-      summary.licensePlatesDeleted = userPurge.licensePlates;
-      summary.usersDeleted = userPurge.users;
 
       summary.ok = true;
       summary.finishedAtIso = new Date().toISOString();
@@ -114,52 +106,14 @@ export class DataRetentionService {
   }
 
   private async countPlannedDeletes(cutoff: Date, todayDate: Date) {
-    const inactiveUserWhere = this.inactiveUserWhere(cutoff);
     const venueWhere = this.agedVenueBookingWhere(cutoff, todayDate);
     const evWhere = this.agedEvBookingWhere(cutoff, todayDate);
-    const [venueBookings, evBookingsByAge, inactiveUserRows] =
-      await Promise.all([
-        this.prisma.venueBookings.count({ where: venueWhere }),
-        this.prisma.evBookings.count({ where: evWhere }),
-        this.prisma.user.findMany({
-          where: inactiveUserWhere,
-          select: { id: true },
-        }),
-      ]);
+    const [venueBookings, evBookingsByAge] = await Promise.all([
+      this.prisma.venueBookings.count({ where: venueWhere }),
+      this.prisma.evBookings.count({ where: evWhere }),
+    ]);
 
-    const inactiveUsers = inactiveUserRows.length;
-    const licensePlates =
-      inactiveUsers === 0
-        ? 0
-        : await this.prisma.license_plates.count({
-            where: {
-              user_id: { in: inactiveUserRows.map((u) => u.id) },
-            },
-          });
-
-    return { venueBookings, evBookingsByAge, inactiveUsers, licensePlates };
-  }
-
-  private inactiveUserWhere(cutoff: Date): Prisma.UserWhereInput {
-    return {
-      status: { equals: 'inactive', mode: 'insensitive' },
-      inactiveTime: { not: null, lt: cutoff },
-      isSystemHidden: false,
-      AND: [
-        {
-          OR: [
-            { accessRoleId: null },
-            {
-              access_roles: {
-                is: {
-                  role_name: { not: 'SuperAdmin', mode: 'insensitive' },
-                },
-              },
-            },
-          ],
-        },
-      ],
-    };
+    return { venueBookings, evBookingsByAge };
   }
 
   private async deleteVenueBookingsByAgeAndPastDate(
@@ -208,62 +162,5 @@ export class DataRetentionService {
       if (rows.length < BATCH_SIZE) break;
     }
     return deleted;
-  }
-
-  private async deleteInactiveUsersAndPlates(cutoff: Date): Promise<{
-    users: number;
-    licensePlates: number;
-    evBookingsForPlates: number;
-  }> {
-    let usersDeleted = 0;
-    let platesDeleted = 0;
-    let evForPlatesDeleted = 0;
-
-    for (;;) {
-      const users = await this.prisma.user.findMany({
-        where: this.inactiveUserWhere(cutoff),
-        select: { id: true },
-        take: BATCH_SIZE,
-        orderBy: { id: 'asc' },
-      });
-      if (!users.length) break;
-
-      const userIds = users.map((u) => u.id);
-      const plates = await this.prisma.license_plates.findMany({
-        where: { user_id: { in: userIds } },
-        select: { id: true },
-      });
-      const plateIds = plates.map((p) => p.id);
-
-      if (plateIds.length) {
-        // EV bookings FK to plates is ON DELETE NO ACTION; clear remaining refs first.
-        const evResult = await this.prisma.evBookings.deleteMany({
-          where: { licensePlateId: { in: plateIds } },
-        });
-        evForPlatesDeleted += evResult.count;
-
-        const plateResult = await this.prisma.license_plates.deleteMany({
-          where: { id: { in: plateIds } },
-        });
-        platesDeleted += plateResult.count;
-      }
-
-      const userResult = await this.prisma.user.deleteMany({
-        where: {
-          id: { in: userIds },
-          // Re-check status so Active users are never deleted even if race occurs.
-          status: { equals: 'inactive', mode: 'insensitive' },
-        },
-      });
-      usersDeleted += userResult.count;
-
-      if (users.length < BATCH_SIZE) break;
-    }
-
-    return {
-      users: usersDeleted,
-      licensePlates: platesDeleted,
-      evBookingsForPlates: evForPlatesDeleted,
-    };
   }
 }
